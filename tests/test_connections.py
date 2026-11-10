@@ -474,7 +474,7 @@ class Lifecycle(unittest.TestCase):
 
     def test_install_and_start_survives_download_source_cleanup(self):
         with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
+            root = Path(directory).resolve()
             source = root / "download"
             home = root / "home"
             source.mkdir()

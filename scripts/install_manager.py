@@ -463,7 +463,7 @@ class Installer:
                 'runpy.run_module("joongi_hub", run_name="__main__")\n',
                 encoding="utf-8",
             )
-            for filename in ("VERSION", "install.sh", "install.ps1"):
+            for filename in ("VERSION", "LICENSE", "install.sh", "install.ps1"):
                 if (self.source / filename).is_file():
                     shutil.copy2(self.source / filename, runtime / filename)
             self._stage(self.runtime, runtime, "tree")

@@ -65,6 +65,7 @@ class InstallerTests(unittest.TestCase):
         self.assertTrue(installer.messages)
 
     def test_cli_uses_utf8_for_korean_paths_under_legacy_windows_encoding(self):
+        (self.source / "LICENSE").write_text("MIT License\n", encoding="utf-8")
         result = subprocess.run(
             [
                 sys.executable,
@@ -86,6 +87,10 @@ class InstallerTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("한국어 홈", result.stdout)
+        self.assertEqual(
+            (self.root / "한국어 홈/.local/share/joongi-skills/runtime/LICENSE").read_text(),
+            "MIT License\n",
+        )
 
     def test_foreign_skill_conflict_aborts_before_runtime_install(self):
         foreign = self.home / ".claude/skills/example"
