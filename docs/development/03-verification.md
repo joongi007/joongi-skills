@@ -292,3 +292,17 @@ Cursor/Gemini/Copilot/OpenCode의 GUI 전체 실사용과 외부 OAuth 계정 �
 - README·공개 안내·Python 패키지 메타데이터를 함께 갱신하고 서드파티 라이선스는 유지함.
 - 문서 검사와 Pages 번들·Python wheel 빌드 통과. 두 배포 파일에서 루트 LICENSE 포함을 확인함.
 - GitHub 저장소 연결·업로드·원격 Actions와 Pages 배포는 아직 실행하지 않음.
+
+### GitHub 첫 연결과 Windows CI 보완
+
+- 사용자 요청으로 비공개 `joongi007/joongi-skills`의 main에 첫 커밋을 push함.
+  커밋 작성자는 공개 계정명과 GitHub noreply 이메일을 사용함. 생성한 실제 Git 이력도
+  Gitleaks 검사에서 탐지 0건이며 개인 설정·인증·DB는 추적하지 않음.
+- Pages는 설정 전 자동 배포하지 않음. 설정 후 수동 실행하거나 `ENABLE_PAGES=true`로 켠다.
+- 첫 원격 CI에서 publication·Windows 설치·브라우저·Linux Python 3.10은 통과했으나,
+  영문 Windows Python 3.14에서 인코딩·짧은 경로 표기·작업 로그 정리 문제가 드러남.
+- 설치 CLI 출력을 UTF-8로 고정하고 stdio 테스트도 UTF-8로 읽도록 수정함.
+  테스트의 임시 경로를 정규화하고, 그래프는 worker 종료·로그 핸들 해제 후 ready로 보고함.
+- 레거시 cp1252 출력 환경과 worker 종료 전 상태를 회귀 테스트로 재현해 수정 전 실패·수정 후 통과 확인.
+  Windows 관련 테스트 68개 통과, 플랫폼 전용 5개 skip. 전체 환경의 최종 결과는 원격 Actions를 확인한다.
+- CI matrix의 fail-fast를 해제해 한 환경이 실패해도 다른 환경의 검증 결과를 남긴다.

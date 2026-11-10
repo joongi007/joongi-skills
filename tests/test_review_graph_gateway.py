@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from joongi_hub.errors import RpcError
 from joongi_hub.service import Hub
+from joongi_hub.storage import atomic_json
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -69,6 +70,16 @@ class ReviewGraphGatewayTests(unittest.TestCase):
             self.gateway.query("list_graph_stats_tool", {})
         with self.assertRaises(RpcError):
             self.gateway.query("list_graph_stats_tool", {"repo_root": "relative/game"})
+
+    def test_ready_is_not_reported_until_worker_releases_its_log(self):
+        root, folder = self.gateway.select(str(self.a))
+        (folder / "data").mkdir()
+        (folder / "data/graph.db").touch()
+        atomic_json(folder / "build.json", {"status": "ready", "pid": 12345})
+        with patch("joongi_hub.review_graph.process_alive", return_value=True):
+            self.assertEqual(self.gateway.status(root, folder)["status"], "building")
+        with patch("joongi_hub.review_graph.process_alive", return_value=False):
+            self.assertEqual(self.gateway.status(root, folder)["status"], "ready")
 
     def test_unindexed_repo_has_actionable_status_without_using_another_graph(self):
         self.build(self.a)

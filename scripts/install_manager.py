@@ -646,6 +646,9 @@ class Installer:
 def main(argv: list[str] | None = None) -> int:
     from joongi_hub.errors import RpcError
 
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
     if sys.version_info < (3, 10):  # noqa: UP036 - explain unsupported direct invocations
         print("Python 3.10+ is required", file=sys.stderr)
         return 1

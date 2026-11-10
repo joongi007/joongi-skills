@@ -8,6 +8,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -62,6 +63,29 @@ class InstallerTests(unittest.TestCase):
         installer.install(["claude", "codex"])
         self.assertEqual(list(self.home.iterdir()), [])
         self.assertTrue(installer.messages)
+
+    def test_cli_uses_utf8_for_korean_paths_under_legacy_windows_encoding(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-B",
+                str(Path(__file__).resolve().parents[1] / "scripts/install_manager.py"),
+                "install",
+                "--home",
+                str(self.root / "한국어 홈"),
+                "--source",
+                str(self.source),
+                "--agent",
+                "codex",
+            ],
+            env={**os.environ, "PYTHONIOENCODING": "cp1252"},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("한국어 홈", result.stdout)
 
     def test_foreign_skill_conflict_aborts_before_runtime_install(self):
         foreign = self.home / ".claude/skills/example"

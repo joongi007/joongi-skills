@@ -32,7 +32,7 @@ class Connections(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.home = self.root / "home"
         self.home.mkdir()
         self.hub = Hub(ROOT / "skills", self.root / "state")
@@ -499,7 +499,9 @@ class Lifecycle(unittest.TestCase):
                 "0",
             ]
             try:
-                result = subprocess.run(command, capture_output=True, text=True, timeout=30)
+                result = subprocess.run(
+                    command, capture_output=True, text=True, encoding="utf-8", timeout=30
+                )
                 self.assertEqual(result.returncode, 0, result.stderr)
                 record = running(state)
                 self.assertIsNotNone(record)
@@ -542,7 +544,9 @@ class Lifecycle(unittest.TestCase):
                 "--url",
                 "http://127.0.0.1:12345",
             ]
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, encoding="utf-8", timeout=30
+            )
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertIn(
                 'url = "http://127.0.0.1:12345/mcp"', (home / ".codex/config.toml").read_text()

@@ -208,6 +208,9 @@ class Gateway:
             state = {**state, "status": "interrupted"}
         if state["status"] == "ready" and not (folder / "data/graph.db").is_file():
             state = {"status": "not_indexed"}
+        if state["status"] == "ready" and process_alive(state.get("pid")):
+            # Completion is durable before process exit; Windows still holds worker.log.
+            state = {**state, "status": "building"}
         return {
             **state,
             "repo_root": str(root),
