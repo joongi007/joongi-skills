@@ -1,0 +1,332 @@
+[
+  {
+    "name": "get_minimal_context_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "task": {
+          "default": "",
+          "type": "string",
+          "description": "What you are doing (e.g. \"review PR #42\", \"debug login timeout\")."
+        },
+        "changed_files": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Explicit list of changed files. Auto-detected if omitted."
+        },
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        },
+        "base": {
+          "default": "HEAD~1",
+          "type": "string",
+          "description": "Git ref for diff comparison. Default: HEAD~1."
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_impact_radius_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "changed_files": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "List of changed file paths (relative to repo root). Auto-detected if omitted."
+        },
+        "max_depth": {
+          "default": 2,
+          "type": "integer",
+          "description": "Number of hops to traverse in the dependency graph. Default: 2."
+        },
+        "max_results": {
+          "default": 500,
+          "type": "integer",
+          "description": "How many impacted nodes to traverse to. Default: 500. Each\nlist in the response also has a fixed ceiling (100 nodes, 150\nedges, 200 files) so the response size does not grow with the\nrepository; the omitted counts report the rest."
+        },
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        },
+        "base": {
+          "default": "HEAD~1",
+          "type": "string",
+          "description": "Git ref for auto-detecting changes. Default: HEAD~1."
+        },
+        "detail_level": {
+          "default": "standard",
+          "type": "string",
+          "description": "\"standard\" for full output, \"minimal\" for compact summary. Default: standard."
+        },
+        "resolution": {
+          "default": "all",
+          "type": "string",
+          "description": "\"all\" (default) or \"direct\" to traverse only calls bound to an indexed node."
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "query_graph_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "pattern": {
+          "type": "string",
+          "description": "Query pattern name (see above)."
+        },
+        "target": {
+          "type": "string",
+          "description": "Node name, qualified name, or file path to query."
+        },
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        },
+        "detail_level": {
+          "default": "standard",
+          "type": "string",
+          "description": "\"standard\" for full output, \"minimal\" for compact summary. Default: standard."
+        },
+        "max_results": {
+          "default": 100,
+          "type": "integer",
+          "description": "Maximum results to return. Default: 100."
+        },
+        "resolution": {
+          "default": "all",
+          "type": "string",
+          "description": "\"all\" (default), \"direct\" for only calls bound to an indexed\nnode, or \"unresolved\" for only the bare-name matches."
+        }
+      },
+      "required": [
+        "pattern",
+        "target"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_review_context_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "changed_files": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Files to review. Auto-detected from git diff if omitted."
+        },
+        "max_depth": {
+          "default": 2,
+          "type": "integer",
+          "description": "Impact radius depth. Default: 2."
+        },
+        "include_source": {
+          "default": true,
+          "type": "boolean",
+          "description": "Include source code snippets. Default: True."
+        },
+        "max_lines_per_file": {
+          "default": 200,
+          "type": "integer",
+          "description": "Max source lines per file. Default: 200."
+        },
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        },
+        "base": {
+          "default": "HEAD~1",
+          "type": "string",
+          "description": "Git ref for change detection. Default: HEAD~1."
+        },
+        "detail_level": {
+          "default": "standard",
+          "type": "string",
+          "description": "\"standard\" for full output, \"minimal\" for\ntoken-efficient summary. Default: standard."
+        },
+        "max_results": {
+          "default": 100,
+          "type": "integer",
+          "description": "Maximum graph nodes per list and edges to return.\nDefault: 50. Each list reports its untruncated ``*_total``."
+        },
+        "max_files": {
+          "default": 25,
+          "type": "integer",
+          "description": "Maximum files listed and given source snippets.\nDefault: 25. Snippets share an 800-line budget."
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "list_graph_stats_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        }
+      },
+      "type": "object"
+    }
+  },
+  {
+    "name": "get_docs_section_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "section_name": {
+          "type": "string",
+          "description": "The section to retrieve (e.g. \"review-delta\", \"usage\")."
+        },
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        }
+      },
+      "required": [
+        "section_name"
+      ],
+      "type": "object"
+    }
+  },
+  {
+    "name": "find_large_functions_tool",
+    "inputSchema": {
+      "additionalProperties": false,
+      "properties": {
+        "min_lines": {
+          "default": 50,
+          "type": "integer",
+          "description": "Minimum line count to flag. Default: 50."
+        },
+        "kind": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Optional filter: Function, Class, File, or Test."
+        },
+        "file_path_pattern": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Filter by file path substring (e.g. \"components/\")."
+        },
+        "limit": {
+          "default": 50,
+          "type": "integer",
+          "description": "Maximum results. Default: 50."
+        },
+        "repo_root": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "description": "Repository root path. Auto-detected if omitted."
+        }
+      },
+      "type": "object"
+    }
+  }
+]

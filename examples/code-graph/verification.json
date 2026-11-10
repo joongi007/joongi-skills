@@ -1,0 +1,31 @@
+{
+  "date": "2026-11-05",
+  "external": {
+    "name": "GitNexus",
+    "version": "1.6.12",
+    "verified_runtime": "Node 22.18.0",
+    "license": "PolyForm-Noncommercial-1.0.0",
+    "source": "https://github.com/abhigyanpatwari/GitNexus",
+    "project": "joongi-skills",
+    "index_options": ["--skip-git", "--index-only", "--skip-agents-md", "--skip-skills", "--skip-fts", "--workers", "1"],
+    "stats": {"files": 100, "nodes": 1286, "edges": 2377, "clusters": 33, "flows": 70},
+    "protocol": "2025-11-25",
+    "discovered_tools": 17,
+    "calls_verified": ["list_repos", "cypher", "context"],
+    "symbol": {
+      "name": "validate_server",
+      "file": "joongi_hub/upstream.py",
+      "callers": ["Hub.register", "HubTest.test_registry_validation"],
+      "callees": ["validate_url"]
+    },
+    "limitations": ["No Git commit tracking; freshness unknown", "FTS and embeddings disabled", "Some flow exploration truncated by tool budget"]
+  },
+  "builtin": {
+    "name": "joongi-code-graph",
+    "engine": "Python stdlib ast",
+    "protocol_versions_tested": ["2025-06-18", "2025-11-25", "2026-07-28"],
+    "tools": ["graph_status", "graph_index", "graph_symbols", "graph_context", "graph_callers", "graph_callees", "graph_impact"],
+    "source_execution": false,
+    "freshness": "SHA-256 snapshot; stale queries rejected until explicit reindex"
+  }
+}

@@ -1,0 +1,124 @@
+name: Check
+
+on:
+  pull_request:
+  push:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  publication:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - name: Install verified secret scanner
+        shell: bash
+        run: |
+          curl --fail --location --retry 3 https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/gitleaks.tar.gz"
+          echo "551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP" gitleaks
+      - name: Reject local state in tracked files
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          from scripts.build_pages import public_file
+          paths = subprocess.check_output(['git', 'ls-files', '-z']).decode().split('\0')
+          bad = [p for p in paths if p and (not public_file(Path(p)) or Path(p).parts[0] in {'dist', 'build', '_site'})]
+          if bad:
+              raise SystemExit('Local-only files are tracked: ' + ', '.join(bad))
+          PY
+      - name: Scan current files and commit history
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/gitleaks" dir . --redact=100 --no-banner
+          "$RUNNER_TEMP/gitleaks" git . --redact=100 --no-banner --log-opts="--all"
+      - name: Inspect distributable files
+        shell: bash
+        run: |
+          python scripts/build_pages.py --out "$RUNNER_TEMP/pages-audit" --base-url https://example.invalid/joongi-skills
+          mkdir "$RUNNER_TEMP/bundle-audit"
+          tar -xzf "$RUNNER_TEMP/pages-audit/joongi-skills.tar.gz" -C "$RUNNER_TEMP/bundle-audit"
+          "$RUNNER_TEMP/gitleaks" dir "$RUNNER_TEMP/bundle-audit" --redact=100 --no-banner
+
+  windows-installer:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - name: Native PowerShell installation lifecycle
+        shell: pwsh
+        run: ./tests/windows_installer_smoke.ps1
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Install browser test dependency
+        run: |
+          npm ci
+          npm run build:apps
+          npx playwright install --with-deps chromium --only-shell
+      - name: Official MCP SDK interoperability
+        run: npm run test:sdk
+      - name: Browser acceptance test
+        run: npm run test:browser
+
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ['3.10', '3.14']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Tests
+        run: python -B -m unittest discover -s tests -v
+      - name: Install linter
+        if: runner.os == 'Linux' && matrix.python == '3.14'
+        run: python -m pip install ruff==0.16.6
+      - name: Lint and format
+        if: runner.os == 'Linux' && matrix.python == '3.14'
+        run: |
+          ruff check joongi_hub scripts tests
+          ruff format --check joongi_hub scripts tests
+      - name: Check documentation
+        run: python -B scripts/check_docs.py
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+      - name: Check browser JavaScript
+        run: |
+          node --check site/install.js
+          node --check joongi_hub/static/app.js
+          node --check joongi_hub/static/app-relay.js
+          node --check tests/sdk_interop.cjs
+          node --check tests/browser_management.cjs
+          node --check tests/browser_ux.cjs
+          node --check tests/browser_connections.cjs
+          node --check joongi_hub/static/markdown.js
+      - name: Validate skill bundles
+        if: runner.os == 'Linux'
+        run: bash build.sh --check
+      - name: AST mutation campaign
+        if: runner.os == 'Linux' && matrix.python == '3.14'
+        run: python -B scripts/mutation_check.py

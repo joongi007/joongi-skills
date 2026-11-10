@@ -1,0 +1,5 @@
+# Keep local state, optional tools and generated SDK bundles out of source analysis.
+.local/
+joongi_hub/_vendor/
+joongi_hub/static/apps-host.js
+examples/apps/demo-view.js

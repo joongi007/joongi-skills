@@ -1,0 +1,329 @@
+{
+  "schema": 1,
+  "facts": {
+    "runtime.version": "0.1.0",
+    "runtime.versionFile": "0.1.0",
+    "protocol.versions": [
+      "2026-07-28",
+      "2025-11-25",
+      "2025-06-18"
+    ],
+    "protocol.methodBranches": [
+      "initialize",
+      "notifications/initialized",
+      "ping",
+      "prompts/get",
+      "prompts/list",
+      "resources/directory/read",
+      "resources/list",
+      "resources/read",
+      "resources/templates/list",
+      "server/discover",
+      "skills/get",
+      "skills/list",
+      "tasks/cancel",
+      "tasks/get",
+      "tasks/list",
+      "tasks/result",
+      "tasks/update",
+      "tools/call",
+      "tools/list"
+    ],
+    "http.routes": [
+      "DELETE /api/v1/projects/{value}",
+      "DELETE /api/v1/servers/{value}",
+      "DELETE /mcp",
+      "DELETE /mcp/projects/{value}",
+      "GET /",
+      "GET /api/v1/connection",
+      "GET /api/v1/projects",
+      "GET /api/v1/search",
+      "GET /api/v1/session",
+      "GET /api/v1/skill-management/status",
+      "GET /api/v1/skills/{value}",
+      "GET /api/v1/state",
+      "GET /api/v1/tasks",
+      "GET /apps/{value}",
+      "GET /healthz",
+      "GET /mcp",
+      "GET /mcp/projects/{value}",
+      "GET /oauth/callback",
+      "GET /static/{value}",
+      "POST /api/v1/apps",
+      "POST /api/v1/apps/{value}/rpc",
+      "POST /api/v1/auth/{value}",
+      "POST /api/v1/call",
+      "POST /api/v1/connection",
+      "POST /api/v1/connection/apply",
+      "POST /api/v1/connection/plan",
+      "POST /api/v1/projects",
+      "POST /api/v1/runtime/stop",
+      "POST /api/v1/servers",
+      "POST /api/v1/servers/{value}/probe",
+      "POST /api/v1/skill-management/apply",
+      "POST /api/v1/skill-management/plan",
+      "POST /api/v1/tasks/{value}/cancel",
+      "POST /api/v1/tasks/{value}/input",
+      "POST /mcp",
+      "POST /mcp/projects/{value}"
+    ],
+    "agents.skills": {
+      "claude": ".claude/skills",
+      "codex": ".agents/skills",
+      "cursor": ".cursor/skills",
+      "copilot": ".copilot/skills",
+      "gemini": ".gemini/skills",
+      "opencode": ".config/opencode/skills"
+    },
+    "agents.detection": {
+      "claude": ".claude",
+      "codex": ".codex",
+      "cursor": ".cursor",
+      "copilot": ".copilot",
+      "gemini": ".gemini",
+      "opencode": ".config/opencode"
+    },
+    "cli.options": {
+      "serve": [
+        "--help",
+        "--host",
+        "--port",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "stdio": [
+        "--fallback",
+        "--help",
+        "--mode",
+        "--profile",
+        "--skills-dir",
+        "--state-dir",
+        "--url"
+      ],
+      "configure": [
+        "--fallback",
+        "--help",
+        "--mode",
+        "--profile",
+        "--skills-dir",
+        "--state-dir",
+        "--url"
+      ],
+      "start": [
+        "--help",
+        "--port",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "stop": [
+        "--help",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "restart": [
+        "--help",
+        "--port",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "status": [
+        "--help",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "open": [
+        "--help",
+        "--port",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "state": [
+        "--help",
+        "--import-from",
+        "--restore-backup",
+        "--skills-dir",
+        "--state-dir"
+      ]
+    },
+    "protocol.modernCapabilities": {
+      "tools": {},
+      "resources": {},
+      "prompts": {},
+      "extensions": {
+        "io.modelcontextprotocol/tasks": {},
+        "io.modelcontextprotocol/skills": {
+          "directoryRead": true
+        },
+        "io.modelcontextprotocol/ui": {
+          "mimeTypes": [
+            "text/html;profile=mcp-app"
+          ]
+        }
+      }
+    },
+    "protocol.legacyCapabilities": {
+      "tools": {},
+      "resources": {},
+      "prompts": {},
+      "tasks": {
+        "list": {},
+        "cancel": {},
+        "requests": {
+          "tools": {
+            "call": {}
+          }
+        }
+      }
+    }
+  },
+  "requiredClaims": [
+    "runtime.version",
+    "protocol.versions",
+    "cli.options"
+  ],
+  "requirements": {
+    "REQ-SKILL": {
+      "tests": [
+        "tests.test_hub.HubTest.test_native_skills_manifest_and_on_demand_read",
+        "tests.test_projects.ProjectScopes.test_project_override_and_common_selection_do_not_modify_common",
+        "tests.test_projects.ProjectScopes.test_native_uri_and_directory_cannot_escape_selected_catalog"
+      ],
+      "documents": [
+        "docs/architecture/02-compatibility.md",
+        "docs/operations/05-auth-project-skills.md"
+      ]
+    },
+    "REQ-REGISTRY": {
+      "tests": [
+        "tests.test_hub.HubTest.test_registry_validation",
+        "tests.test_auth.Authentication.test_browser_pkce_callback_and_real_mcp_call",
+        "tests.test_auth.Authentication.test_expiry_refresh_rotation_and_server_rejection_retry",
+        "tests.test_projects.ProjectScopes.test_stdio_profile_stays_bound_standalone_and_bridged",
+        "tests.test_connections.Connections.test_settings_inherit_and_override_without_changing_project_state",
+        "tests.test_credential_lock.CredentialProcesses.test_concurrent_process_updates_preserve_every_server",
+        "tests.test_state_store.StateStore.test_installed_launcher_uses_same_home_for_web_and_stdio_defaults",
+        "tests.test_state_store.StateStore.test_missing_registry_is_reported_and_requires_explicit_restore",
+        "tests.test_state_store.StateStore.test_import_merges_preserves_source_and_refuses_all_on_conflict",
+        "tests.test_state_store.StateStore.test_independent_processes_do_not_lose_registrations",
+        "tests.test_state_store.StateStore.test_http_service_and_new_stdio_process_see_same_registry",
+        "tests.test_review_graph_gateway.ReviewGraphGatewayTests.test_two_repositories_keep_separate_graphs_when_calls_alternate",
+        "tests.test_review_graph_gateway.ReviewGraphGatewayTests.test_hub_stdio_routes_two_projects_and_new_connection_reuses_the_index",
+        "tests.test_review_graph_gateway.ReviewGraphGatewayTests.test_every_analysis_tool_requires_explicit_repository",
+        "tests.test_search.CatalogSearchTests.test_exact_identifier_ranks_before_description_keyword_matches",
+        "tests.test_search.CatalogSearchTests.test_argument_names_are_searchable_and_camel_case_is_split",
+        "tests.test_search.CatalogSearchTests.test_summary_then_exact_full_definition_keeps_origin_and_schema",
+        "tests.test_search.CatalogSearchTests.test_regex_alternation_invalid_patterns_and_nested_repetition"
+      ],
+      "documents": [
+        "docs/architecture/01-components.md",
+        "docs/operations/05-auth-project-skills.md",
+        "docs/operations/06-connection-modes.md",
+        "docs/operations/07-state-consistency.md",
+        "docs/operations/04-code-review-graph.md",
+        "docs/adr/0009-project-selecting-graph.md",
+        "docs/operations/08-catalog-search.md"
+      ]
+    },
+    "REQ-CALL": {
+      "tests": [
+        "tests.test_hub.HttpHubTest.test_http_upstream_actual_transport_both_eras"
+      ],
+      "documents": [
+        "docs/architecture/02-compatibility.md",
+        "docs/operations/08-catalog-search.md"
+      ]
+    },
+    "REQ-PROTOCOL": {
+      "tests": [
+        "tests.test_hub.HubTest.test_nine_client_upstream_version_combinations",
+        "tests.test_connections.Connections.test_default_stdio_never_probes_http_and_hybrid_discovers_matching_store",
+        "tests.test_connections.Connections.test_http_project_url_binds_legacy_session_and_rejects_scope_conflicts",
+        "tests.test_connections.Connections.test_bridge_failure_after_initialize_does_not_switch_to_local_execution"
+      ],
+      "documents": [
+        "docs/architecture/02-compatibility.md",
+        "docs/operations/06-connection-modes.md"
+      ]
+    },
+    "REQ-APPS": {
+      "tests": [
+        "tests.test_hub.HubTest.test_apps_original_tool_alias_and_ambiguity"
+      ],
+      "documents": [
+        "docs/architecture/02-compatibility.md"
+      ]
+    },
+    "REQ-TASKS": {
+      "tests": [
+        "tests.test_hub.HubTest.test_modern_task_result_and_legacy_task_result"
+      ],
+      "documents": [
+        "docs/operations/00-index.md"
+      ]
+    },
+    "REQ-UI": {
+      "tests": [
+        "tests.test_hub.HttpHubTest.test_http_panel_and_security_boundaries"
+      ],
+      "documents": [
+        "docs/operations/00-index.md"
+      ]
+    },
+    "REQ-INSTALL": {
+      "tests": [
+        "tests.test_installer.InstallerTests.test_install_update_detects_new_agent_and_removes_deleted_reference",
+        "tests.test_skill_management.SkillManagement.test_project_copy_is_pinned_and_common_update_does_not_touch_it",
+        "tests.test_skill_management.SkillManagement.test_installer_also_honors_pins_and_failed_apply_rolls_back",
+        "tests.test_connections.Connections.test_registration_plan_updates_all_six_agents_and_preserves_unrelated_values",
+        "tests.test_connections.Connections.test_registration_does_not_overwrite_unowned_or_edited_configs",
+        "tests.test_connections.Lifecycle.test_real_start_status_restart_stop_and_state_survives",
+        "tests.test_connections.Lifecycle.test_install_and_start_survives_download_source_cleanup",
+        "tests.test_connections.Connections.test_stdio_sigterm_gracefully_closes_its_upstream"
+      ],
+      "documents": [
+        "docs/installation/00-index.md",
+        "docs/operations/05-auth-project-skills.md",
+        "docs/operations/06-connection-modes.md"
+      ]
+    },
+    "REQ-PAGES": {
+      "tests": [
+        "tests.test_pages.PagesTests.test_build_bakes_url_and_download_extracts_source",
+        "tests.test_publication.PublicationTests.test_bundle_and_site_exclude_private_files_and_account_headers"
+      ],
+      "documents": [
+        "docs/installation/02-github-pages.md",
+        "docs/installation/03-publication.md"
+      ]
+    },
+    "REQ-KNOWLEDGE": {
+      "tests": [
+        "tests.test_docs.DocumentationChecks.test_route_requires_both_existing_file_and_discovery"
+      ],
+      "documents": [
+        "docs/skill-authoring.md"
+      ]
+    },
+    "REQ-PROCESS": {
+      "tests": [
+        "tests.test_contracts.ContractTests.test_requirement_must_resolve_to_existing_acceptance_test"
+      ],
+      "documents": [
+        "docs/development/01-work-packages.md"
+      ]
+    }
+  },
+  "documentClaims": {
+    "docs/architecture/04-contracts.md": [
+      "runtime.version",
+      "protocol.versions",
+      "cli.options"
+    ],
+    "docs/architecture/02-compatibility.md": [
+      "protocol.versions"
+    ],
+    "docs/operations/00-index.md": [
+      "cli.options"
+    ]
+  }
+}

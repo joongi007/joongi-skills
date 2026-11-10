@@ -1,0 +1,61 @@
+{
+  "date": "2026-11-06",
+  "name": "code-review-graph",
+  "version": "2.3.9",
+  "license": "MIT",
+  "source": "https://github.com/tirth8205/code-review-graph",
+  "runtime": {
+    "python": "3.14.0",
+    "fastmcp": "3.4.11",
+    "mcp": "1.30.0"
+  },
+  "protocol": "2025-11-25",
+  "tools": [
+    "find_large_functions_tool",
+    "get_docs_section_tool",
+    "get_impact_radius_tool",
+    "get_minimal_context_tool",
+    "get_review_context_tool",
+    "list_graph_stats_tool",
+    "query_graph_tool"
+  ],
+  "calls_verified": [
+    "list_graph_stats_tool",
+    "query_graph_tool"
+  ],
+  "project": "joongi-skills",
+  "stats": {
+    "files_count": 50,
+    "total_nodes": 518,
+    "total_edges": 6774,
+    "languages": [
+      "bash",
+      "javascript",
+      "powershell",
+      "python"
+    ],
+    "embeddings_count": 0,
+    "calls_by_resolution": {
+      "direct": 1165,
+      "unresolved": 3456
+    }
+  },
+  "sample_query": {
+    "pattern": "file_summary",
+    "target": "joongi_hub/apps.py",
+    "status": "ok",
+    "result_count": 9
+  },
+  "upstream_extensions": {
+    "apps": "not provided by this configured surface",
+    "tasks": "not advertised"
+  },
+  "limitations": [
+    "No usable Git history; PR diff workflows not tested",
+    "Unresolved calls are static candidates",
+    "Generated dependencies and SDK bundles excluded",
+    "No embeddings, cloud providers, refactoring, hooks or agent installs",
+    "Optional environment used for review; not bundled with Hub",
+    "WSL verification uses a Linux filesystem environment to avoid slow Windows-mounted imports"
+  ]
+}

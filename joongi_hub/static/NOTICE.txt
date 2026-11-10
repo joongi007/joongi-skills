@@ -1,0 +1,6 @@
+Design tokens are adapted from nexu-io/open-design, design-systems/github/tokens.css.
+Source: https://github.com/nexu-io/open-design
+License: Apache License 2.0, reproduced in LICENSE-open-design.txt.
+Retrieved: 2026-11-05.
+The token file preserves the package values with compact formatting and system font fallbacks.
+Application OKLCH neutral adaptations are in theme.css; landing adaptations are in style.css.

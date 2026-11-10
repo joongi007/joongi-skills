@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "joongi-hub"
+version = "0.1.0"
+description = "Local skills and MCP gateway with a private control panel"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+joongi-hub = "joongi_hub.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["joongi_hub*", "scripts*"]
+
+[tool.setuptools.package-data]
+joongi_hub = ["static/*", "review_graph_tools.json", "_vendor/yaml/LICENSE", "_vendor/yaml/PROVENANCE.json"]
+
+[tool.ruff]
+extend-exclude = ["joongi_hub/_vendor"]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
