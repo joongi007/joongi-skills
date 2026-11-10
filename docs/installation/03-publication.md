@@ -44,7 +44,11 @@ Check 워크플로는 다음을 검증한다.
 - 추적된 파일에 개인 설정·환경 파일·키 파일이 포함되지 않는지 검사
 
 공식 Actions는 검증한 commit SHA로 고정하고 Dependabot이 Actions·npm 업데이트 PR을 제안한다.
+월별 일반 업데이트는 Actions와 npm을 각각 하나의 PR로 묶고 생태계별 열린 버전 업데이트 PR을
+1개로 제한한다. 보안 업데이트는 별도 그룹으로 처리하며 일반 업데이트의 개수 제한을 적용하지 않는다.
+업데이트를 자동 병합하지 않는다. PR에서 CI로 검증한 뒤 병합한다.
 워크플로의 기본 토큰 권한은 읽기이며 Pages 배포 작업에만 배포 권한을 준다.
+일반 Check는 main push와 PR에서 실행한다. 같은 PR의 이전 CI는 새 커밋이 올라오면 취소한다.
 Pages는 전체 Check를 재사용하며 성공 후 정적 페이지와 설치 번들을 배포한다.
 뮤테이션 캠페인은 살아남은 변이를 보고하며 기본 설정에서 이를 실패로 처리하지 않는다.
 최신 범위와 미탐은 [검증 기록](../development/03-verification.md)을 확인한다.
@@ -68,3 +72,16 @@ Actions 실행 결과와 Pages 설정에서 확인한다.
 
 설치·연동·로컬 실행은 [설치 안내](00-index.md)와
 [연결 방식](../operations/06-connection-modes.md)을 따른다. 기본 stdio는 HTTP 서버를 요구하지 않는다.
+
+## main 브랜치 보호
+
+공용 저장소의 main은 강제 push·삭제를 금지하고 관리자에게도 보호 규칙을 적용한다.
+변경은 별도 브랜치와 PR로 진행하며, 병합 전 최신 main 기준으로 다음 7개 검사를 통과해야 한다.
+
+- `publication`, `windows-installer`, `browser`
+- `test (ubuntu-latest, 3.10)`, `test (ubuntu-latest, 3.14)`
+- `test (windows-latest, 3.10)`, `test (windows-latest, 3.14)`
+
+검사 출처는 GitHub Actions로 고정한다. PR의 미해결 대화도 완료해야 한다.
+개인 저장소이므로 다른 사람의 승인은 필수가 아니다. GitHub의 브랜치 보호는 저장소 설정이며
+소스를 clone한 다른 저장소로 자동 복사되지는 않는다. 새 저장소에서는 설정을 다시 적용한다.
