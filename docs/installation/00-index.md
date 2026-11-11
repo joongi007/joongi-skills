@@ -6,6 +6,13 @@ Python 3.10 이상이면 추가 패키지 없이 실행한다. 개발 기준은 
 `--mode hybrid --start`로 공유 서버를 켤 수도 있다.
 세부 사용은 [연결 방식과 웹 실행](../operations/06-connection-modes.md)을 본다. 실제 설치 전 `--dry-run`으로 경로를 확인할 수 있다.
 
+## 클론 없이 설치
+
+[설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서 OS별 명령을 복사해 터미널에서 실행한다.
+사이트는 설치 파일을 제공하고, Hub는 사용자의 컴퓨터에서 실행된다.
+설치 후에는 에이전트의 MCP 연결을 다시 열고 스킬 검색을 확인한다.
+[설치 후 첫 사용 순서](../../README.md#설치-후-첫-사용).
+
 ## 클론에서 설치
 
 ```bash
@@ -90,11 +97,13 @@ Pages 설치는 다운로드 주소를 기억하므로 이후 `joongi-skills upd
 클론에서 PowerShell로 실행한다.
 
 ```powershell
-.\install.ps1 install
-.\install.ps1 update
-.\install.ps1 uninstall
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 install --dry-run
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 install
+& "$HOME/.local/bin/joongi-skills.cmd" update
+& "$HOME/.local/bin/joongi-skills.cmd" uninstall
 ```
 
+자식 PowerShell의 실행 정책만 지정하며 사용자 전역 정책은 바꾸지 않는다.
 세부 옵션은 Python 진입점을 직접 호출하면 셸별 인수 해석 차이가 없다.
 
 ```powershell
@@ -106,15 +115,8 @@ PowerShell은 `py -3`, `python3`, `python` 순으로 Python 3.10 이상을 찾�
 PATH의 `python.exe`가 오래된 버전이어도 지원 버전이 `py`에 등록돼 있으면 사용할 수 있다.
 특정 실행 파일은 `JOONGI_PYTHON`으로 지정한다.
 
-2026-11-05에 실제 Windows PowerShell 5.1과 Python 3.13.1에서
-`tests/windows_installer_smoke.ps1`을 실행해 임시 홈 설치·런처·업데이트·새 에이전트
-감지·MCP 등록·제거를 통과했다. 테스트는 작업공간 안 임시 디렉터리만 사용하고 정리했다.
-Windows CI도 같은 네이티브 테스트를 실행하도록 구성돼 있다.
-테스트용 자식 프로세스의 실행 정책만 지정하며 사용자 전역 실행 정책은 변경하지 않는다.
-같은 환경에서 임시 HTTPS 번들 서버를 사용한 원격 PowerShell bootstrap의
-다운로드·해시 확인·압축 해제·설치·제거도 통과했다.
-WSL에서 `python3 tests/wsl_windows_bootstrap.py`로 재현하며 Windows PowerShell/Python과
-openssl이 필요하다. 인증서는 임시 테스트 프로세스에서만 신뢰하고 테스트 후 삭제한다.
+Windows PowerShell 설치와 실제 공개 URL의 설치·업데이트·제거는 CI와 로컬 Windows에서 검증했다.
+사용한 환경·명령·제한은 [검증 기록](../development/03-verification.md)을 본다.
 
 ## 테스트용 경로
 
