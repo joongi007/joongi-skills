@@ -48,6 +48,10 @@ def main():
         or parsed.fragment
     ):
         parser.error("Use a trusted HTTPS deployment URL without credentials or query strings")
+    with urllib.request.urlopen(BASE + "/read/docs/00-index.html", timeout=30) as response:
+        document = response.read().decode("utf-8")
+    assert '<article class="document-body">' in document and "문서 안내" in document
+    assert "installation/00-index.html" in document
     with tempfile.TemporaryDirectory(prefix="joongi-live-bootstrap-") as directory:
         temp = Path(directory).resolve()
         home = temp / "home with spaces 한글"
@@ -154,6 +158,7 @@ def main():
             "remote_update_new_agent": True,
             "uninstall_preserves_state": True,
             "license_verified": True,
+            "rendered_docs": True,
         }
         print(json.dumps(record), flush=True)
 

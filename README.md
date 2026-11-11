@@ -3,7 +3,7 @@
 여러 AI 에이전트에서 같은 개발 지침을 사용하고, MCP 서버를 한 곳에서 연결·검색하는 로컬 도구입니다.
 **0.1.0 · 초기 릴리스**이며, Python 3.10 이상이 필요합니다.
 
-[설치 안내 사이트](https://joongi007.github.io/joongi-skills/) · [문서 안내](docs/00-index.md) · [지원 범위](docs/architecture/02-compatibility.md)
+[설치 안내 사이트](https://joongi007.github.io/joongi-skills/) · [사이트에서 문서 읽기](https://joongi007.github.io/joongi-skills/read/docs/00-index.html) · [문서 원본](docs/00-index.md) · [지원 범위](docs/architecture/02-compatibility.md)
 
 ## 먼저 알아두기
 
@@ -115,6 +115,7 @@ Hub 검색과 함께 연결된 도구의 직접 노출도 제공합니다. 에�
 [테스트 안내](docs/development/02-quality.md)를 따릅니다.
 
 ```bash
+python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
 python3 -B -m unittest discover -s tests -v
 python3 -B scripts/check_docs.py
 bash build.sh --check

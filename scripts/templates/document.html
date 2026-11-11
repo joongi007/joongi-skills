@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{title} · Joongi Hub 문서</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="{tokens}">
+  <link rel="stylesheet" href="{stylesheet}">
+</head>
+<body>
+  <a class="skip" href="#document-content">본문으로 이동</a>
+  <header class="docs-header">
+    <a class="brand" href="{home}">joongi hub <span>문서</span></a>
+    <nav aria-label="사이트 메뉴">
+      <a href="{home}#install">설치</a>
+      <a href="{doc_home}">문서 안내</a>
+      <a href="{source_url}">GitHub 원문</a>
+    </nav>
+  </header>
+  <div class="docs-layout">
+    <aside class="docs-sidebar">
+      <nav class="desktop-document-menu" aria-label="문서 탐색">{navigation}</nav>
+      <details class="document-menu">
+        <summary>문서 목록</summary>
+        <nav aria-label="문서 탐색">{navigation}</nav>
+      </details>
+    </aside>
+    <main id="document-content" tabindex="-1">
+      <div class="document-path">{source}</div>
+      <details class="page-toc">
+        <summary>이 문서의 목차</summary>
+        <nav aria-label="본문 목차"><ul>{toc}</ul></nav>
+      </details>
+      <article class="document-body">{body}</article>
+      <footer>
+        <a href="{doc_home}">문서 안내로 돌아가기</a>
+        <a href="{source_url}">이 문서의 원문 보기 ↗</a>
+      </footer>
+    </main>
+  </div>
+</body>
+</html>

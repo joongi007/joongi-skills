@@ -1,6 +1,6 @@
 # GitHub Pages 배포와 원격 설치
 
-GitHub Pages는 정적 안내 페이지, 설치 스크립트, 소스 번들을 배포한다.
+GitHub Pages는 정적 안내 페이지, HTML 문서, 설치 스크립트, 소스 번들을 배포한다.
 로컬 Hub나 MCP 서버 프로세스를 호스팅하지 않는다. 브라우저로 페이지를 여는 것만으로
 컴퓨터에 설치하지 않으며, 사용자가 내려받은 스크립트를 터미널에서 실행한다.
 
@@ -57,6 +57,7 @@ SHA256·다운로드 크기·압축 해제 크기·파일 개수·경로·링크
 ## 배포 산출물 로컬 확인
 
 ```bash
+python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
 python3 scripts/build_pages.py --out /tmp/joongi-pages-preview --base-url https://example.invalid/joongi-skills
 python3 -m http.server 8080 --directory /tmp/joongi-pages-preview
 ```
@@ -86,3 +87,20 @@ Windows에서는 같은 명령의 `python3` 대신 `py -3`을 사용한다.
 bootstrap과 설치 런타임이 검토한 소스와 일치해야 통과한다.
 
 출처: [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), 조회 2026-11-05.
+
+## Markdown 문서를 사이트에서 읽기
+
+설치 페이지의 **문서** 메뉴는 같은 사이트의 `read/docs/00-index.html`로 이동한다.
+README와 `docs/`, `skills/`, `refs/`의 공개 Markdown을 빌드 시 HTML로 변환한다.
+문서 목록·접을 수 있는 본문 목차·제목 앵커·표·코드를 제공하며 JavaScript 없이 읽고 이동할 수 있다.
+문서 사이의 상대 링크와 앵커는 HTML 경로로 바꾸고, 원문·JSON·라이선스 등은 GitHub 링크로 유지한다.
+
+원본 `.md`만 수정해 main에 병합하면 기존 Pages CI가 검사 → HTML·설치 번들 생성 → 배포를 수행한다.
+`requirements-docs.txt`의 Markdown 변환 패키지는 빌드·개발 검사 전용이며 버전과 wheel 해시를 고정한다.
+Hub 실행과 사용자 설치에는 추가 Python 패키지가 필요하지 않다. 생성 HTML은 Git에 커밋하지 않는다.
+
+HTML 태그 실행은 끄고, 계약 검사 주석과 스킬의 frontmatter는 읽기 화면에서 생략한다.
+코드 블록 안의 예제는 그대로 표시한다. Mermaid 등 별도 확장 렌더링은 제공하지 않는다.
+문서 전체의 HTML 링크·제목 앵커, 사설 경로 제외와 JavaScript 없는 브라우저 탐색을 CI에서 검증한다.
+
+변환 설정 근거: [markdown-it-py의 HTML 비활성화 지침](https://markdown-it-py.readthedocs.io/en/latest/security.html).
