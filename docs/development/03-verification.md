@@ -345,3 +345,6 @@ Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/
   실제 Windows 자기 제거·한글 경로 회귀 테스트에서 수정 전 실패·수정 후 통과를 확인함.
 - 배포 후 `verify-install` 작업을 추가해 Linux·Windows의 실제 공개 URL 설치 수명 주기를 자동 검증함.
   재현 코드는 `tests/pages_live_smoke.py`이며 다운로드 출처·실제 원격 업데이트·사용자 상태 보존도 확인함.
+- 브라우저 테스트 전 Ubuntu 패키지 서버 DNS 실패로 의존성 설치가 지연·실패함을 확인함.
+  이미 브라우저 라이브러리를 제공하는 호스트에서 불필요한 apt 재설치를 제거하고, 고정 Chromium·
+  체크섬을 확인한 한글 테스트 폰트로 동일한 브라우저 검증을 실행하도록 정리함.
