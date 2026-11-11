@@ -324,6 +324,10 @@ Cursor/Gemini/Copilot/OpenCode의 GUI 전체 실사용과 외부 OAuth 계정 �
 - CI는 예외 목록 없이 `--fail-on-survivor`를 사용함. CLI 종료 코드까지 검증해
   미탐·invalid·timeout·baseline 실패를 차단함.
   최신 보고서는 로컬 경로·테스트 traceback을 제외한 [요약](mutation-report.json)으로 갱신함.
+- 대용량 경계 테스트에서 Windows의 기본 CRLF 변환으로 같은 레코드가 4 MiB를 초과할 수 있음을 재현함.
+  atomic JSON 저장의 개행을 LF로 고정해 OS에 따른 파일 크기 차이와 재조회 실패를 제거함.
+- 한글 Windows 홈에서 설치만 성공하고 .cmd 런처 실행은 실패하는 경우도 회귀 테스트로 재현함.
+  런처는 `%~dp0` 기준 경로를 사용해 레거시 코드 페이지에서 홈 경로가 손상되지 않도록 함.
 - 초기 보완 후 전체 Python 224개 테스트 통과, 플랫폼 전용 2개 skip. 이후 대용량 재조회와 엄격한 CLI 검증을 보강함.
 - Pages의 Actions 배포 설정을 생성함. 실제 배포와 원격 OS별 bootstrap 결과는
   원격 workflow 및 로컬 공개 후 점검 기록으로 확인한다.

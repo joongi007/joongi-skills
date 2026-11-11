@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "target": "joongi_hub/storage.py",
-  "sourceSha256": "4c9bd60622415806138546e317fd2a4a7794b4a17ce01ac66c56f90c5604ca45",
-  "generatedAt": "2026-11-11T13:27:41.225281+00:00",
+  "sourceSha256": "9b646584938e3c5cdd298a330caf5d2b47b3de2a356c2214e9c4f3dcfa378525",
+  "generatedAt": "2026-11-11T13:34:38.463750+00:00",
   "python": "3.10.12",
   "tests": [
     "tests.test_storage_contracts"
@@ -24,7 +24,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.165,
+      "seconds": 0.162,
       "returncode": 1
     },
     {
@@ -36,7 +36,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.226,
+      "seconds": 0.229,
       "returncode": 1
     },
     {
@@ -48,7 +48,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.194,
+      "seconds": 0.202,
       "returncode": 1
     },
     {
@@ -60,7 +60,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.226,
+      "seconds": 0.232,
       "returncode": 1
     },
     {
@@ -72,7 +72,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.193,
+      "seconds": 0.199,
       "returncode": 1
     },
     {
@@ -84,7 +84,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.227,
       "returncode": 1
     },
     {
@@ -96,7 +96,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.187,
+      "seconds": 0.184,
       "returncode": 1
     },
     {
@@ -108,7 +108,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.164,
+      "seconds": 0.162,
       "returncode": 1
     },
     {
@@ -120,7 +120,7 @@
       "detail": "Or",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.225,
+      "seconds": 0.228,
       "returncode": 1
     },
     {
@@ -132,7 +132,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.24,
       "returncode": 1
     },
     {
@@ -144,7 +144,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.22,
       "returncode": 1
     },
     {
@@ -156,7 +156,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.218,
       "returncode": 1
     },
     {
@@ -168,7 +168,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.217,
+      "seconds": 0.218,
       "returncode": 1
     },
     {
@@ -180,7 +180,7 @@
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.194,
+      "seconds": 0.193,
       "returncode": 1
     },
     {
@@ -192,7 +192,7 @@
       "detail": "And",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.196,
+      "seconds": 0.194,
       "returncode": 1
     },
     {
@@ -204,7 +204,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.2,
+      "seconds": 0.191,
       "returncode": 1
     },
     {
@@ -216,7 +216,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.227,
+      "seconds": 0.225,
       "returncode": 1
     },
     {
@@ -228,7 +228,7 @@
       "detail": "invert-boolean",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.214,
+      "seconds": 0.218,
       "returncode": 1
     },
     {
@@ -252,7 +252,7 @@
       "detail": "integer-plus-one:448",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.231,
+      "seconds": 0.23,
       "returncode": 1
     },
     {
@@ -264,7 +264,7 @@
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.155,
+      "seconds": 0.158,
       "returncode": 1
     },
     {
@@ -276,7 +276,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.161,
+      "seconds": 0.159,
       "returncode": 1
     },
     {
@@ -288,7 +288,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.219,
+      "seconds": 0.228,
       "returncode": 1
     },
     {
@@ -300,7 +300,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.179,
+      "seconds": 0.185,
       "returncode": 1
     },
     {
@@ -312,7 +312,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.229,
+      "seconds": 0.233,
       "returncode": 1
     },
     {
@@ -324,7 +324,7 @@
       "detail": "always-true",
       "operand_index": 1,
       "status": "killed",
-      "seconds": 0.184,
+      "seconds": 0.195,
       "returncode": 1
     },
     {
@@ -336,7 +336,7 @@
       "detail": "always-false",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.218,
+      "seconds": 0.234,
       "returncode": 1
     },
     {
@@ -348,7 +348,7 @@
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.231,
+      "seconds": 0.258,
       "returncode": 1
     },
     {
@@ -360,7 +360,7 @@
       "detail": "integer-plus-one:384",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.229,
+      "seconds": 0.263,
       "returncode": 1
     },
     {
@@ -372,7 +372,7 @@
       "detail": "And",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.249,
+      "seconds": 0.26,
       "returncode": 1
     },
     {
@@ -384,7 +384,7 @@
       "detail": "IsNot",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.21,
+      "seconds": 0.205,
       "returncode": 1
     },
     {
@@ -396,7 +396,7 @@
       "detail": "NotEq",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.226,
+      "seconds": 0.235,
       "returncode": 1
     },
     {
@@ -408,7 +408,7 @@
       "detail": "integer-plus-one:86400000",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.232,
+      "seconds": 0.245,
       "returncode": 1
     },
     {
@@ -420,7 +420,7 @@
       "detail": "integer-plus-one:500",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.226,
+      "seconds": 0.238,
       "returncode": 1
     },
     {
@@ -432,120 +432,120 @@
       "detail": "In",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.199,
+      "seconds": 0.229,
       "returncode": 1
     },
     {
       "id": 36,
-      "node_index": 376,
+      "node_index": 377,
       "operator": "constant",
       "line": 26,
       "column": 32,
       "detail": "integer-plus-one:384",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.22,
+      "seconds": 0.249,
       "returncode": 1
     },
     {
       "id": 37,
-      "node_index": 391,
+      "node_index": 392,
       "operator": "constant",
       "line": 32,
       "column": 36,
       "detail": "invert-boolean",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.186,
+      "seconds": 0.202,
       "returncode": 1
     },
     {
       "id": 38,
-      "node_index": 411,
+      "node_index": 412,
       "operator": "boolean",
       "line": 50,
       "column": 19,
       "detail": "Or",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.232,
+      "seconds": 0.249,
       "returncode": 1
     },
     {
       "id": 39,
-      "node_index": 415,
+      "node_index": 416,
       "operator": "boolean",
       "line": 53,
       "column": 19,
       "detail": "Or",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.228,
+      "seconds": 0.241,
       "returncode": 1
     },
     {
       "id": 40,
-      "node_index": 452,
+      "node_index": 453,
       "operator": "constant",
       "line": 85,
       "column": 32,
       "detail": "invert-boolean",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.215,
+      "seconds": 0.217,
       "returncode": 1
     },
     {
       "id": 41,
-      "node_index": 453,
+      "node_index": 454,
       "operator": "constant",
       "line": 85,
       "column": 47,
       "detail": "invert-boolean",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.161,
+      "seconds": 0.167,
       "returncode": 1
     },
     {
       "id": 42,
-      "node_index": 454,
+      "node_index": 455,
       "operator": "constant",
       "line": 85,
       "column": 58,
       "detail": "integer-plus-one:448",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.215,
+      "seconds": 0.231,
       "returncode": 1
     },
     {
       "id": 43,
-      "node_index": 471,
+      "node_index": 472,
       "operator": "comparison",
       "line": 93,
       "column": 15,
       "detail": "In",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.216,
+      "seconds": 0.251,
       "returncode": 1
     },
     {
       "id": 44,
-      "node_index": 472,
+      "node_index": 473,
       "operator": "negation",
       "line": 93,
       "column": 67,
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.227,
       "returncode": 1
     },
     {
       "id": 45,
-      "node_index": 478,
+      "node_index": 479,
       "operator": "constant",
       "line": 104,
       "column": 54,
@@ -557,311 +557,311 @@
     },
     {
       "id": 46,
-      "node_index": 492,
+      "node_index": 493,
       "operator": "boolean",
       "line": 117,
       "column": 42,
       "detail": "Or",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.227,
+      "seconds": 0.222,
       "returncode": 1
     },
     {
       "id": 47,
-      "node_index": 506,
+      "node_index": 507,
       "operator": "constant",
       "line": 124,
       "column": 30,
       "detail": "integer-plus-one:0",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.196,
+      "seconds": 0.203,
       "returncode": 1
     },
     {
       "id": 48,
-      "node_index": 565,
+      "node_index": 567,
       "operator": "constant",
       "line": 27,
       "column": 50,
       "detail": "invert-boolean",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.235,
+      "seconds": 0.233,
       "returncode": 1
     },
     {
       "id": 49,
-      "node_index": 566,
+      "node_index": 568,
       "operator": "constant",
       "line": 27,
       "column": 64,
       "detail": "integer-plus-one:2",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.204,
+      "seconds": 0.216,
       "returncode": 1
     },
     {
       "id": 50,
-      "node_index": 583,
+      "node_index": 585,
       "operator": "comparison",
       "line": 50,
       "column": 45,
       "detail": "Gt",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.178,
+      "seconds": 0.191,
       "returncode": 1
     },
     {
       "id": 51,
-      "node_index": 589,
+      "node_index": 591,
       "operator": "negation",
       "line": 53,
       "column": 19,
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.197,
+      "seconds": 0.199,
       "returncode": 1
     },
     {
       "id": 52,
-      "node_index": 604,
+      "node_index": 606,
       "operator": "constant",
       "line": 66,
       "column": 28,
       "detail": "integer-plus-one:32041",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.229,
       "returncode": 1
     },
     {
       "id": 53,
-      "node_index": 611,
+      "node_index": 613,
       "operator": "comparison",
       "line": 72,
       "column": 55,
       "detail": "NotEq",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.239,
+      "seconds": 0.237,
       "returncode": 1
     },
     {
       "id": 54,
-      "node_index": 663,
+      "node_index": 665,
       "operator": "comparison",
       "line": 117,
       "column": 42,
       "detail": "Is",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.215,
+      "seconds": 0.22,
       "returncode": 1
     },
     {
       "id": 55,
-      "node_index": 664,
+      "node_index": 666,
       "operator": "comparison",
       "line": 117,
       "column": 59,
       "detail": "Eq",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.225,
+      "seconds": 0.226,
       "returncode": 1
     },
     {
       "id": 56,
-      "node_index": 672,
+      "node_index": 674,
       "operator": "constant",
       "line": 123,
       "column": 28,
       "detail": "integer-plus-one:32602",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.228,
+      "seconds": 0.224,
       "returncode": 1
     },
     {
       "id": 57,
-      "node_index": 681,
+      "node_index": 683,
       "operator": "constant",
       "line": 126,
       "column": 28,
       "detail": "integer-plus-one:32602",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.221,
+      "seconds": 0.226,
       "returncode": 1
     },
     {
       "id": 58,
-      "node_index": 767,
+      "node_index": 769,
       "operator": "comparison",
       "line": 78,
       "column": 23,
       "detail": "Eq",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.227,
+      "seconds": 0.219,
       "returncode": 1
     },
     {
       "id": 59,
-      "node_index": 771,
+      "node_index": 773,
       "operator": "constant",
       "line": 79,
       "column": 32,
       "detail": "integer-plus-one:32602",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.222,
+      "seconds": 0.231,
       "returncode": 1
     },
     {
       "id": 60,
-      "node_index": 776,
+      "node_index": 778,
       "operator": "comparison",
       "line": 80,
       "column": 51,
       "detail": "NotEq",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.224,
+      "seconds": 0.235,
       "returncode": 1
     },
     {
       "id": 61,
-      "node_index": 799,
+      "node_index": 801,
       "operator": "constant",
       "line": 114,
       "column": 31,
       "detail": "integer-plus-one:0",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.218,
+      "seconds": 0.222,
       "returncode": 1
     },
     {
       "id": 62,
-      "node_index": 851,
+      "node_index": 853,
       "operator": "constant",
       "line": 46,
       "column": 25,
       "detail": "integer-plus-one:32041",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.225,
+      "seconds": 0.231,
       "returncode": 1
     },
     {
       "id": 63,
-      "node_index": 856,
+      "node_index": 858,
       "operator": "constant",
       "line": 50,
       "column": 72,
       "detail": "integer-plus-one:4",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.235,
+      "seconds": 0.234,
       "returncode": 1
     },
     {
       "id": 64,
-      "node_index": 867,
+      "node_index": 869,
       "operator": "boolean",
       "line": 54,
       "column": 20,
       "detail": "Or",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.229,
+      "seconds": 0.251,
       "returncode": 1
     },
     {
       "id": 65,
-      "node_index": 871,
+      "node_index": 873,
       "operator": "constant",
       "line": 60,
       "column": 21,
       "detail": "integer-plus-one:32041",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.225,
+      "seconds": 0.224,
       "returncode": 1
     },
     {
       "id": 66,
-      "node_index": 936,
+      "node_index": 938,
       "operator": "constant",
       "line": 50,
       "column": 76,
       "detail": "integer-plus-one:1024",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.227,
+      "seconds": 0.226,
       "returncode": 1
     },
     {
       "id": 67,
-      "node_index": 938,
+      "node_index": 940,
       "operator": "constant",
       "line": 50,
       "column": 82,
       "detail": "integer-plus-one:2",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.235,
+      "seconds": 0.228,
       "returncode": 1
     },
     {
       "id": 68,
-      "node_index": 945,
+      "node_index": 947,
       "operator": "negation",
       "line": 54,
       "column": 20,
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.198,
+      "seconds": 0.193,
       "returncode": 1
     },
     {
       "id": 69,
-      "node_index": 946,
+      "node_index": 948,
       "operator": "negation",
       "line": 54,
       "column": 47,
       "detail": "remove-not",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.208,
+      "seconds": 0.21,
       "returncode": 1
     },
     {
       "id": 70,
-      "node_index": 966,
+      "node_index": 968,
       "operator": "constant",
       "line": 99,
       "column": 36,
       "detail": "integer-plus-one:32603",
       "operand_index": 0,
       "status": "killed",
-      "seconds": 0.22,
+      "seconds": 0.23,
       "returncode": 1
     }
   ],
   "baseline": {
     "status": "survived",
-    "seconds": 0.256,
+    "seconds": 0.24,
     "returncode": 0
   },
-  "seconds": 16.484,
+  "seconds": 16.903,
   "summary": {
     "killed": 70
   }
