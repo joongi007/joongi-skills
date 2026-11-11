@@ -5,7 +5,7 @@ const windowsUrl = new URL('install.ps1', base).href;
 const shellQuote = text => "'" + text.replaceAll("'", "'\\''") + "'";
 const powerQuote = text => "'" + text.replaceAll("'", "''") + "'";
 document.querySelector('#shell-command').textContent = `curl -fsSL ${shellQuote(shellUrl)} -o /tmp/joongi-install.sh\nbash /tmp/joongi-install.sh install`;
-document.querySelector('#windows-command').textContent = `Invoke-WebRequest ${powerQuote(windowsUrl)} -OutFile "$env:TEMP\\joongi-install.ps1"\n& "$env:TEMP\\joongi-install.ps1" install`;
+document.querySelector('#windows-command').textContent = `Invoke-WebRequest ${powerQuote(windowsUrl)} -OutFile "$env:TEMP\\joongi-install.ps1"\npowershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "$env:TEMP\\joongi-install.ps1" install`;
 if (location.protocol !== 'https:') {
   document.querySelector('#shell-command').textContent = 'bash install.sh install --dry-run\nbash install.sh install';
   document.querySelector('#windows-command').textContent = '.\\install.ps1 install';

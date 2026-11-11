@@ -484,8 +484,11 @@ class Installer:
                 interpreter = command_path(python)
                 hub_target = command_path(self.runtime / "scripts/hub_launcher.py")
                 manager_target = command_path(self.runtime / "scripts/install_manager.py")
-                hub_script = prefix + f'"{interpreter}" -B "{hub_target}" %*\n'
-                manager_script = prefix + f'"{interpreter}" -B "{manager_target}" %*\n'
+                # End batch context first: Python may replace/delete this launcher.
+                # Arguments expand before goto; the native command preserves its exit status.
+                handoff = prefix + f'(goto) 2>nul & "{interpreter}" -B '
+                hub_script = handoff + f'"{hub_target}" %*\n'
+                manager_script = handoff + f'"{manager_target}" %*\n'
             else:
                 hub = self.bin_dir / "joongi-hub"
                 manager = self.bin_dir / "joongi-skills"

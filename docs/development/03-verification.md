@@ -334,3 +334,14 @@ Cursor/Gemini/Copilot/OpenCode의 GUI 전체 실사용과 외부 OAuth 계정 �
 
 Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject),
 [프로세스 종료](https://learn.microsoft.com/en-us/windows/win32/procthread/terminating-a-process).
+
+### 실제 Pages 설치 파일 검증 보완
+
+- PR #9·#10·#11의 필수 CI 통과 후 병합하고 실제 Pages 배포 성공·HTTPS 200 응답을 확인함.
+- 공개 URL의 셸 bootstrap으로 격리한 WSL 홈에서 설치·stdio 검색·원격 업데이트·새 에이전트 감지·제거 통과.
+- 같은 공개 URL의 Windows 설치·stdio·업데이트도 통과했으나, 설치된 관리 명령 자체를 제거한 뒤
+  cmd가 삭제된 배치 파일을 다시 읽어 오류 코드 1을 반환함을 재현함. 런타임·런처 제거는 완료된 상태였음.
+- 배치 실행 문맥을 먼저 종료하고 Python에 제어를 넘겨 정상 제거 코드 0과 잘못된 명령 코드 2를 보존함.
+  실제 Windows 자기 제거·한글 경로 회귀 테스트에서 수정 전 실패·수정 후 통과를 확인함.
+- 배포 후 `verify-install` 작업을 추가해 Linux·Windows의 실제 공개 URL 설치 수명 주기를 자동 검증함.
+  재현 코드는 `tests/pages_live_smoke.py`이며 다운로드 출처·실제 원격 업데이트·사용자 상태 보존도 확인함.

@@ -282,7 +282,8 @@
         "tests.test_connections.Lifecycle.test_real_start_status_restart_stop_and_state_survives",
         "tests.test_connections.Lifecycle.test_install_and_start_survives_download_source_cleanup",
         "tests.test_connections.Connections.test_stdio_sigterm_gracefully_closes_its_upstream",
-        "tests.test_runtime.ProcessLivenessTests.test_windows_waits_for_process_signal_before_reporting_exit"
+        "tests.test_runtime.ProcessLivenessTests.test_windows_waits_for_process_signal_before_reporting_exit",
+        "tests.test_installer.InstallerTests.test_installed_manager_uninstalls_itself_and_preserves_exit_status"
       ],
       "documents": [
         "docs/installation/00-index.md",
@@ -293,7 +294,8 @@
     "REQ-PAGES": {
       "tests": [
         "tests.test_pages.PagesTests.test_build_bakes_url_and_download_extracts_source",
-        "tests.test_publication.PublicationTests.test_bundle_and_site_exclude_private_files_and_account_headers"
+        "tests.test_publication.PublicationTests.test_bundle_and_site_exclude_private_files_and_account_headers",
+        "tests.test_installer.InstallerTests.test_installed_manager_uninstalls_itself_and_preserves_exit_status"
       ],
       "documents": [
         "docs/installation/02-github-pages.md",
