@@ -10,6 +10,11 @@ import shutil
 import tarfile
 from pathlib import Path
 
+if __package__:
+    from scripts.build_site_docs import build_docs
+else:
+    from build_site_docs import build_docs
+
 ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED = {
     "__pycache__",
@@ -66,6 +71,7 @@ def build(output: Path, base_url: str) -> None:
                 target = output / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(file, target)
+    build_docs(ROOT, output, public_file)
     archive_path = output / "joongi-skills.tar.gz"
     with tarfile.open(archive_path, "w:gz") as archive:
         for name in (
@@ -79,6 +85,7 @@ def build(output: Path, base_url: str) -> None:
             "examples",
             "package.json",
             "package-lock.json",
+            "requirements-docs.txt",
             ".github",
             ".gitignore",
             ".code-review-graphignore",

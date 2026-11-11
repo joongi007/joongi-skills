@@ -366,3 +366,13 @@ Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/
 - 브라우저 테스트 전 Ubuntu 패키지 서버 DNS 실패로 의존성 설치가 지연·실패함을 확인함.
   이미 브라우저 라이브러리를 제공하는 호스트에서 불필요한 apt 재설치를 제거하고, 고정 Chromium·
   체크섬을 확인한 한글 테스트 폰트로 동일한 브라우저 검증을 실행하도록 정리함.
+
+
+### Markdown 정적 문서 사이트
+
+- 2026-11-12: README·공개 docs·skills·refs를 정적 HTML로 생성하도록 Pages 빌드에 연결했다.
+- 전체 Python 테스트 228개 실행, 플랫폼 전용 2개 제외·실패 없음. 새 문서 테스트는 표·코드·한글 앵커·상대 링크와 공개 경로 제외를 검증한다.
+- JavaScript를 끈 Chromium에서 설치 페이지 → 문서 목록 → 설치 문서 → Windows 제목 앵커 이동을 확인했다.
+  320·390·768·1440px 레이아웃과 모바일 문서 메뉴를 검증했다.
+- 문서 사이트 산출물 Gitleaks 검사에서 탐지 0개. Ruff·문서 계약·Actions 문법 검사도 통과했다.
+- 최종 원격 CI와 공개 배포 결과는 해당 커밋의 GitHub Actions에서 확인한다.

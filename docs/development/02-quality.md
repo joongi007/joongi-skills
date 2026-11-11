@@ -14,7 +14,10 @@
 
 ## 이 저장소의 기본 검증
 
+문서 사이트 빌드 검사를 위해 개발 가상환경에서 빌드 전용 패키지를 준비한다.
+
 ```bash
+python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
 ./build.sh --check
 python3 scripts/check_docs.py
 python3 scripts/check_contracts.py
@@ -81,3 +84,15 @@ SHA-256으로 검증해 CI 홈에만 설치한다. 폰트는 사용자 런타임
 명시적 인터페이스·버전·capability·경로 주장은 [실행 가능한 계약](../architecture/04-contracts.md)으로
 관리한다. `check_docs.py`는 contracts.json이 있는 저장소에서 이 검사도 함께 실행하므로,
 링크만 맞고 실제 API나 CLI·설치 경로가 달라진 변경을 통과시키지 않는다.
+
+## 정적 문서 사이트 검사
+
+Python 테스트 전에 빌드 전용 패키지를 준비한다. Hub 런타임 의존성과는 별개다.
+
+```bash
+python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
+python3 -B -m unittest tests.test_site_docs tests.test_pages tests.test_publication -v
+```
+
+`npm run test:browser`에는 생성된 HTML의 JavaScript 없는 탐색·본문 목차·모바일 레이아웃 검사도 포함된다.
+Python 테스트는 전체 문서의 상대 링크·제목 앵커, 코드 예제·표·안전한 HTML 출력과 공개 경로 제외를 확인한다.
