@@ -212,7 +212,10 @@
         "tests.test_search.CatalogSearchTests.test_exact_identifier_ranks_before_description_keyword_matches",
         "tests.test_search.CatalogSearchTests.test_argument_names_are_searchable_and_camel_case_is_split",
         "tests.test_search.CatalogSearchTests.test_summary_then_exact_full_definition_keeps_origin_and_schema",
-        "tests.test_search.CatalogSearchTests.test_regex_alternation_invalid_patterns_and_nested_repetition"
+        "tests.test_search.CatalogSearchTests.test_regex_alternation_invalid_patterns_and_nested_repetition",
+        "tests.test_storage_contracts.StorageContracts.test_missing_primary_with_backup_requires_explicit_recovery",
+        "tests.test_storage_contracts.StorageContracts.test_registry_accepts_size_boundary_and_rejects_one_byte_over",
+        "tests.test_storage_contracts.StorageContracts.test_registry_rejects_backup_file_or_parent_symlink_without_writing_target"
       ],
       "documents": [
         "docs/architecture/01-components.md",
@@ -278,7 +281,8 @@
         "tests.test_connections.Connections.test_registration_does_not_overwrite_unowned_or_edited_configs",
         "tests.test_connections.Lifecycle.test_real_start_status_restart_stop_and_state_survives",
         "tests.test_connections.Lifecycle.test_install_and_start_survives_download_source_cleanup",
-        "tests.test_connections.Connections.test_stdio_sigterm_gracefully_closes_its_upstream"
+        "tests.test_connections.Connections.test_stdio_sigterm_gracefully_closes_its_upstream",
+        "tests.test_runtime.ProcessLivenessTests.test_windows_waits_for_process_signal_before_reporting_exit"
       ],
       "documents": [
         "docs/installation/00-index.md",

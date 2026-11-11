@@ -473,12 +473,19 @@ class Installer:
                 hub = self.bin_dir / "joongi-hub.cmd"
                 manager = self.bin_dir / "joongi-skills.cmd"
                 prefix = "@echo off\n"
-                hub_script = (
-                    prefix + f'"{python}" -B "{self.runtime / "scripts/hub_launcher.py"}" %*\n'
-                )
-                manager_script = (
-                    f'@echo off\n"{python}" -B "{self.runtime / "scripts/install_manager.py"}" %*\n'
-                )
+
+                def command_path(path):
+                    try:
+                        return "%~dp0" + os.path.relpath(path, self.bin_dir)
+                    except ValueError:
+                        return str(path)
+
+                # cmd expands %~dp0 as Unicode even under a legacy console code page.
+                interpreter = command_path(python)
+                hub_target = command_path(self.runtime / "scripts/hub_launcher.py")
+                manager_target = command_path(self.runtime / "scripts/install_manager.py")
+                hub_script = prefix + f'"{interpreter}" -B "{hub_target}" %*\n'
+                manager_script = prefix + f'"{interpreter}" -B "{manager_target}" %*\n'
             else:
                 hub = self.bin_dir / "joongi-hub"
                 manager = self.bin_dir / "joongi-skills"

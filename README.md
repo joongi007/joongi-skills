@@ -23,6 +23,8 @@ python3 -m joongi_hub serve
 ## 에이전트에 설치
 
 ```bash
+git clone https://github.com/joongi007/joongi-skills.git
+cd joongi-skills
 bash install.sh install --dry-run
 bash install.sh install
 ~/.local/bin/joongi-skills status
@@ -75,10 +77,12 @@ native Skills는 안전한 YAML 메타데이터, 텍스트·바이너리 참조,
 
 ## GitHub Pages 설치 안내
 
+[설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서 OS별 설치 명령과 스크립트를 확인한다.
+
 `.github/workflows/pages.yml`이 정적 안내 페이지·OS별 설치 스크립트·소스 번들·SHA256을 만든다.
 GitHub 저장소에서 **Settings → Pages → GitHub Actions**를 선택하면 배포 시 실제 주소가 반영된다.
 설정 후 워크플로를 수동 실행한다. 자동 배포는 저장소 변수 `ENABLE_PAGES=true`로 켠다.
-현재 로컬 폴더만으로 공개 주소가 생기지는 않는다.
+사이트는 설치 파일과 안내를 제공하며 사용자의 로컬 Hub 서버를 호스팅하지 않는다.
 Pages 배포는 비밀 값 검사·Python·Windows 설치·문서·SDK·브라우저 등 전체 Check 통과 후 진행한다.
 
 Pages에서 명령을 복사해 터미널에서 설치한다. 브라우저 CORS가 터미널 다운로드를 막지는 않는다.

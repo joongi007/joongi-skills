@@ -19,6 +19,82 @@ class StorageContracts(unittest.TestCase):
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)
 
+    def test_missing_primary_with_backup_requires_explicit_recovery(self):
+        registry = Registry(self.root)
+        registry.put({"id": "one"})
+        registry.path.unlink()
+        before = registry.backup.read_bytes()
+        with self.assertRaises(RpcError) as error:
+            registry.list()
+        self.assertEqual(error.exception.code, -32041)
+        self.assertFalse(registry.path.exists())
+        self.assertEqual(registry.backup.read_bytes(), before)
+
+    def test_corrupt_registry_and_invalid_entry_shapes_are_rejected(self):
+        registry = Registry(self.root)
+        for text in ("bad json", "{}", "[null]", "[{}]", '[{"id": 3}]'):
+            with self.subTest(text=text):
+                registry.path.write_text(text, encoding="utf-8")
+                with self.assertRaises(RpcError) as error:
+                    registry.list()
+                self.assertEqual(error.exception.code, -32041)
+
+    def test_registry_accepts_size_boundary_and_rejects_one_byte_over(self):
+        registry = Registry(self.root)
+        limit = 4 * 1024**2
+        registry.path.write_bytes(b"[]" + b" " * (limit - 2))
+        self.assertEqual(registry.list(), [])
+        registry.path.write_bytes(b"[]" + b" " * (limit - 1))
+        with self.assertRaises(RpcError) as error:
+            registry.list()
+        self.assertEqual(error.exception.code, -32041)
+
+    def test_large_ascii_and_korean_records_survive_save_and_reload(self):
+        # The first record fits with four bytes to spare; escaping Korean doubles its bytes.
+        for payload in ("x" * (4 * 1024**2 - 50), "한" * 800000):
+            with self.subTest(language="ascii" if payload[0] == "x" else "korean"):
+                registry = Registry(self.root)
+                server = {"id": "one", "payload": payload}
+                registry.put(server)
+                self.assertLessEqual(registry.path.stat().st_size, 4 * 1024**2)
+                self.assertEqual(Registry(self.root).list(), [server])
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink permissions")
+    def test_registry_rejects_primary_symlink_without_reading_target(self):
+        registry = Registry(self.root)
+        target = self.root / "external.json"
+        target.write_text('[{"id":"external"}]')
+        registry.path.symlink_to(target)
+        with self.assertRaises(RpcError) as error:
+            registry.list()
+        self.assertEqual(error.exception.code, -32041)
+        self.assertEqual(target.read_text(), '[{"id":"external"}]')
+
+    @unittest.skipIf(os.name == "nt", "POSIX symlink permissions")
+    def test_registry_rejects_backup_file_or_parent_symlink_without_writing_target(self):
+        registry = Registry(self.root)
+        external = self.root / "external"
+        external.mkdir()
+        target = external / "servers.json"
+        target.write_text('[{"id":"external"}]')
+        for parent_link in (False, True):
+            with self.subTest(parent_link=parent_link):
+                if parent_link:
+                    registry.backup.parent.symlink_to(external, target_is_directory=True)
+                else:
+                    registry.backup.parent.mkdir()
+                    registry.backup.symlink_to(target)
+                with registry.lock, self.assertRaises(RpcError) as error:
+                    registry.save([{"id": "replacement"}])
+                self.assertEqual(error.exception.code, -32041)
+                self.assertFalse(registry.path.exists())
+                self.assertEqual(target.read_text(), '[{"id":"external"}]')
+                if parent_link:
+                    registry.backup.parent.unlink()
+                else:
+                    registry.backup.unlink()
+                    registry.backup.parent.rmdir()
+
     def test_registry_replaces_only_matching_id_and_persists(self):
         registry = Registry(self.root)
         self.assertEqual(registry.list(), [])

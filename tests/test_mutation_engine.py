@@ -1,15 +1,42 @@
 """Mutation generation and verdicts must be independent and reproducible."""
 
 import ast
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.mutation_check import campaign, inventory, mutated_source, run_tests
+from scripts.mutation_check import campaign, inventory, main, mutated_source, run_tests
 
 
 class MutationEngineTests(unittest.TestCase):
+    def test_strict_cli_rejects_survivors_and_invalid_campaigns(self):
+        with tempfile.TemporaryDirectory() as directory:
+            for summary, error, expected in [
+                ({"survived": 1}, None, 1),
+                ({"killed": 1}, None, 0),
+                ({"invalid": 1}, None, 1),
+                ({"timeout": 1}, None, 1),
+                ({}, "Baseline suite failed", 1),
+            ]:
+                report = {"target": "joongi_hub/logic.py", "summary": summary}
+                if error:
+                    report["error"] = error
+                with (
+                    self.subTest(summary=summary, error=error),
+                    patch("scripts.mutation_check.campaign", return_value=report),
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()),
+                ):
+                    self.assertEqual(
+                        main(
+                            ["--report", str(Path(directory) / "report.json"), "--fail-on-survivor"]
+                        ),
+                        expected,
+                    )
+
     def test_operators_are_enumerated_from_arbitrary_ast(self):
         source = "def choose(a, b):\n    if not a or b < 2:\n        return True\n    return 3\n"
         parsed = ast.parse(source)
