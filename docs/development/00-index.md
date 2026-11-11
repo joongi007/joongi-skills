@@ -4,6 +4,7 @@
 
 읽는 순서: [작업 단위](01-work-packages.md) → [테스트·문서 정합성](02-quality.md) →
 [검증 기록](03-verification.md). 사람과 에이전트가 같은 작업서를 사용한다.
+스킬 제작 도구는 [스킬 소스와 패키징](04-skill-packaging.md)에 따로 정리했다.
 
 ## 변경 흐름
 

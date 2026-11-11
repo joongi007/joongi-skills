@@ -1,6 +1,15 @@
 # 문서 안내
 
-사용자: [설치·업데이트·제거](installation/00-index.md) → [로컬 운영](operations/00-index.md).
+처음 사용한다면 아래에서 목적에 맞는 경로를 고르세요. 전체 문서를 순서대로 읽을 필요는 없습니다.
+
+| 지금 필요한 일 | 시작점 |
+|---|---|
+| 내 에이전트에 설치 | [설치·업데이트·제거](installation/00-index.md) |
+| 설치 후 첫 사용 | [README의 첫 사용 안내](../README.md#설치-후-첫-사용) |
+| 웹을 켜고 끄거나 연결 문제 해결 | [연결 방식](operations/06-connection-modes.md) · [장애 확인](operations/00-index.md) |
+| 지원 여부 확인 | [기능별 호환성](architecture/02-compatibility.md) · [검증 기록](development/03-verification.md) |
+| 스킬을 직접 수정 | [작성 규칙](skill-authoring.md) · [패키징](development/04-skill-packaging.md) |
+
 기여자: [제품 방향](01-vision.md) → [범위·수용 조건](02-scope.md) →
 [구조](architecture/00-index.md) → [개발 절차](development/00-index.md).
 

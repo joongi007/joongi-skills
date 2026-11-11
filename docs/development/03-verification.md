@@ -1,5 +1,23 @@
 # 검증 기록
 
+## 현재 확인된 상태
+
+2026-11-12 기준. 아래 표는 `e175476` 배포의 검증 결과이며, 이후 변경의 결과는
+[GitHub Actions](https://github.com/joongi007/joongi-skills/actions)에서 확인한다.
+
+| 항목 | 확인한 결과 |
+|---|---|
+| 공개 배포 | [설치 안내 사이트](https://joongi007.github.io/joongi-skills/) HTTPS 응답 확인 |
+| CI·배포 | [Pages 파이프라인](https://github.com/joongi007/joongi-skills/actions/runs/43042533122) 11개 작업 통과 |
+| Python | Linux·Windows × Python 3.10·3.14, 전체 225개 테스트 실행. 플랫폼별 제외 있음 |
+| 실제 설치 파일 | 공개 URL에서 설치·stdio 검색·원격 업데이트·새 에이전트 등록·자기 제거를 Linux·Windows CI와 로컬 WSL·Windows에서 통과 |
+| 뮤테이션 | `joongi_hub/storage.py` 대상 70개 모두 탐지. 미탐·invalid·timeout 0개 |
+| 비밀 값 검사 | 추적 파일·Git 이력·설치 번들 검사 통과. 개인정보 전체를 자동 판별한다는 뜻은 아님 |
+| 로컬 설치 | WSL·Windows 공용 설치본 갱신, 실제 Code Review Graph 검색·호출 확인. stdio 사용·웹 서버 꺼짐 |
+
+아래는 개발 당시의 기록이다. “미실행”, 이전 테스트 수, 살아남은 변이 등의 표현은
+각 기록 시점의 상태이며 현재 상태는 위 표와 해당 커밋의 CI 결과를 기준으로 확인한다.
+
 문서 ID: DEV-EVIDENCE · 기준일: 2026-11-05
 
 이 파일은 실제 실행 증거다. 아래는 수용 시나리오이며 실제 결과·환경·한계를 이어 기록한다.
