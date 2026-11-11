@@ -318,12 +318,13 @@ Cursor/Gemini/Copilot/OpenCode의 GUI 전체 실사용과 외부 OAuth 계정 �
   실제 Windows 다운로드 소스 설치·시작·종료·임시 디렉터리 정리를 10회 반복해 모두 통과함.
   관련 Windows 테스트 18개 중 플랫폼 전용 2개 skip, 실패 없음.
 - Registry의 원본 소실·손상·잘못된 항목·4 MiB 경계·원본/백업 symlink를 검증하는 테스트를 추가함.
-  storage 뮤테이션 70개 중 68개 탐지, 2개 생존, invalid·timeout 0개를 확인함.
-  두 생존 변이는 JSON 들여쓰기와 Unicode escape 표현만 바꾸며 파싱한 값·원자적 교체는 보존함.
-- 동등 변이를 성공 탐지로 세지 않고 source SHA-256·위치·근거를 검토 파일에 고정함.
-  CLI 종료 코드까지 검증해 새 미탐·대상 소스 변경·근거 없는 검토는 CI 실패로 처리함.
+  초기 68개 탐지 후 남은 JSON 표현 변이도 4 MiB 제한과 결합하면 재조회에 영향을 줌을 확인함.
+  ASCII·한국어 대용량 레코드 저장·재조회까지 추가 검증하며 이 둘을 동등 변이로 면제하지 않음.
+  최종 storage 캠페인은 70개 전부 탐지, 미탐·invalid·timeout 0개로 엄격 모드 통과함.
+- CI는 예외 목록 없이 `--fail-on-survivor`를 사용함. CLI 종료 코드까지 검증해
+  미탐·invalid·timeout·baseline 실패를 차단함.
   최신 보고서는 로컬 경로·테스트 traceback을 제외한 [요약](mutation-report.json)으로 갱신함.
-- 보완 후 전체 Python 224개 테스트 통과, 플랫폼 전용 2개 skip. Ruff·문서·계약·workflow 문법 검사 통과.
+- 초기 보완 후 전체 Python 224개 테스트 통과, 플랫폼 전용 2개 skip. 이후 대용량 재조회와 엄격한 CLI 검증을 보강함.
 - Pages의 Actions 배포 설정을 생성함. 실제 배포와 원격 OS별 bootstrap 결과는
   원격 workflow 및 로컬 공개 후 점검 기록으로 확인한다.
 

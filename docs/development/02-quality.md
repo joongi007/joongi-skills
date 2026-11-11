@@ -43,7 +43,7 @@ if 분기 고정, boolean 반전·정수 경계 변경을 자동 열거한다. �
 
 ```bash
 python3 scripts/mutation_check.py --report dist/mutation-report.json
-python3 scripts/mutation_check.py --fail-on-survivor --reviewed-survivors docs/development/mutation-reviewed.json
+python3 scripts/mutation_check.py --fail-on-survivor
 python3 scripts/mutation_check.py --target joongi_hub/storage.py --tests tests.test_storage_contracts --operators comparison,boolean,branch
 ```
 
@@ -53,10 +53,10 @@ baseline 통과를 먼저 확인하고 killed·survived·timeout·invalid를 별
 코드의 mutation coverage로 부르지 않는다. 재현 결과와 동등 변이 판단은
 [mutation 보고서](mutation-report.json)를 본다.
 
-CI는 `--fail-on-survivor`와 [동등 변이 검토](mutation-reviewed.json)를 함께 적용한다.
-검토는 대상 파일의 SHA-256·변이 위치·연산자·근거에 고정한다. 소스가 달라지면 다시 검토해야 하고,
-새로운 미탐은 CI 실패로 처리한다. 현재 storage 캠페인은 70개 중 68개를 탐지하고 2개는
-JSON 들여쓰기·Unicode 이스케이프만 바꾸는 동등 변이로 검토했다. 동등 변이를 탐지 성공으로 세지 않는다.
+CI는 `--fail-on-survivor`로 미탐·invalid·timeout·baseline 실패를 차단한다. 예외 허용 목록은 없다.
+JSON 표현만 바꾸는 변이도 Registry의 4 MiB 제한과 결합하면 재조회 실패를 일으킬 수 있다.
+ASCII·한국어 대용량 레코드의 실제 저장·재조회를 포함해 검사한다.
+현재 storage 캠페인은 70개 변이를 모두 탐지했고 미탐·invalid·timeout은 0개다.
 
 1. 초기 대상: 경로 허용 판단, 설치 소유권·hash 판단, 버전 분기, task 전이.
 2. 분기 반전·경계 변경·반환 변경·검사 제거 후 기존 테스트가 실패하는지 확인한다.

@@ -49,6 +49,16 @@ class StorageContracts(unittest.TestCase):
             registry.list()
         self.assertEqual(error.exception.code, -32041)
 
+    def test_large_ascii_and_korean_records_survive_save_and_reload(self):
+        # The first record fits with four bytes to spare; escaping Korean doubles its bytes.
+        for payload in ("x" * (4 * 1024**2 - 50), "한" * 800000):
+            with self.subTest(language="ascii" if payload[0] == "x" else "korean"):
+                registry = Registry(self.root)
+                server = {"id": "one", "payload": payload}
+                registry.put(server)
+                self.assertLessEqual(registry.path.stat().st_size, 4 * 1024**2)
+                self.assertEqual(Registry(self.root).list(), [server])
+
     @unittest.skipIf(os.name == "nt", "POSIX symlink permissions")
     def test_registry_rejects_primary_symlink_without_reading_target(self):
         registry = Registry(self.root)
