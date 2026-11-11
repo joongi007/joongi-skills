@@ -308,3 +308,24 @@ Cursor/Gemini/Copilot/OpenCode의 GUI 전체 실사용과 외부 OAuth 계정 �
 - CI matrix의 fail-fast를 해제해 한 환경이 실패해도 다른 환경의 검증 결과를 남긴다.
 - 두 번째 원격 실행에서 남은 다운로드 설치 테스트의 임시 경로도 정규화함.
   설치 런타임에 루트 MIT LICENSE를 복사하도록 보완하고 레거시 인코딩 회귀 테스트에서 포함을 확인함.
+
+## 2026-11-11: 공개 후 설치·업데이트·테스트 품질 보완
+
+- npm 개발 도구 업데이트 PR #10은 CI 7개 통과 후 병합함. esbuild 0.28.2·Playwright 1.65.0을 사용함.
+- Actions 업데이트 검증에서 Windows runtime.log 잠금이 간헐적으로 남는 경우를 확인함.
+  Windows 프로세스 생존 판단을 종료 코드 대신 프로세스 객체의 종료 신호로 바꾸고,
+  종료 코드가 먼저 설정된 상황의 회귀 테스트에서 수정 전 실패·수정 후 통과를 확인함.
+  실제 Windows 다운로드 소스 설치·시작·종료·임시 디렉터리 정리를 10회 반복해 모두 통과함.
+  관련 Windows 테스트 18개 중 플랫폼 전용 2개 skip, 실패 없음.
+- Registry의 원본 소실·손상·잘못된 항목·4 MiB 경계·원본/백업 symlink를 검증하는 테스트를 추가함.
+  storage 뮤테이션 70개 중 68개 탐지, 2개 생존, invalid·timeout 0개를 확인함.
+  두 생존 변이는 JSON 들여쓰기와 Unicode escape 표현만 바꾸며 파싱한 값·원자적 교체는 보존함.
+- 동등 변이를 성공 탐지로 세지 않고 source SHA-256·위치·근거를 검토 파일에 고정함.
+  CLI 종료 코드까지 검증해 새 미탐·대상 소스 변경·근거 없는 검토는 CI 실패로 처리함.
+  최신 보고서는 로컬 경로·테스트 traceback을 제외한 [요약](mutation-report.json)으로 갱신함.
+- 보완 후 전체 Python 224개 테스트 통과, 플랫폼 전용 2개 skip. Ruff·문서·계약·workflow 문법 검사 통과.
+- Pages의 Actions 배포 설정을 생성함. 실제 배포와 원격 OS별 bootstrap 결과는
+  원격 workflow 및 로컬 공개 후 점검 기록으로 확인한다.
+
+Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject),
+[프로세스 종료](https://learn.microsoft.com/en-us/windows/win32/procthread/terminating-a-process).

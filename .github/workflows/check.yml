@@ -127,4 +127,4 @@ jobs:
         run: bash build.sh --check
       - name: AST mutation campaign
         if: runner.os == 'Linux' && matrix.python == '3.14'
-        run: python -B scripts/mutation_check.py
+        run: python -B scripts/mutation_check.py --fail-on-survivor --reviewed-survivors docs/development/mutation-reviewed.json

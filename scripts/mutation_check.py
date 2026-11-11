@@ -132,6 +132,36 @@ def run_tests(directory, tests, timeout):
     }
 
 
+def reviewed_survivors(report, policy):
+    """A review is valid only for this exact target source and mutant location."""
+    if (
+        policy.get("schema") != 1
+        or policy.get("target") != report["target"]
+        or policy.get("sourceSha256") != report["sourceSha256"]
+        or not isinstance(policy.get("equivalent"), list)
+    ):
+        raise ValueError("Mutation reviews do not match the current target source; review again")
+    keys = ("line", "column", "operator", "detail", "operand_index")
+    approved = {}
+    for entry in policy["equivalent"]:
+        if (
+            not isinstance(entry, dict)
+            or not isinstance(entry.get("reason"), str)
+            or not entry["reason"].strip()
+        ):
+            raise ValueError("Equivalent mutation reviews need a reason")
+        fingerprint = tuple(entry.get(key) for key in keys)
+        if any(value is None for value in fingerprint) or fingerprint in approved:
+            raise ValueError("Equivalent mutation reviews need unique, complete locations")
+        approved[fingerprint] = entry["reason"]
+    reviewed = []
+    for item in report["results"]:
+        fingerprint = tuple(item[key] for key in keys)
+        if item["status"] == "survived" and fingerprint in approved:
+            reviewed.append({"id": item["id"], "reason": approved[fingerprint]})
+    return reviewed
+
+
 def campaign(root, target, tests, timeout=10, max_mutants=0, operators=None):
     supported = {"comparison", "boolean", "negation", "branch", "constant"}
     if timeout <= 0 or max_mutants < 0 or (operators and not operators <= supported):
@@ -212,6 +242,7 @@ def main(argv=None):
     parser.add_argument("--operators", help="Comma-separated operator subset")
     parser.add_argument("--report", type=Path, default=ROOT / "dist/mutation-report.json")
     parser.add_argument("--fail-on-survivor", action="store_true")
+    parser.add_argument("--reviewed-survivors", type=Path)
     args = parser.parse_args(argv)
     report = campaign(
         args.root,
@@ -221,6 +252,12 @@ def main(argv=None):
         args.max_mutants,
         set(args.operators.split(",")) if args.operators else None,
     )
+    if args.reviewed_survivors and not report.get("error"):
+        try:
+            policy = json.loads(args.reviewed_survivors.read_text(encoding="utf-8"))
+            report["reviewedEquivalent"] = reviewed_survivors(report, policy)
+        except (OSError, ValueError, TypeError, AttributeError) as exc:
+            report["error"] = str(exc)
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
@@ -242,7 +279,10 @@ def main(argv=None):
         bool(
             summary.get("invalid")
             or summary.get("timeout")
-            or (args.fail_on_survivor and summary.get("survived"))
+            or (
+                args.fail_on_survivor
+                and summary.get("survived", 0) > len(report.get("reviewedEquivalent", []))
+            )
         )
     )
 
