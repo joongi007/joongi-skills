@@ -9,7 +9,8 @@ Python 3.10 이상이면 추가 패키지 없이 실행한다. 개발 기준은 
 ## 클론에서 설치
 
 ```bash
-cd /path/to/joongi-skills
+git clone https://github.com/joongi007/joongi-skills.git
+cd joongi-skills
 bash install.sh install --dry-run
 bash install.sh install
 ~/.local/bin/joongi-skills status

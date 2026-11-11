@@ -308,3 +308,29 @@ Cursor/Gemini/Copilot/OpenCode의 GUI 전체 실사용과 외부 OAuth 계정 �
 - CI matrix의 fail-fast를 해제해 한 환경이 실패해도 다른 환경의 검증 결과를 남긴다.
 - 두 번째 원격 실행에서 남은 다운로드 설치 테스트의 임시 경로도 정규화함.
   설치 런타임에 루트 MIT LICENSE를 복사하도록 보완하고 레거시 인코딩 회귀 테스트에서 포함을 확인함.
+
+## 2026-11-11: 공개 후 설치·업데이트·테스트 품질 보완
+
+- npm 개발 도구 업데이트 PR #10은 CI 7개 통과 후 병합함. esbuild 0.28.2·Playwright 1.65.0을 사용함.
+- Actions 업데이트 검증에서 Windows runtime.log 잠금이 간헐적으로 남는 경우를 확인함.
+  Windows 프로세스 생존 판단을 종료 코드 대신 프로세스 객체의 종료 신호로 바꾸고,
+  종료 코드가 먼저 설정된 상황의 회귀 테스트에서 수정 전 실패·수정 후 통과를 확인함.
+  실제 Windows 다운로드 소스 설치·시작·종료·임시 디렉터리 정리를 10회 반복해 모두 통과함.
+  관련 Windows 테스트 18개 중 플랫폼 전용 2개 skip, 실패 없음.
+- Registry의 원본 소실·손상·잘못된 항목·4 MiB 경계·원본/백업 symlink를 검증하는 테스트를 추가함.
+  초기 68개 탐지 후 남은 JSON 표현 변이도 4 MiB 제한과 결합하면 재조회에 영향을 줌을 확인함.
+  ASCII·한국어 대용량 레코드 저장·재조회까지 추가 검증하며 이 둘을 동등 변이로 면제하지 않음.
+  최종 storage 캠페인은 70개 전부 탐지, 미탐·invalid·timeout 0개로 엄격 모드 통과함.
+- CI는 예외 목록 없이 `--fail-on-survivor`를 사용함. CLI 종료 코드까지 검증해
+  미탐·invalid·timeout·baseline 실패를 차단함.
+  최신 보고서는 로컬 경로·테스트 traceback을 제외한 [요약](mutation-report.json)으로 갱신함.
+- 대용량 경계 테스트에서 Windows의 기본 CRLF 변환으로 같은 레코드가 4 MiB를 초과할 수 있음을 재현함.
+  atomic JSON 저장의 개행을 LF로 고정해 OS에 따른 파일 크기 차이와 재조회 실패를 제거함.
+- 한글 Windows 홈에서 설치만 성공하고 .cmd 런처 실행은 실패하는 경우도 회귀 테스트로 재현함.
+  런처는 `%~dp0` 기준 경로를 사용해 레거시 코드 페이지에서 홈 경로가 손상되지 않도록 함.
+- 초기 보완 후 전체 Python 224개 테스트 통과, 플랫폼 전용 2개 skip. 이후 대용량 재조회와 엄격한 CLI 검증을 보강함.
+- Pages의 Actions 배포 설정을 생성함. 실제 배포와 원격 OS별 bootstrap 결과는
+  원격 workflow 및 로컬 공개 후 점검 기록으로 확인한다.
+
+Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject),
+[프로세스 종료](https://learn.microsoft.com/en-us/windows/win32/procthread/terminating-a-process).

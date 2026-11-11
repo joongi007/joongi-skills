@@ -87,6 +87,14 @@ class InstallerTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("한국어 홈", result.stdout)
+        launcher = (
+            self.root
+            / "한국어 홈/.local/bin"
+            / ("joongi-hub.cmd" if os.name == "nt" else "joongi-hub")
+        )
+        launched = subprocess.run([str(launcher)], capture_output=True, timeout=20)
+        self.assertEqual(launched.returncode, 0, launched.stderr.decode("utf-8", errors="replace"))
+        self.assertIn(b"hub-ok", launched.stdout)
         self.assertEqual(
             (self.root / "한국어 홈/.local/share/joongi-skills/runtime/LICENSE").read_text(),
             "MIT License\n",
