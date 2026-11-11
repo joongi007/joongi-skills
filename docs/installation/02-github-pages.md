@@ -39,6 +39,7 @@ JOONGI_DOWNLOAD_BASE=https://OWNER.github.io/REPOSITORY bash install.sh install
 ```
 
 PowerShell에서는 내려받은 `install.ps1`에 `-DownloadBase`를 지정할 수 있다.
+사이트의 Windows 명령은 자식 PowerShell 프로세스에만 실행 정책 예외를 적용하며 전역 설정은 바꾸지 않는다.
 스크립트 실행 정책을 전역으로 완화하지 않는다. 정책상 실행이 제한되면 클론의
 `scripts/install_manager.py`를 Python으로 직접 실행한다.
 
@@ -68,5 +69,20 @@ python3 -m http.server 8080 --directory /tmp/joongi-pages-preview
 수정 시각 헤더도 초기화한다. GitHub CI는 현재 파일·커밋 이력·압축 해제한 설치 번들을
 Gitleaks로 검사하며 로그의 탐지 값은 마스킹한다. 탐지되지 않았다고 모든 개인정보 부재를 보장하지는 않는다.
 업로드 전 [공개 전 점검](03-publication.md)을 따른다.
+
+## 배포한 설치 파일 검증
+
+Pages workflow는 배포 후 Linux·Windows에서 실제 공개 URL을 다시 내려받아 검증한다.
+공백·한글이 포함된 임시 홈에 설치하고 stdio 검색, 원격 업데이트와 새 에이전트 감지,
+설치된 관리 명령의 자기 제거, 사용자 파일·Hub 상태 보존까지 확인한다. 실제 사용자 설정은 사용하지 않는다.
+
+배포한 커밋의 checkout에서 수동으로도 재현할 수 있다.
+
+```bash
+python3 -B tests/pages_live_smoke.py --base-url https://joongi007.github.io/joongi-skills
+```
+
+Windows에서는 같은 명령의 `python3` 대신 `py -3`을 사용한다.
+bootstrap과 설치 런타임이 검토한 소스와 일치해야 통과한다.
 
 출처: [GitHub Pages custom workflows](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), 조회 2026-11-05.

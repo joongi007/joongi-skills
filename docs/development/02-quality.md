@@ -66,6 +66,11 @@ ASCII·한국어 대용량 레코드의 실제 저장·재조회를 포함해 �
 뮤테이션을 구현했다는 사실과 실행 결과는 다르다. 도구·대상·변이 수·kill/survive·시간을 기록한다.
 수동 seed 결함 테스트와 AST 자동 생성 캠페인의 결과를 구분한다.
 
+브라우저 CI는 Chrome 라이브러리가 설치된 GitHub 호스트에서 Playwright Chromium을 사용한다.
+OS 패키지를 매번 다시 설치하지 않고, 한글 렌더링용 Noto Sans KR은 Google Fonts의 고정 commit·
+SHA-256으로 검증해 CI 홈에만 설치한다. 폰트는 사용자 런타임이나 Pages 번들에 포함하지 않는다.
+출처·라이선스: [Google Fonts Noto Sans KR](https://github.com/google/fonts/tree/b38c5c93af322c45f633e17ac440ec1e6c94d489/ofl/notosanskr), SIL Open Font License 1.1.
+
 ## 문서 정합성 절차
 
 변경한 REQ-ID에서 설계·ADR·테스트·운영 예제로 이동하여 같은 동작을 설명하는지 확인한다.

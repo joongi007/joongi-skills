@@ -64,6 +64,47 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(list(self.home.iterdir()), [])
         self.assertTrue(installer.messages)
 
+    def test_installed_manager_uninstalls_itself_and_preserves_exit_status(self):
+        home = self.root / "self uninstall 한글"
+        Installer(home, Path(__file__).resolve().parents[1]).install(["codex"])
+        manager = (
+            home / ".local/bin" / ("joongi-skills.cmd" if os.name == "nt" else "joongi-skills")
+        )
+        hub = home / ".local/bin" / ("joongi-hub.cmd" if os.name == "nt" else "joongi-hub")
+        messages = [
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "initialize",
+                "params": {"protocolVersion": "2025-11-25"},
+            },
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {"name": "hub_search", "arguments": {"query": "usual-korean"}},
+            },
+        ]
+        stdio = subprocess.run(
+            [str(hub), "stdio"],
+            input="".join(json.dumps(m) + "\n" for m in messages).encode(),
+            capture_output=True,
+            timeout=30,
+        )
+        self.assertEqual(stdio.returncode, 0)
+        replies = [json.loads(line) for line in stdio.stdout.splitlines()]
+        self.assertIn("usual-korean", replies[-1]["result"]["content"][0]["text"])
+        failed = subprocess.run([str(manager), "invalid-action"], capture_output=True, timeout=30)
+        self.assertEqual(failed.returncode, 2)
+        self.assertTrue(failed.stderr)
+        result = subprocess.run(
+            [str(manager), "uninstall", "--home", str(home)], capture_output=True, timeout=30
+        )
+        self.assertFalse(manager.exists())
+        self.assertFalse((home / ".local/share/joongi-skills/runtime").exists())
+        self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8", errors="replace"))
+
     def test_cli_uses_utf8_for_korean_paths_under_legacy_windows_encoding(self):
         (self.source / "LICENSE").write_text("MIT License\n", encoding="utf-8")
         result = subprocess.run(
