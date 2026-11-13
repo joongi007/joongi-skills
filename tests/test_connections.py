@@ -558,6 +558,28 @@ class Lifecycle(unittest.TestCase):
             finally:
                 manage("stop", state, ROOT / "skills")
 
+    def test_http_installer_dry_run_does_not_create_credentials(self):
+        from scripts.install_manager import main
+
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            self.assertEqual(
+                main(
+                    [
+                        "install",
+                        "--home",
+                        str(home),
+                        "--source",
+                        str(ROOT),
+                        "--mode",
+                        "http",
+                        "--dry-run",
+                    ]
+                ),
+                0,
+            )
+            self.assertEqual(list(home.iterdir()), [])
+
     def test_cli_installer_mode_http_has_native_registration_and_update_detects_settings(self):
         with tempfile.TemporaryDirectory() as directory:
             home = Path(directory)

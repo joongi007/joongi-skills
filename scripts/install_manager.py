@@ -733,7 +733,10 @@ def main(argv: list[str] | None = None) -> int:
 
                 installer.connection = {
                     "url": mcp_url(selected["url"]),
-                    "headers": {"Authorization": "Bearer " + local_token(hub_state)},
+                    "headers": {
+                        "Authorization": "Bearer "
+                        + ("GENERATED_ON_INSTALL" if args.dry_run else local_token(hub_state))
+                    },
                 }
             elif selected["mode"] == "hybrid":
                 launcher = installer.bin_dir / (

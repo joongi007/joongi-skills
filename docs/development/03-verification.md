@@ -8,7 +8,8 @@
 - 브라우저의 관리 인증·일회성 호출 승인·OAuth·설치·프로젝트 분리 통과.
 - Mermaid 악성 설정·SVG 스크립트·이벤트·foreignObject·외부 CSS 방어 검사 통과.
 - JavaScript 없는 공개 문서 탐색, 실제 SVG 표시, 320–1440 화면 폭 검사 통과.
-- Linux Secret Service·macOS Keychain·native Windows 검증 결과는 해당 변경의 CI에서 확인한다.
+- PR #16 CI에서 Linux Secret Service·macOS Keychain·native Windows의 실제 저장·읽기·교체·제거 통과.
+- 후속 dry-run 회귀 검사에서 HTTP 설치가 자격증명·상태 파일을 만들지 않는 것을 확인했다.
 
 ## 현재 확인된 상태
 
