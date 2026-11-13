@@ -7,7 +7,12 @@
 Hub는 loopback에 바인딩한다. 로컬 서비스라도 외부 웹페이지가 브라우저를 통해
 설정 변경을 요청할 수 있으므로 Host·Origin 검증과 변경 요청 보호가 필요하다.
 와일드카드 CORS를 추가해 설치 페이지에서 로컬 설정을 직접 조작하지 않는다.
-토큰·환경 변수 값·자격증명은 UI, URL, 로그나 오류 응답에 노출하지 않는다.
+관리 API의 조회·변경에는 관리 토큰, HTTP MCP에는 범위별 Bearer 토큰이 필요하다.
+두 자격증명을 서로 대체할 수 없고 URL·헤더·메타데이터로 연결 범위를 바꿀 수 없다.
+`joongi-hub open`은 관리 토큰을 URL fragment로 브라우저에 넘긴다. fragment는 HTTP 요청에
+전송되지 않으며 UI가 즉시 주소에서 지우고 해당 탭의 sessionStorage에 보관한다.
+이 로컬 관리 토큰과 에이전트 연결 설정의 HTTP 토큰도 비밀이므로 공유하지 않는다.
+외부 서비스의 OAuth 토큰·환경 변수 값·비밀번호는 관리 API에서 반환하지 않는다.
 
 ## 등록과 실행
 
@@ -45,6 +50,29 @@ GitHub Pages는 공개 정적 파일만 제공한다. 개인 config·state·토�
 
 인증 비밀은 server 설정과 분리하며 서버 URL·auth fingerprint·프로젝트 상태에 결합한다.
 OAuth callback만 외부 로그인 페이지에서 돌아오는 탐색을 허용하고 state·PKCE·issuer를 검사한다.
-POSIX는 owner-only 평문 파일, Windows는 사용자 DPAPI를 쓴다. 프로젝트 범위는 명시적
+Windows는 사용자 DPAPI, WSL은 Windows DPAPI bridge, macOS는 로그인 Keychain,
+Linux는 Secret Service를 쓴다. 파일에 평문으로 저장하는 fallback은 없다.
+잠긴 저장소를 Hub가 반복해서 열도록 요구하지 않고 명시적인 복구 오류를 반환한다. 프로젝트 범위는 명시적
 카탈로그·연결·상태 분리이며 로컬 사용자 간 권한 경계는 아니다. 에이전트의 자체 전역 스킬은
 별도다. 상세 방식과 제한은 [인증·프로젝트·스킬 관리](../operations/05-auth-project-skills.md)를 본다.
+
+## 호출 승인과 응답 유출 방어
+
+OAuth·bearer·API key·basic·환경 변수나 header를 사용하는 연결은 기본적으로 도구 호출 승인을
+요구한다. 도구의 readOnlyHint·설명·MRTR inputResponses는 사용자의 보안 승인을 대신하지 않는다.
+관리 UI에서 서버·도구·인수를 검토한 한 번의 승인은 5분 안에 동일한 요청에 한 번만 사용한다.
+서버 설정·도구 정의·인수·동기 MRTR continuation이 달라지면 새 승인이 필요하다.
+명시적으로 허용한 도구는 계속 호출할 수 있고 차단 목록이 우선한다.
+인증 없는 연결에 정책이 없으면 기존 동작대로 실행한다. 정책을 저장하면 그 연결에도 승인 규칙을 적용한다.
+Task 시작 승인은 동일한 작업 안에서 검증한 input request에 답하고 계속 진행하는 것을 포함한다.
+
+upstream의 정상 응답과 RPC 오류에 현재 알고 있는 비밀 값이 그대로·URL encoding·Base64로
+반사되면 결과 전체를 일반 오류로 바꾼다. 6자 미만 비밀·임의 변형·분할 유출까지 막는 DLP는 아니다.
+Hub 자체나 같은 OS 사용자 권한의 악성 프로세스는 실행 중 복호화한 토큰을 읽거나 사용할 수 있다.
+OS 키링은 저장 시 보호이며 프로세스 샌드박스가 아니다. 최소 권한·신뢰한 코드·토큰 철회를 함께 사용한다.
+
+## 정적 Markdown과 Mermaid
+
+Markdown의 raw HTML 실행은 끈다. 공개 문서의 Mermaid는 격리한 빌드 브라우저에서만 실행하고
+안전 검사한 SVG 이미지로 배포한다. 설정 재정의·상호작용·외부 리소스는 허용하지 않는다.
+[문서 빌드와 안전 설정](../installation/02-github-pages.md#markdown-문서를-사이트에서-읽기)을 따른다.

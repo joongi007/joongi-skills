@@ -49,7 +49,7 @@ joongi-hub stdio --mode http --url http://127.0.0.1:8765
 ```
 
 마지막 명령은 stdio 접점을 통한 HTTP 전용 bridge다. native HTTP 연결을 지원하는 에이전트에는
-아래의 HTTP URL을 직접 등록하는 것을 우선한다. Hub 주소는 loopback HTTP만 허용하며,
+관리 화면이 생성한 HTTP URL과 Authorization 헤더를 함께 등록한다. Hub 주소는 loopback HTTP만 허용하며,
 localhost 입력은 127.0.0.1로 정규화한다. HTTP 전용 bridge는 지정한 URL을 그대로 우선하며
 혼합 모드만 같은 저장소의 실행 중인 endpoint를 우선 탐색한다.
 현재 원격 서버·다중 사용자 인증·TLS 역방향 프록시 배포를 제공하는 기능은 아니다.
@@ -77,6 +77,10 @@ localhost 입력은 127.0.0.1로 정규화한다. HTTP 전용 bridge는 지정�
 
 공용 MCP URL은 `/mcp`, 프로젝트 URL은 `/mcp/projects/프로젝트ID`다. URL로 고정된 프로젝트와
 header·metadata·legacy session의 범위가 다르면 요청을 거절한다.
+HTTP에는 범위별 Bearer 자격증명이 필요하므로 URL만 복사하면 401을 반환한다.
+관리 화면·configure·installer가 생성한 설정은 해당 에이전트의 headers 또는 http_headers를 포함한다.
+기존 URL만 등록했다면 에이전트 등록 계획을 다시 적용한다. 이 설정도 비밀이므로 공개 커밋하지 않는다.
+관리 UI는 별도의 토큰을 사용하며 `joongi-hub open`으로 연다. 순수 stdio에는 HTTP 토큰이 필요 없다.
 프로젝트 연결이 공용 연결을 대체하는 우선순위는 에이전트마다 확인해야 한다. 에이전트가 직접 읽는
 전역 스킬이나 다른 이름의 MCP를 Hub가 숨기지는 않는다.
 

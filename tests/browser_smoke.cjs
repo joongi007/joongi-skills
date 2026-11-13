@@ -29,7 +29,7 @@ async function main() {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto(address);
+  await page.goto(address + '/#session=' + JSON.parse(readFileSync(join(stateDir, 'http-auth.json'), 'utf8')).management);
   await page.getByRole('heading', { name: '나의 도구를 연결하는 곳' }).waitFor();
   await page.getByRole('button', { name: '스킬 라이브러리', exact: true }).click();
   await page.getByRole('button', { name: /engineering-playbook/ }).click();

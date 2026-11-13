@@ -4,14 +4,17 @@
   "private": true,
   "scripts": {
     "build:apps": "node scripts/build_apps.mjs",
-    "test:browser": "node tests/browser_smoke.cjs && node tests/browser_management.cjs && node tests/browser_ux.cjs && node tests/browser_connections.cjs && node tests/browser_docs.cjs",
-    "test:sdk": "node tests/sdk_interop.cjs"
+    "test:browser": "node tests/browser_smoke.cjs && node tests/browser_management.cjs && node tests/browser_ux.cjs && node tests/browser_connections.cjs && node tests/browser_docs.cjs && node tests/mermaid_security.mjs",
+    "test:sdk": "node tests/sdk_interop.cjs",
+    "build:docs": "node scripts/render_mermaid.mjs"
   },
   "devDependencies": {
     "@modelcontextprotocol/client": "2.4.0",
     "@modelcontextprotocol/ext-apps": "2.0.4",
     "@modelcontextprotocol/sdk": "1.32.2",
+    "dompurify": "3.4.17",
     "esbuild": "0.28.2",
+    "mermaid": "12.3.0",
     "playwright": "1.65.0"
   }
 }

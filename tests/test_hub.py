@@ -354,8 +354,18 @@ class HttpHubTest(unittest.TestCase):
     def request(self, method="GET", path="/api/v1/state", body=None, headers=None):
         connection = http.client.HTTPConnection("127.0.0.1", self.server.server_port, timeout=5)
         data = json.dumps(body).encode() if body is not None else None
+        from joongi_hub.local_auth import local_token
+
+        auth = (
+            {"Authorization": "Bearer " + local_token(self.hub.state_dir)}
+            if path == "/mcp"
+            else ({"X-Hub-Token": self.server.token} if method == "GET" else {})
+        )
         connection.request(
-            method, path, body=data, headers={"Content-Type": "application/json", **(headers or {})}
+            method,
+            path,
+            body=data,
+            headers={"Content-Type": "application/json", **auth, **(headers or {})},
         )
         response = connection.getresponse()
         raw = response.read()

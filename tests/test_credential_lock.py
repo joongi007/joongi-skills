@@ -9,6 +9,7 @@ import unittest
 from pathlib import Path
 
 from joongi_hub.auth import AuthManager
+from tests.fixtures.credential_store import test_store
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -19,7 +20,8 @@ class CredentialProcesses(unittest.TestCase):
             code = """import sys,time
 from pathlib import Path
 from joongi_hub.auth import AuthManager
-manager=AuthManager(Path(sys.argv[1]))
+from tests.fixtures.credential_store import test_store
+manager=AuthManager(Path(sys.argv[1]), store=test_store(Path(sys.argv[1])/'auth/credentials.json'))
 config={'id':'s-'+sys.argv[2],'url':'http://127.0.0.1:1','auth':{'type':'bearer'}}
 for index in range(8):
  manager.set_manual(config,{'token':'fake-'+sys.argv[2]})
@@ -36,7 +38,9 @@ for index in range(8):
             for child in children:
                 output, error = child.communicate(timeout=30)
                 self.assertEqual(child.returncode, 0, error)
-            manager = AuthManager(Path(directory))
+            manager = AuthManager(
+                Path(directory), store=test_store(Path(directory) / "auth/credentials.json")
+            )
             with manager.lock:
                 self.assertEqual(set(manager._read()), {"s-0", "s-1", "s-2", "s-3"})
 

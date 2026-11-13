@@ -10,6 +10,7 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from joongi_hub.errors import RpcError
+from joongi_hub.local_auth import local_token
 from joongi_hub.storage import atomic_json
 
 MODES = {"stdio", "hybrid", "http"}
@@ -145,13 +146,16 @@ def mcp_url(url, profile="global"):
 def agent_value(agent, connection):
     if "url" in connection:
         url = connection["url"]
+        auth = {"headers": connection["headers"]} if connection.get("headers") else {}
         if agent == "gemini":
-            return {"httpUrl": url}
+            return {"httpUrl": url, **auth}
         if agent == "opencode":
-            return {"type": "remote", "url": url, "enabled": True}
+            return {"type": "remote", "url": url, "enabled": True, **auth}
         if agent == "copilot":
-            return {"type": "http", "url": url, "tools": ["*"]}
-        return {"type": "http", "url": url} if agent == "claude" else {"url": url}
+            return {"type": "http", "url": url, "tools": ["*"], **auth}
+        if agent == "codex":
+            return {"url": url, **({"http_headers": connection["headers"]} if auth else {})}
+        return {"type": "http", "url": url, **auth} if agent == "claude" else {"url": url, **auth}
     command, args = connection["command"], connection.get("args", [])
     if agent == "opencode":
         return {"type": "local", "command": [command, *args], "enabled": True}
@@ -168,7 +172,10 @@ def configuration(hub, profile="global", mode=None, wsl_distribution=None):
             raise RpcError(-32602, "연결 방식을 확인하세요.")
         settings = {**settings, "mode": mode}
     if settings["mode"] == "http":
-        return {"url": mcp_url(settings["url"], profile)}
+        return {
+            "url": mcp_url(settings["url"], profile),
+            "headers": {"Authorization": "Bearer " + local_token(hub.root_hub.state_dir, profile)},
+        }
     source = Path(__file__).resolve().parent.parent
     bootstrap = (
         f"import runpy,sys;sys.path.insert(0,{str(source)!r});"

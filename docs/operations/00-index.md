@@ -2,7 +2,7 @@
 
 문서 ID: OPS-LOCAL · 요구사항: REQ-UI, REQ-REGISTRY, REQ-TASKS
 
-<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"]} -->
+<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--skills-dir","--state-dir"]} -->
 
 설치는 [설치 안내](../installation/00-index.md), 기능 경계는
 [호환성 계약](../architecture/02-compatibility.md)을 먼저 확인한다.
@@ -21,7 +21,8 @@ Python 3.10 이상을 사용한다. 저장소 루트에서:
 python3 -m joongi_hub serve --host 127.0.0.1 --port 8765
 ```
 
-브라우저에서 `http://127.0.0.1:8765/`를 연다. health는 `/healthz`, MCP HTTP 접점은
+`joongi-hub open`으로 관리 화면을 연다. clone에서는 다른 터미널에서
+`python3 -m joongi_hub open`을 실행한다. 주소만 직접 열면 관리 자격증명이 없어 안내를 표시한다. health는 `/healthz`, MCP HTTP 접점은
 `/mcp`, 관리 JSON API는 `/api/v1` 아래에 있다. UI와 API는 같은 origin을 사용한다.
 이미 사용 중인 포트면 `--port`를 바꾼다. 외부 네트워크 공개를 위해 host를 바꾸지 않는다.
 

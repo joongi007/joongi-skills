@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import html
+import json
 import posixpath
 import re
 from pathlib import Path
@@ -75,6 +77,28 @@ def build_docs(root: Path, output: Path, public_file) -> int:
         ) from error
 
     parser = MarkdownIt("js-default", {"html": False})
+    diagrams = {}
+    original_fence = parser.renderer.rules["fence"]
+
+    def render_fence(tokens, index, options, environment):
+        token = tokens[index]
+        if token.info.strip() != "mermaid":
+            return original_fence(tokens, index, options, environment)
+        if len(token.content) > 16000:
+            raise ValueError("Mermaid source exceeds 16,000 characters")
+        identity = hashlib.sha256(token.content.encode()).hexdigest()
+        diagrams[identity] = token.content
+        image = relative("diagrams/" + identity + ".svg", environment["current"])
+        return (
+            '<figure class="mermaid-diagram">'
+            f'<p data-mermaid-slot="{identity}" data-mermaid-src="{image}">'
+            "도표 이미지 빌드 전입니다. 원문을 펼쳐 볼 수 있습니다.</p>"
+            "<details><summary>Mermaid 원문 보기</summary><pre><code>"
+            + html.escape(token.content)
+            + "</code></pre></details></figure>"
+        )
+
+    parser.renderer.rules["fence"] = render_fence
     pages = {}
     for source in sources:
         tokens = parser.parse(content((root / source).read_text(encoding="utf-8")))
@@ -177,7 +201,7 @@ def build_docs(root: Path, output: Path, public_file) -> int:
             for tag, label, identifier in page["headings"]
             if tag in {"h2", "h3"}
         )
-        body = parser.renderer.render(page["tokens"], parser.options, {})
+        body = parser.renderer.render(page["tokens"], parser.options, {"current": current})
         body = body.replace(
             "<table>",
             '<div class="table-scroll" role="region" aria-label="문서 표" tabindex="0"><table>',
@@ -206,4 +230,8 @@ def build_docs(root: Path, output: Path, public_file) -> int:
         target = output / current
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(rendered, encoding="utf-8")
+    if diagrams:
+        (output / "mermaid-diagrams.json").write_text(
+            json.dumps(diagrams, ensure_ascii=False), encoding="utf-8"
+        )
     return len(pages)

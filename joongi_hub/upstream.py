@@ -37,6 +37,7 @@ def validate_server(data):
         "env",
         "headers",
         "auth",
+        "policy",
     }
     if set(data) - allowed:
         raise RpcError(-32602, "Unknown server fields")
@@ -44,6 +45,10 @@ def validate_server(data):
         from joongi_hub.auth import validate_auth
 
         validate_auth(data["auth"], data.get("transport"))
+    if "policy" in data:
+        from joongi_hub.tool_policy import validate_policy
+
+        validate_policy(data["policy"])
     server_id = data.get("id", "")
     if not isinstance(server_id, str) or not SERVER_ID.fullmatch(server_id):
         raise RpcError(-32602, "Server id must be lowercase letters, digits and hyphens (1–48)")
@@ -275,6 +280,20 @@ class HttpTransport:
             )
         if raw is not None:
             headers = raw.get("headers", {"Accept": "application/json"})
+        reflected_headers = [
+            value
+            for key, value in headers.items()
+            if key.lower() == "authorization"
+            or key in self.config.get("headers", {})
+            or key == self.config.get("auth", {}).get("header")
+        ]
+
+        def check_response(value):
+            from joongi_hub.redaction import reject_secret_reflection
+
+            reject_secret_reflection(value, reflected_headers)
+            return value
+
         payload = raw.get("body") if raw is not None else json.dumps(message).encode()
         if payload is not None and len(payload) > MAX_MESSAGE:
             raise RpcError(-32602, "Upstream request exceeds 4 MiB")
@@ -386,7 +405,7 @@ class HttpTransport:
                         value = json.loads(b"\n".join(data))
                         data = []
                         if isinstance(value, dict) and value.get("id") == message["id"]:
-                            return value
+                            return check_response(value)
                 raise RpcError(-32000, "Upstream stream ended without a response")
             body = response.read(MAX_MESSAGE + 1)
             if expired.is_set():
@@ -398,7 +417,7 @@ class HttpTransport:
             value = json.loads(body)
             if response.status >= 400 and not (isinstance(value, dict) and "error" in value):
                 raise RpcError(-32000, "Upstream HTTP request failed", {"status": response.status})
-            return value
+            return check_response(value)
         except (OSError, ValueError, http.client.HTTPException) as exc:
             raise RpcError(
                 -32000,
@@ -450,9 +469,18 @@ class Upstream:
         message = {"jsonrpc": "2.0", "method": method, "params": params}
         if not notification:
             message["id"] = self.sequence
+        before = (
+            self.auth.secret_values(self.config)
+            if self.auth and hasattr(self.auth, "secret_values")
+            else []
+        )
         response = self.transport.exchange(message)
         if notification:
             return {}
+        if self.auth and hasattr(self.auth, "secret_values"):
+            from joongi_hub.redaction import reject_secret_reflection
+
+            reject_secret_reflection(response, before + self.auth.secret_values(self.config))
         if not isinstance(response, dict) or response.get("id") != message["id"]:
             raise RpcError(-32000, "Invalid upstream response id")
         if "error" in response:

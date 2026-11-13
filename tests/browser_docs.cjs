@@ -12,6 +12,8 @@ async function main() {
   const output = join(directory, 'pages');
   const build = spawnSync(process.env.PYTHON || 'python3', ['-B', 'scripts/build_pages.py', '--out', output, '--base-url', 'https://pages.example/joongi-skills'], { cwd: resolve(__dirname, '..'), encoding: 'utf8' });
   assert.equal(build.status, 0, build.stderr);
+  const diagrams = spawnSync(process.execPath, ['scripts/render_mermaid.mjs', output], { cwd: resolve(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(diagrams.status, 0, diagrams.stderr);
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ javaScriptEnabled: false });
   await context.route('https://pages.example/joongi-skills/**', route => {
@@ -19,7 +21,7 @@ async function main() {
     const file = resolve(output, name);
     if (!file.startsWith(resolve(output) + sep)) return route.fulfill({ status: 404, body: '' });
     try {
-      const type = file.endsWith('.css') ? 'text/css' : file.endsWith('.html') ? 'text/html' : 'application/octet-stream';
+      const type = file.endsWith('.css') ? 'text/css' : file.endsWith('.html') ? 'text/html' : file.endsWith('.svg') ? 'image/svg+xml' : 'application/octet-stream';
       return route.fulfill({ contentType: type, body: readFileSync(file) });
     } catch { return route.fulfill({ status: 404, body: '' }); }
   });
@@ -27,6 +29,12 @@ async function main() {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('https://pages.example/joongi-skills/read/docs/00-index.html');
   await page.getByRole('heading', { name: '문서 안내', exact: true }).waitFor();
+  await page.goto('https://pages.example/joongi-skills/read/docs/architecture/01-components.html');
+  const image = page.locator('.mermaid-diagram img');
+  await image.waitFor();
+  assert(await image.evaluate(node => node.complete && node.naturalWidth > 0));
+  assert.equal(await page.locator('script').count(), 0, 'Document reader must not execute Mermaid');
+  await page.goto('https://pages.example/joongi-skills/read/docs/00-index.html');
   const menu = page.getByRole('navigation', { name: '문서 탐색', exact: true });
   await menu.getByText('설치와 업데이트', { exact: true }).click();
   await menu.getByRole('link', { name: '설치·업데이트·제거', exact: true }).click();

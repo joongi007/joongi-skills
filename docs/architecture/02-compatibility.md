@@ -54,7 +54,8 @@ Task를 요청한 App view별로 소유권을 분리한다. 다른 view나 관�
 Tasks는 2025 `tasks/get`·`tasks/result`·취소와 2026 `tasks/get` 결과 포함·취소를 처리한다.
 2026 remote task의 `input_required`·`inputRequests`를 로컬 작업으로 전달하고,
 `tasks/update.inputResponses` 또는 관리 UI의 입력 제출을 원래 remote task로 전달한다.
-동기 2026 요청의 input_required도 requestState/inputResponses 재요청으로 전달하며,
+2026의 MRTR(Multi-Round-Trip Requests, SEP-2322)은 `tools/call`의
+`input_required`·`requestState`·`inputResponses` 재요청으로 전달하며,
 로컬 UI에서는 같은 흐름을 백그라운드 task로 감싸서 입력·재개한다. 2025 upstream에는
 2026 input response 계약을 임의 적용하지 않는다.
 독립적인 sampling·elicitation·subscriptions와 legacy HTTP+SSE 전송은 제공하지 않는다.

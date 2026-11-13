@@ -56,6 +56,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 install
 PATH에 없다면 `~/.local/bin/joongi-hub open`처럼 전체 경로를 쓰세요.
 Windows에서는 `& "$HOME/.local/bin/joongi-hub.cmd" open` 형식입니다.
 
+인증 정보는 Windows·WSL의 DPAPI, macOS Keychain, Linux Secret Service로 보호합니다.
+Linux의 서비스 로그인에는 `secret-tool`·`gdbus`와 열린 로그인 키링이 필요합니다.
+이전 평문 인증이 있다면 `joongi-hub credentials --migrate`로 옮기세요.
+인증을 사용하는 MCP의 도구는 관리 화면에서 한 번 승인하거나 허용 목록을 지정합니다.
+[인증 저장과 호출 승인](docs/operations/05-auth-project-skills.md).
+
 stdio·stdio + HTTP·HTTP 중 선택하는 방법은 [연결 방식과 웹 실행](docs/operations/06-connection-modes.md)에 있습니다.
 
 ## 업데이트와 제거

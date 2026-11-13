@@ -15,8 +15,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 
 from joongi_hub.credential_lock import CredentialLock
+from joongi_hub.credential_store import CredentialStore, dpapi
 from joongi_hub.errors import RpcError
-from joongi_hub.storage import atomic_json
 
 AUTH_TYPES = {
     "none",
@@ -162,12 +162,13 @@ def document(url, method="GET", data=None, headers=None):
 
 
 class AuthManager:
-    def __init__(self, state_dir: Path):
+    def __init__(self, state_dir: Path, store=None):
         self.path = Path(state_dir) / "auth" / "credentials.json"
         self.lock = CredentialLock(self.path.parent / "credentials.lock")
         self.pending = {}
         self.challenges = {}
         self.callback_url = None
+        self.store = store or CredentialStore(self.path)
 
     def _read(self):
         if self.path.is_symlink() or self.path.parent.is_symlink():
@@ -177,43 +178,34 @@ class AuthManager:
         if self.path.stat().st_size > 1024 * 1024:
             raise RpcError(-32040, "인증 저장소 크기 제한을 넘었습니다.")
         try:
-            value = json.loads(self.path.read_text(encoding="utf-8"))
-            if not isinstance(value, dict):
-                raise ValueError
-            if value.get("protected") == "windows-dpapi":
-                value = json.loads(self._crypt(base64.b64decode(value["data"]), decrypt=True))
-            return value
-        except (ValueError, UnicodeError) as exc:
+            return self.store.load()
+        except (ValueError, UnicodeError, TypeError, KeyError) as exc:
             raise RpcError(-32040, "인증 저장소를 읽을 수 없습니다.") from exc
 
     @staticmethod
     def _crypt(data, decrypt=False):
-        import ctypes
-        from ctypes import wintypes
-
-        class Blob(ctypes.Structure):
-            _fields_ = [("size", wintypes.DWORD), ("data", ctypes.POINTER(ctypes.c_ubyte))]
-
-        buffer = ctypes.create_string_buffer(data)
-        source = Blob(len(data), ctypes.cast(buffer, ctypes.POINTER(ctypes.c_ubyte)))
-        target = Blob()
-        function = (
-            ctypes.windll.crypt32.CryptUnprotectData
-            if decrypt
-            else ctypes.windll.crypt32.CryptProtectData
-        )
-        if not function(ctypes.byref(source), None, None, None, None, 1, ctypes.byref(target)):
-            raise RpcError(-32040, "Windows 자격증명 보호 기능을 사용할 수 없습니다.")
-        try:
-            return ctypes.string_at(target.data, target.size)
-        finally:
-            ctypes.windll.kernel32.LocalFree(target.data)
+        return dpapi(data, decrypt)
 
     def _write(self, records):
-        if os.name == "nt":
-            value = self._crypt(json.dumps(records).encode())
-            records = {"protected": "windows-dpapi", "data": base64.b64encode(value).decode()}
-        atomic_json(self.path, records)
+        self.store.save(records)
+
+    def secret_values(self, config):
+        with self.lock:
+            row = self._record(config)
+            token = row.get("token", {})
+            values = [
+                token.get("access_token"),
+                token.get("refresh_token"),
+                row.get("registration", {}).get("client_secret"),
+            ]
+            values += [v for k, v in row.get("manual", {}).items() if k != "username"]
+            values += [
+                os.environ.get(config.get("auth", {}).get(k, ""))
+                for k in ("token_env", "password_env", "client_secret_env")
+            ]
+            values += [os.environ.get(v) for v in config.get("env", {}).values()]
+            values += [os.environ.get(v) for v in config.get("headers", {}).values()]
+            return [v for v in values if isinstance(v, str) and v]
 
     def _record(self, config):
         row = self._read().get(config["id"], {})
@@ -226,7 +218,13 @@ class AuthManager:
 
     def status(self, config):
         with self.lock:
-            row = self._record(config)
+            storage_error = None
+            try:
+                row = self._record(config)
+            except RpcError as error:
+                if error.code != -32045:
+                    raise
+                row, storage_error = {}, str(error)
             auth = config.get("auth", {})
             kind = auth.get(
                 "type", "external" if config.get("env") or config.get("headers") else "none"
@@ -248,7 +246,8 @@ class AuthManager:
             return {
                 "type": kind,
                 "configured": configured,
-                "storage": "windows-dpapi" if os.name == "nt" else "owner-only-file",
+                "storage": self.store.vault.name,
+                "storage_error": storage_error,
                 "expires_at": token.get("expires_at"),
                 "login_required": kind not in {"none", "external", "client_credentials"}
                 and (not configured or rejected or (expired and not token.get("refresh_token"))),
@@ -477,6 +476,14 @@ class AuthManager:
         ):
             raise RpcError(-32040, "인증 응답에 지원하는 Bearer 토큰이 없습니다.")
         expires = token.get("expires_in")
+        refresh = token.get("refresh_token")
+        if "refresh_token" in token and (
+            not isinstance(refresh, str)
+            or not refresh
+            or len(refresh) > 65536
+            or any(ord(c) < 33 or ord(c) > 126 for c in refresh)
+        ):
+            raise RpcError(-32040, "인증 응답의 refresh token이 올바르지 않습니다.")
         try:
             seconds = float(expires) if expires is not None else None
             if seconds is not None and (not math.isfinite(seconds) or seconds < 0):

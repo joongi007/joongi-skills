@@ -363,6 +363,16 @@ class Installer:
                     + json.dumps(value["args"])
                     + "\n"
                 )
+                + (
+                    "http_headers = { "
+                    + ", ".join(
+                        json.dumps(k) + " = " + json.dumps(v)
+                        for k, v in value["http_headers"].items()
+                    )
+                    + " }\n"
+                    if value.get("http_headers")
+                    else ""
+                )
                 + TOML_END
             )
             updated = original + ("\n" if original and not original.endswith("\n") else "") + block
@@ -719,7 +729,15 @@ def main(argv: list[str] | None = None) -> int:
                     selected[key] = getattr(args, key)
             selected = ConnectionSettings.validate(selected)
             if selected["mode"] == "http":
-                installer.connection = {"url": mcp_url(selected["url"])}
+                from joongi_hub.local_auth import local_token
+
+                installer.connection = {
+                    "url": mcp_url(selected["url"]),
+                    "headers": {
+                        "Authorization": "Bearer "
+                        + ("GENERATED_ON_INSTALL" if args.dry_run else local_token(hub_state))
+                    },
+                }
             elif selected["mode"] == "hybrid":
                 launcher = installer.bin_dir / (
                     "joongi-hub.cmd" if os.name == "nt" else "joongi-hub"

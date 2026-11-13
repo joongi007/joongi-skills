@@ -12,7 +12,8 @@
 Hub 로그인 대신 loopback 경계와 기존 관리 API 보호를 유지하고 upstream별 인증을 추가한다.
 OAuth discovery·PKCE·브라우저 callback·Device Code·Client Credentials와 수동 헤더 인증을 지원한다.
 토큰은 서버 설정과 분리하고 서버 URL·인증 설정 fingerprint 및 프로젝트 상태 경로에 결합한다.
-Windows는 DPAPI, POSIX는 소유자 전용 파일을 사용한다. provider별 모든 인증 확장을 광고하지 않는다.
+당시 결정은 Windows DPAPI·POSIX 소유자 전용 파일이었다. 인증 저장과 로컬 접근 정책은
+[ADR-0011](0011-local-credential-boundaries.md)에서 OS 보안 저장소로 대체했다. provider별 모든 인증 확장을 광고하지 않는다.
 
 명시적으로 등록한 프로젝트의 선택된 공용 항목과 로컬 스킬을 합성한다. 로컬 스킬이 우선하며
 읽기·검색·native Skills URI에 동일한 카탈로그를 적용한다. stdio 연결은 profile을 고정한다.

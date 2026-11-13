@@ -58,7 +58,10 @@ SHA256·다운로드 크기·압축 해제 크기·파일 개수·경로·링크
 
 ```bash
 python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
+npm ci
+npx playwright install chromium --only-shell
 python3 scripts/build_pages.py --out /tmp/joongi-pages-preview --base-url https://example.invalid/joongi-skills
+node scripts/render_mermaid.mjs /tmp/joongi-pages-preview
 python3 -m http.server 8080 --directory /tmp/joongi-pages-preview
 ```
 
@@ -100,7 +103,20 @@ README와 `docs/`, `skills/`, `refs/`의 공개 Markdown을 빌드 시 HTML로 �
 Hub 실행과 사용자 설치에는 추가 Python 패키지가 필요하지 않다. 생성 HTML은 Git에 커밋하지 않는다.
 
 HTML 태그 실행은 끄고, 계약 검사 주석과 스킬의 frontmatter는 읽기 화면에서 생략한다.
-코드 블록 안의 예제는 그대로 표시한다. Mermaid 등 별도 확장 렌더링은 제공하지 않는다.
+일반 코드 블록은 원문을 표시한다. `mermaid` 코드 블록은 빌드 시 SVG로 변환해 이미지로 보여주고,
+접힌 **도표 원문**도 제공한다. 읽는 브라우저에는 Mermaid JavaScript를 배포하지 않는다.
+Node 22·Playwright Chromium·Mermaid·DOMPurify는 빌드·검사 전용이며 Hub 실행에는 필요하지 않다.
+
+Mermaid는 `securityLevel: strict`, HTML label 비활성화, 외부 통신 차단 상태에서 실행한다.
+원문의 init directive·YAML 설정·click 기능을 거절하고, 생성 SVG를 DOMPurify로 정리한 뒤
+script·이벤트·foreignObject·링크·외부 이미지·외부 CSS 참조를 제거하거나 거절한다.
+완성 문서는 SVG를 `<img>`로 읽으며 CSP에서 스크립트 실행을 허용하지 않는다.
+원문 16,000자·간선 256개·빌드당 도표 128개·도표당 15초 제한을 둔다.
+지원하지 않거나 안전 검사에 실패한 도표는 CI를 실패시키므로 원문을 수정해야 한다.
+이 설정은 공개 Pages 문서에 적용하며 로컬 Hub의 동적 Markdown 읽기에는 Mermaid를 추가하지 않는다.
 문서 전체의 HTML 링크·제목 앵커, 사설 경로 제외와 JavaScript 없는 브라우저 탐색을 CI에서 검증한다.
 
 변환 설정 근거: [markdown-it-py의 HTML 비활성화 지침](https://markdown-it-py.readthedocs.io/en/latest/security.html).
+
+Mermaid 설정 근거: [공식 보안 수준 설명](https://mermaid.js.org/config/usage),
+[secure 설정](https://mermaid.js.org/config/schema-docs/config.html).

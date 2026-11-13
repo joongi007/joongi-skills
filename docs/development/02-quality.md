@@ -96,3 +96,19 @@ python3 -B -m unittest tests.test_site_docs tests.test_pages tests.test_publicat
 
 `npm run test:browser`에는 생성된 HTML의 JavaScript 없는 탐색·본문 목차·모바일 레이아웃 검사도 포함된다.
 Python 테스트는 전체 문서의 상대 링크·제목 앵커, 코드 예제·표·안전한 HTML 출력과 공개 경로 제외를 확인한다.
+
+## 인증 저장소와 문서 도표 보안
+
+`tests/test_security_boundaries.py`는 무인증 HTTP·범위 바꾸기·승인 재사용·비밀 반사를 검사한다.
+`tests/test_credential_store.py`는 키링 잠금·저장 실패·명시적 이전·새 인스턴스 읽기를 검사한다.
+`native-vault` CI는 Linux Secret Service, Windows DPAPI, macOS Keychain을 실제 사용한다.
+로컬에서 native 검사를 실행하면 임시 가짜 토큰을 OS 키링에 저장한 뒤 지운다.
+
+```bash
+JOONGI_TEST_NATIVE_VAULT=1 python3 -B -m unittest tests.test_credential_store.NativeCredentialStoreTests -v
+node tests/mermaid_security.mjs
+```
+
+Mermaid 보안 검사는 정상 도표, SVG 스크립트·이벤트·foreignObject 제거,
+설정 재정의·click·외부 CSS 거절을 포함한다. 문서 브라우저 검사는 JavaScript를 끈 상태에서
+실제 SVG 표시·링크·모바일 폭을 확인한다. 배포 후 검사도 공개 SVG를 다시 내려받는다.
