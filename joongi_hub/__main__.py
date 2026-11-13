@@ -10,6 +10,7 @@ from joongi_hub import __version__
 from joongi_hub.connections import ConnectionSettings, running, select_bridge
 from joongi_hub.errors import RpcError
 from joongi_hub.lifecycle import manage
+from joongi_hub.local_auth import LocalAuth
 from joongi_hub.server import HubServer
 from joongi_hub.service import Hub
 from joongi_hub.state_store import (
@@ -101,6 +102,7 @@ def main(argv=None):
         "open",
         "configure",
         "state",
+        "credentials",
     ):
         command = subparsers.add_parser(name)
         command.add_argument(
@@ -141,12 +143,45 @@ def main(argv=None):
                 action="store_true",
                 help="Restore a missing server registry from its last committed backup",
             )
+        if name == "credentials":
+            command.add_argument(
+                "--migrate",
+                action="store_true",
+                help="Move legacy plaintext credentials into the OS-protected store",
+            )
     args = parser.parse_args(argv or None)
     if not args.command:
         parser.print_help()
         return 0
     args.state_dir = args.state_dir.expanduser().resolve()
     args.skills_dir = args.skills_dir.expanduser().resolve()
+    if args.command == "credentials":
+        from joongi_hub.auth import AuthManager
+
+        manager = AuthManager(args.state_dir)
+        try:
+            with manager.lock:
+                if (
+                    manager.path.is_symlink()
+                    or manager.path.parent.is_symlink()
+                    or (manager.path.exists() and manager.path.stat().st_size > 1024**2)
+                ):
+                    raise RpcError(-32045, "인증 저장소 경로·크기를 확인하세요.")
+                value = (
+                    manager.store.migrate()
+                    if args.migrate
+                    else {
+                        "storage": manager.store.vault.name,
+                        "exists": manager.path.exists(),
+                        "requires_plaintext_migration": manager.path.exists()
+                        and "protected" not in json.loads(manager.path.read_text(encoding="utf-8")),
+                    }
+                )
+            print(json.dumps(value, ensure_ascii=False))
+            return 0
+        except (RpcError, OSError, ValueError) as error:
+            print(str(error), file=sys.stderr)
+            return 1
     if args.command == "state":
         try:
             result = {}
@@ -221,7 +256,14 @@ def main(argv=None):
             selected = ConnectionSettings.validate(selected)
             url = select_bridge(args.state_dir, selected, explicit_url=args.url is not None)
             if url:
-                bridge = HttpTransport({"url": url + "/mcp"})
+                from joongi_hub.connections import mcp_url
+                from joongi_hub.local_auth import local_token
+
+                local_token(args.state_dir, args.profile)
+                bridge = HttpTransport(
+                    {"url": mcp_url(url, args.profile)},
+                    auth=LocalAuth(args.state_dir, args.profile),
+                )
         except RpcError as exc:
             print(str(exc), file=sys.stderr)
             return 1

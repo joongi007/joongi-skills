@@ -4,12 +4,13 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import urllib.request
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -52,6 +53,15 @@ def main():
         document = response.read().decode("utf-8")
     assert '<article class="document-body">' in document and "문서 안내" in document
     assert "installation/00-index.html" in document
+    architecture_url = BASE + "/read/docs/architecture/01-components.html"
+    with urllib.request.urlopen(architecture_url, timeout=30) as response:
+        architecture = response.read().decode("utf-8")
+    image = re.search(r'<img src="([^"]+diagrams/[a-f0-9]{64}\.svg)"', architecture)
+    assert image, "Published architecture page must contain a static Mermaid diagram"
+    with urllib.request.urlopen(urljoin(architecture_url, image[1]), timeout=30) as response:
+        svg = response.read(2 * 1024**2 + 1).decode("utf-8")
+    assert svg.startswith("<svg") and "<script" not in svg.lower()
+    assert "data-mermaid-slot" not in architecture
     with tempfile.TemporaryDirectory(prefix="joongi-live-bootstrap-") as directory:
         temp = Path(directory).resolve()
         home = temp / "home with spaces 한글"

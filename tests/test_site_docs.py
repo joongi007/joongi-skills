@@ -64,6 +64,27 @@ class SiteDocsTests(unittest.TestCase):
             readme = (output / "read/README.html").read_text(encoding="utf-8")
             self.assertIn("docs/00-index.html#section-한글-제목", readme)
 
+    def test_mermaid_is_manifest_data_and_escaped_source_until_static_render(self):
+        import hashlib
+        import json
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "source"
+            (root / "docs").mkdir(parents=True)
+            diagram = 'flowchart TD\nA["<script>alert(1)</script>"] --> B["Hub"]\n'
+            (root / "docs/00-index.md").write_text(
+                "# 도표\n```mermaid\n" + diagram + "```\n", encoding="utf-8"
+            )
+            output = Path(directory) / "pages"
+            build_docs(root, output, public_file)
+            manifest = json.loads((output / "mermaid-diagrams.json").read_text())
+            self.assertEqual(manifest, {hashlib.sha256(diagram.encode()).hexdigest(): diagram})
+            page = (output / "read/docs/00-index.html").read_text(encoding="utf-8")
+            self.assertNotIn("script", Links(page).tags)
+            self.assertIn("&lt;script&gt;", page)
+            self.assertIn("data-mermaid-slot=", page)
+            self.assertIn("default-src 'none'", page)
+
     def test_real_document_links_and_fragments_exist(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)

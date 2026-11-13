@@ -126,6 +126,7 @@ def runtime_snapshot(root):
         "status",
         "open",
         "state",
+        "credentials",
     ):
         command = subprocess.run(
             [sys.executable, "-B", "-m", "joongi_hub", name, "--help"],

@@ -24,7 +24,7 @@ async function main() {
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(fixture.url);
+  await page.goto(fixture.ui_url);
   await page.getByRole('heading', { name: '나의 도구를 연결하는 곳' }).waitFor();
   assert.equal(await page.locator('.intro-panel').count(), 0, 'Registered users should see operational state first');
   assert(!await page.locator('#page').evaluate(node => [...node.childNodes].some(child => child.nodeType === Node.TEXT_NODE && /null|undefined/.test(child.textContent))), 'Conditional panels must not render placeholder text');
@@ -127,7 +127,7 @@ async function main() {
   assert.equal(await page.getByLabel('이름', { exact: true }).inputValue(), '유지할 프로젝트');
   const startup = await browser.newPage();
   await startup.route('**/api/v1/projects', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Test projects unavailable' }) }));
-  await startup.goto(fixture.url);
+  await startup.goto(fixture.ui_url);
   await startup.getByRole('heading', { name: '작업 공간을 불러올 수 없습니다', exact: true }).waitFor();
   assert.equal(await startup.locator('.loading-line').count(), 0);
   await startup.unroute('**/api/v1/projects');

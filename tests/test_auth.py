@@ -16,6 +16,7 @@ from joongi_hub.errors import RpcError
 from joongi_hub.server import HubServer
 from joongi_hub.service import Hub
 from joongi_hub.upstream import validate_server
+from tests.fixtures.credential_store import test_store
 from tests.fixtures.oauth_server import OAuthProvider
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -25,7 +26,7 @@ class Authentication(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.hub = Hub(ROOT / "skills", Path(self.temp.name))
+        self.hub = Hub(ROOT / "skills", Path(self.temp.name), credential_store_factory=test_store)
         self.addCleanup(self.hub.close)
         self.provider = OAuthProvider()
         self.panel = HubServer(("127.0.0.1", 0), self.hub)
@@ -38,6 +39,7 @@ class Authentication(unittest.TestCase):
             "transport": "http",
             "url": self.provider.resource,
             "auth": {"type": "oauth", "client_id": "registered-client"},
+            "policy": {"allowed_tools": ["echo"]},
         }
         self.hub.register(self.config)
 

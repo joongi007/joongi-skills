@@ -21,6 +21,7 @@ from joongi_hub.connections import (
 )
 from joongi_hub.errors import RpcError
 from joongi_hub.lifecycle import manage
+from joongi_hub.local_auth import local_token
 from joongi_hub.server import HubServer
 from joongi_hub.service import Hub
 from joongi_hub.storage import atomic_json
@@ -58,8 +59,18 @@ class Connections(unittest.TestCase):
 
     def request(self, path, body, headers=None):
         client = http.client.HTTPConnection("127.0.0.1", self.panel.server_port, timeout=5)
+        profile = (
+            path.removeprefix("/mcp/projects/") if path.startswith("/mcp/projects/") else "global"
+        )
         client.request(
-            "POST", path, json.dumps(body), {"Content-Type": "application/json", **(headers or {})}
+            "POST",
+            path,
+            json.dumps(body),
+            {
+                "Content-Type": "application/json",
+                "Authorization": "Bearer " + local_token(self.hub.state_dir, profile),
+                **(headers or {}),
+            },
         )
         response = client.getresponse()
         data = response.read()
@@ -346,7 +357,10 @@ class Connections(unittest.TestCase):
     def test_modern_project_url_and_generated_agent_configs(self):
         self.hub.connection_settings.put(self.settings("http"))
         cfg = configuration(self.hub, "p")
-        self.assertEqual(cfg, {"url": self.url + "/mcp/projects/p"})
+        self.assertEqual(cfg["url"], self.url + "/mcp/projects/p")
+        self.assertEqual(
+            cfg["headers"], {"Authorization": "Bearer " + local_token(self.hub.state_dir, "p")}
+        )
         request = {
             "jsonrpc": "2.0",
             "id": 1,
@@ -356,14 +370,25 @@ class Connections(unittest.TestCase):
         status, result, _ = self.request("/mcp/projects/p", request)
         self.assertEqual(status, 200, result)
         self.assertNotIn("engineering-playbook", json.dumps(result))
-        self.assertEqual(agent_value("gemini", cfg), {"httpUrl": cfg["url"]})
+        self.assertEqual(
+            agent_value("gemini", cfg), {"httpUrl": cfg["url"], "headers": cfg["headers"]}
+        )
         self.assertEqual(agent_value("opencode", cfg)["type"], "remote")
-        self.assertEqual(agent_value("codex", cfg), cfg)
+        self.assertEqual(
+            agent_value("codex", cfg), {"url": cfg["url"], "http_headers": cfg["headers"]}
+        )
 
     def test_project_http_url_cannot_end_a_different_profile_session(self):
         self.panel.sessions["global-session"] = {"profile": "global"}
         client = http.client.HTTPConnection("127.0.0.1", self.panel.server_port)
-        client.request("DELETE", "/mcp/projects/p", headers={"Mcp-Session-Id": "global-session"})
+        client.request(
+            "DELETE",
+            "/mcp/projects/p",
+            headers={
+                "Mcp-Session-Id": "global-session",
+                "Authorization": "Bearer " + local_token(self.hub.state_dir, "p"),
+            },
+        )
         response = client.getresponse()
         response.read()
         client.close()
@@ -386,7 +411,10 @@ class Connections(unittest.TestCase):
             json.loads((self.home / ".gemini/settings.json").read_text())["mcpServers"][
                 "joongi-hub"
             ],
-            {"httpUrl": self.url + "/mcp"},
+            {
+                "httpUrl": self.url + "/mcp",
+                "headers": {"Authorization": "Bearer " + local_token(self.hub.state_dir)},
+            },
         )
         self.assertEqual(
             json.loads((self.home / ".claude.json").read_text())["mcpServers"]["joongi-hub"][
@@ -514,7 +542,11 @@ class Lifecycle(unittest.TestCase):
                 response = client.getresponse()
                 self.assertEqual(response.status, 200)
                 self.assertIn(b"Joongi Hub", response.read())
-                client.request("GET", "/api/v1/connection")
+                client.request(
+                    "GET",
+                    "/api/v1/connection",
+                    headers={"X-Hub-Token": local_token(state, management=True)},
+                )
                 response = client.getresponse()
                 info = json.loads(response.read())
                 self.assertEqual(info["settings"]["mode"], "hybrid")

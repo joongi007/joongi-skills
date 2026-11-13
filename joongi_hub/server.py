@@ -12,6 +12,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 from joongi_hub.apps import AppSessions
 from joongi_hub.connections import agent_value, configuration, state_id
 from joongi_hub.errors import RpcError
+from joongi_hub.local_auth import local_token
 from joongi_hub.upstream import MAX_MESSAGE, MODERN, VERSIONS
 
 STATIC = Path(__file__).parent / "static"
@@ -24,7 +25,8 @@ class HubServer(ThreadingHTTPServer):
     def __init__(self, address, hub):
         self.hub = hub
         self.apps = AppSessions(hub)
-        self.token = secrets.token_urlsafe(32)
+        self.token = local_token(hub.state_dir, management=True)
+        local_token(hub.state_dir)
         self.instance_id = secrets.token_urlsafe(24)
         self.sessions = {}
         self.session_lock = threading.RLock()
@@ -108,7 +110,26 @@ class Handler(BaseHTTPRequestHandler):
         if self.headers.get("Sec-Fetch-Site") == "cross-site":
             self.send_data(403, {"error": "Cross-site requests are not allowed"})
             return False
-        if self.command in {"POST", "DELETE", "PUT", "PATCH"} and not self.mcp_path():
+        path = unquote(urlparse(self.path).path)
+        if path == "/mcp" or path.startswith("/mcp/projects/"):
+            profile = (
+                path.removeprefix("/mcp/projects/")
+                if path.startswith("/mcp/projects/")
+                else "global"
+            )
+            expected = local_token(self.server.hub.state_dir, profile, create=False)
+            supplied = self.headers.get("Authorization", "")
+            if not expected or not secrets.compare_digest(supplied, "Bearer " + expected):
+                self.send_data(
+                    401,
+                    {"error": "HTTP MCP 연결 자격증명이 필요합니다."},
+                    headers={"WWW-Authenticate": 'Bearer realm="joongi-hub"'},
+                )
+                return False
+            if self.headers.get("X-Hub-Profile", profile) != profile:
+                self.send_data(400, {"error": "이 연결의 프로젝트를 변경할 수 없습니다."})
+                return False
+        elif path.startswith("/api/v1/"):
             if not secrets.compare_digest(self.headers.get("X-Hub-Token", ""), self.server.token):
                 self.send_data(403, {"error": "Open the local panel to obtain an API session"})
                 return False
@@ -190,7 +211,9 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         try:
             hub = self.active_hub()
-            if path == "/api/v1/projects":
+            if path == "/api/v1/approvals":
+                self.send_data(200, hub.tool_policy.list())
+            elif path == "/api/v1/projects":
                 self.send_data(
                     200,
                     {
@@ -310,7 +333,16 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if not isinstance(body, dict):
                 raise RpcError(-32602, "Request body must be an object")
-            if self.path == "/api/v1/connection":
+            if self.path.startswith("/api/v1/approvals/"):
+                if set(body) != {"approve"} or type(body["approve"]) is not bool:
+                    raise RpcError(-32602, "승인 여부를 지정하세요.")
+                self.send_data(
+                    200,
+                    hub.tool_policy.decide(
+                        self.path.removeprefix("/api/v1/approvals/"), body["approve"]
+                    ),
+                )
+            elif self.path == "/api/v1/connection":
                 self.send_data(200, hub.connection_settings.put(body))
             elif self.path == "/api/v1/connection/plan":
                 if set(body) != {"agents"}:
@@ -402,6 +434,9 @@ class Handler(BaseHTTPRequestHandler):
         meta = params.get("_meta", {})
         if not isinstance(meta, dict):
             raise RpcError(-32602, "_meta must be an object")
+        profile = self.path_profile() or "global"
+        if meta.get("joongi-hub/profile", profile) != profile:
+            raise RpcError(-32602, "이 연결의 프로젝트를 변경할 수 없습니다.")
         metadata_version = meta.get("io.modelcontextprotocol/protocolVersion")
         header_version = self.headers.get("MCP-Protocol-Version")
         if metadata_version and header_version and metadata_version != header_version:

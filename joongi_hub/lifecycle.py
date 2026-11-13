@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 
 from joongi_hub.connections import ConnectionSettings, running
 from joongi_hub.errors import RpcError
+from joongi_hub.local_auth import local_token, ui_url
 from joongi_hub.runtime import process_alive
 
 _children = {}
@@ -37,9 +38,7 @@ def stop(directory):
     p = urlsplit(record["url"])
     client = http.client.HTTPConnection(p.hostname, p.port, timeout=3)
     try:
-        client.request("GET", "/api/v1/session")
-        response = client.getresponse()
-        token = json.loads(response.read(65536))["token"]
+        token = local_token(directory, create=False, management=True)
         client.request(
             "POST",
             "/api/v1/runtime/stop",
@@ -161,5 +160,5 @@ def manage(action, directory, skills_dir, port=None):
         stop(directory)
     result = start(directory, skills_dir, port)
     if action == "open":
-        result["browser_opened"] = bool(webbrowser.open(result["url"]))
+        result["browser_opened"] = bool(webbrowser.open(ui_url(result["url"], directory)))
     return result

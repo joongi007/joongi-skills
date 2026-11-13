@@ -35,6 +35,7 @@
       "DELETE /mcp",
       "DELETE /mcp/projects/{value}",
       "GET /",
+      "GET /api/v1/approvals",
       "GET /api/v1/connection",
       "GET /api/v1/projects",
       "GET /api/v1/search",
@@ -49,6 +50,7 @@
       "GET /mcp/projects/{value}",
       "GET /oauth/callback",
       "GET /static/{value}",
+      "POST /api/v1/approvals/{value}",
       "POST /api/v1/apps",
       "POST /api/v1/apps/{value}/rpc",
       "POST /api/v1/auth/{value}",
@@ -141,6 +143,12 @@
         "--help",
         "--import-from",
         "--restore-backup",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "credentials": [
+        "--help",
+        "--migrate",
         "--skills-dir",
         "--state-dir"
       ]

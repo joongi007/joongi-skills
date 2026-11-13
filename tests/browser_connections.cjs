@@ -15,7 +15,7 @@ async function main() {
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(fixture.url);
+  await page.goto(fixture.ui_url);
   await page.getByRole('heading', { name: '나의 도구를 연결하는 곳' }).waitFor();
   await page.getByText('임시 저장소를 사용 중입니다.', { exact: false }).waitFor();
   await page.getByRole('button', { name: '연결 설정', exact: true }).click();

@@ -20,7 +20,7 @@ async function main() {
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
-  await page.goto(fixture.url);
+  await page.goto(fixture.ui_url);
   await page.getByRole('button', { name: 'MCP 연결', exact: true }).click();
   await page.getByText('인증 · OAuth 브라우저 로그인', { exact: false }).click();
   await page.screenshot({ path: join(directory, 'authentication-desktop.png'), fullPage: true });
@@ -36,6 +36,27 @@ async function main() {
   await popup.close();
   await page.getByRole('button', { name: '연결 확인', exact: true }).click();
   await page.getByText('연결됨', { exact: true }).waitFor();
+  // The browser UI is the independent approval channel, never an upstream input response.
+  const headers = { 'Content-Type': 'application/json', 'X-Hub-Token': new URLSearchParams(new URL(fixture.ui_url).hash.slice(1)).get('session') };
+  const servers = await (await fetch(fixture.url + '/api/v1/state', { headers })).json();
+  const config = Object.fromEntries(Object.entries(servers.servers[0]).filter(([key]) => ['id','name','transport','url','auth','protocol_version','enabled'].includes(key)));
+  config.policy = { allowed_tools: [], denied_tools: [] };
+  assert((await fetch(fixture.url + '/api/v1/servers', { method: 'POST', headers, body: JSON.stringify(config) })).ok);
+  const call = { name: 'protected__echo', arguments: { message: 'one-time-browser-approval' } };
+  const blocked = await fetch(fixture.url + '/api/v1/call', { method: 'POST', headers, body: JSON.stringify(call) });
+  const outcome = await blocked.json();
+  // UI calls are background Tasks, so wait for their authorization failure to create a pending row.
+  for (let attempt = 0; attempt < 50; attempt++) {
+    const rows = await (await fetch(fixture.url + '/api/v1/approvals', { headers })).json();
+    if (rows.length) break;
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  await page.getByRole('button', { name: '승인 요청 새로고침', exact: true }).click();
+  await page.getByRole('button', { name: '이 호출 한 번 승인', exact: true }).click();
+  await page.getByText('승인됨 · 동일한 요청을 다시 실행하세요.', { exact: true }).waitFor();
+  const retry = await fetch(fixture.url + '/api/v1/call', { method: 'POST', headers, body: JSON.stringify(call) });
+  assert(retry.ok);
+  assert(!page.url().includes('session='), 'Management handoff must be removed from the address');
   await page.getByRole('button', { name: '스킬 라이브러리', exact: true }).click();
   await page.getByRole('button', { name: '설치 관리', exact: true }).click();
   const manager = page.locator('#skill-manager');

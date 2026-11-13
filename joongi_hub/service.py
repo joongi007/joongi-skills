@@ -11,7 +11,7 @@ from pathlib import Path
 from joongi_hub import __version__
 from joongi_hub.agent_connections import AgentConnections
 from joongi_hub.apps import app_resource_uri, wrap_app_html
-from joongi_hub.auth import AuthManager
+from joongi_hub.auth import AuthManager, fingerprint
 from joongi_hub.connections import ConnectionSettings, configuration
 from joongi_hub.errors import RpcError
 from joongi_hub.profiles import ProjectRegistry, Projects, ProjectSkills
@@ -21,6 +21,7 @@ from joongi_hub.skill_management import SkillManager
 from joongi_hub.skills import Skills
 from joongi_hub.state_store import describe
 from joongi_hub.storage import Registry, TaskStore
+from joongi_hub.tool_policy import ToolPolicy
 from joongi_hub.upstream import MODERN, VERSIONS, Upstream, validate_server
 
 INFO = {"name": "joongi-hub", "version": __version__}
@@ -128,7 +129,14 @@ def rewrite_resources(value, server_id):
 
 
 class Hub:
-    def __init__(self, skills_dir: Path, state_dir: Path, project=None, root_hub=None):
+    def __init__(
+        self,
+        skills_dir: Path,
+        state_dir: Path,
+        project=None,
+        root_hub=None,
+        credential_store_factory=None,
+    ):
         state_dir = Path(state_dir).expanduser().resolve()
         self.state_dir = state_dir
         self.root_hub = root_hub or self
@@ -138,13 +146,22 @@ class Hub:
         self.profile_hubs = {}
         self.common_skills = self.root_hub.common_skills if root_hub else Skills(skills_dir)
         self.skills = ProjectSkills(self.common_skills, project) if project else self.common_skills
-        self.auth = AuthManager(state_dir)
+        self.credential_store_factory = (
+            root_hub.credential_store_factory if root_hub else credential_store_factory
+        )
+        self.auth = AuthManager(
+            state_dir,
+            store=self.credential_store_factory(state_dir / "auth/credentials.json")
+            if self.credential_store_factory
+            else None,
+        )
         self.registry = (
             ProjectRegistry(state_dir, self.root_hub.registry, project["common_servers"])
             if project
             else Registry(state_dir)
         )
         self.tasks = TaskStore(state_dir)
+        self.tool_policy = ToolPolicy(state_dir)
         self.clients = {}
         self.health = {}
         self.lock = threading.RLock()
@@ -201,7 +218,7 @@ class Hub:
                 previous.close()
             self.health.pop(config["id"], None)
             old_config = next((c for c in self.registry.list() if c["id"] == config["id"]), None)
-            if old_config and old_config != config:
+            if old_config and fingerprint(old_config) != fingerprint(config):
                 self.auth.logout(old_config, revoke=False)
             self.registry.put(config)
         if self.root_hub is self:
@@ -648,6 +665,12 @@ class Hub:
         tool = next((tool for tool in client.tools if tool.get("name") == tool_name), None)
         if tool is None:
             raise RpcError(-32602, "Tool not found on the selected server")
+        self.tool_policy.authorize(
+            client.config,
+            tool,
+            arguments,
+            {"inputResponses": input_responses, "requestState": request_state},
+        )
         params = {"name": tool_name, "arguments": arguments}
         if input_responses is not None:
             if not isinstance(input_responses, dict):

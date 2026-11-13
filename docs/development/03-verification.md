@@ -1,5 +1,15 @@
 # 검증 기록
 
+## 2026-11-14 보안·문서 도표 변경의 로컬 검증
+
+- WSL/Python 3.10: 전체 240개 테스트 실행, 통과(플랫폼·native 저장소 전용 3개 제외).
+- 실제 WSL→Windows DPAPI로 임시 가짜 토큰 저장·새 인스턴스 복호화·교체·제거 통과.
+- 공식 SDK 2025/2026 × stdio/HTTP 네 조합 통과.
+- 브라우저의 관리 인증·일회성 호출 승인·OAuth·설치·프로젝트 분리 통과.
+- Mermaid 악성 설정·SVG 스크립트·이벤트·foreignObject·외부 CSS 방어 검사 통과.
+- JavaScript 없는 공개 문서 탐색, 실제 SVG 표시, 320–1440 화면 폭 검사 통과.
+- Linux Secret Service·macOS Keychain·native Windows 검증 결과는 해당 변경의 CI에서 확인한다.
+
 ## 현재 확인된 상태
 
 2026-11-12 기준. 아래 표는 `e175476` 배포의 검증 결과이며, 이후 변경의 결과는

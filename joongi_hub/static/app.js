@@ -16,6 +16,14 @@ let selectedPath = 'SKILL.md';
 let remoteSkill = null;
 let searchQuery = '';
 let csrfToken = '';
+try {
+  const handoff = new URLSearchParams(location.hash.slice(1)).get('session');
+  if (handoff && /^[A-Za-z0-9_-]{43}$/.test(handoff)) {
+    csrfToken = handoff;
+    history.replaceState(null, '', location.pathname + location.search);
+    sessionStorage.setItem('joongi-hub-session', handoff);
+  } else csrfToken = sessionStorage.getItem('joongi-hub-session') || '';
+} catch { /* A disabled browser store does not enable unauthenticated access. */ }
 let activeCall = null;
 let appView = null;
 let searchTimer;
@@ -62,9 +70,9 @@ function showNotice(message, error = false) {
 }
 async function api(path, options = {}) {
   const headers = { Accept: 'application/json', 'X-Hub-Profile': activeProfile, ...options.headers };
+  if (!csrfToken) throw new Error('터미널에서 joongi-hub open으로 관리 화면을 다시 여세요.');
+  headers['X-Hub-Token'] = csrfToken;
   if (options.method && options.method !== 'GET') {
-    if (!csrfToken) csrfToken = (await api('/api/v1/session')).token;
-    headers['X-Hub-Token'] = csrfToken;
     headers['Content-Type'] = 'application/json';
   }
   const response = await fetch(path, { ...options, headers, cache: 'no-store' });
@@ -93,10 +101,10 @@ function navigate(view) {
 async function load({ quiet = false } = {}) {
   const id = ++loadCounter;
   try {
-    const incoming = await api('/api/v1/state');
+    const [incoming, approvals] = await Promise.all([api('/api/v1/state'), api('/api/v1/approvals')]);
     if (id !== loadCounter) return;
     workspaceStatus = 'ready'; workspaceError = '';
-    state = { skills: [], servers: [], tasks: [], compatibility: {}, ...incoming };
+    state = { skills: [], servers: [], tasks: [], compatibility: {}, ...incoming, approvals };
     state.skills = Array.isArray(state.skills) ? state.skills : [];
     state.servers = Array.isArray(state.servers) ? state.servers : [];
     state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
@@ -303,11 +311,25 @@ function field(label, name, control, hint = '', full = false) {
   return el('div', { class: `form-field${full ? ' full' : ''}` }, el('label', { for: name }, label), control, hint ? el('small', {}, hint) : null);
 }
 function renderConnections() {
-  replacePage(title('MCP 연결', '등록한 서버에서 도구를 찾고, 연결 상태와 지원 기능을 확인하세요.', button('+ MCP 등록', openConnectionForm, 'primary')), preserveEditor(el('div', { id: 'connection-form', hidden: true }), 'new-connection'), el('div', { id: 'connections-list' }), el('div', { id: 'call-area' }));
+  replacePage(title('MCP 연결', '등록한 서버에서 도구를 찾고, 연결 상태와 지원 기능을 확인하세요.', button('+ MCP 등록', openConnectionForm, 'primary')), approvalPanel(), preserveEditor(el('div', { id: 'connection-form', hidden: true }), 'new-connection'), el('div', { id: 'connections-list' }), el('div', { id: 'call-area' }));
   const list = $('#connections-list');
   if (!state.servers.length) list.replaceChildren(empty('이 저장소에 등록된 MCP가 없습니다', `이전에 등록했다면 저장 경로가 같은지 확인하세요. 현재: ${state.storage?.state_dir || '연결 설정에서 확인'} · stdio와 HTTP는 같은 저장 경로에서 목록을 공유합니다.`, button('서버 등록하기', openConnectionForm)));
   else list.replaceChildren(...state.servers.map(connection));
   if (activeCall) renderCallPanel(activeCall);
+}
+function approvalPanel() {
+  const rows = state.approvals || [];
+  return el('section', { class: 'section', 'aria-label': '도구 호출 승인' },
+    el('h2', {}, '도구 호출 승인'),
+    el('p', {}, '서버·도구·인수를 확인하세요. 승인은 이 요청 한 번에만 적용되며, 승인 후 에이전트가 같은 호출을 다시 실행해야 합니다.'),
+    button('승인 요청 새로고침', () => run(() => load()), 'small'),
+    ...(rows.length ? rows.map(row => el('section', { class: 'form-panel' },
+      el('h3', {}, `${row.server} · ${row.tool}`),
+      el('p', {}, row.status === 'approved' ? '승인됨 · 동일한 요청을 다시 실행하세요.' : '검토 대기 · 5분 후 만료'),
+      el('details', {}, el('summary', {}, '실행할 인수와 이어가기 입력'), el('pre', {}, JSON.stringify({ arguments: row.arguments, continuation: row.continuation }, null, 2))),
+      row.status === 'pending' ? el('div', { class: 'form-actions' }, ...[true, false].map(approve => button(approve ? '이 호출 한 번 승인' : '거절', () => run(async () => { await api(`/api/v1/approvals/${encodeURIComponent(row.id)}`, { method: 'POST', body: JSON.stringify({ approve }) }); await load(); }), approve ? 'primary small' : 'quiet small'))) : null
+    )) : [el('p', {}, '검토할 호출이 없습니다. 원격 도구를 실행하면 필요한 승인 요청이 여기에 표시됩니다.')])
+  );
 }
 function connection(server) {
   const probe = button('연결 확인', async () => run(async () => { showNotice(`${server.name || server.id}에서 도구를 확인하고 있습니다.`); await api(`/api/v1/servers/${encodeURIComponent(server.id)}/probe`, { method: 'POST', body: '{}' }); await load(); showNotice('연결 정보를 갱신했습니다.'); }, probe), 'small');
@@ -318,8 +340,18 @@ function connection(server) {
   }, 'small quiet danger');
   const tools = server.tools || [];
   const configuration = server.transport === 'http' ? server.url : [server.command, ...(server.args || [])].join(' ');
-  const settings = el('details', { class: 'connection-settings', 'data-disclosure': `settings:${server.id}` }, el('summary', {}, '연결 설정'),
-    el('pre', {}, configuration), el('p', { class: 'mono' }, `규격 ${server.protocol_version || '자동 감지'}`));
+  const policyIdentity = `tool-policy:${server.id}`;
+  const settings = preserveEditor(el('details', { class: 'connection-settings', 'data-disclosure': `settings:${server.id}` }, el('summary', {}, '연결 설정'),
+    el('pre', {}, configuration), el('p', { class: 'mono' }, `규격 ${server.protocol_version || '자동 감지'}`)), policyIdentity);
+  const allowed = el('textarea', { rows: '3', 'aria-label': `${server.name || server.id} 허용 도구`, value: (server.policy?.allowed_tools || []).join('\n'), placeholder: '신뢰한 읽기 도구 이름을 한 줄에 하나씩' });
+  const denied = el('textarea', { rows: '2', 'aria-label': `${server.name || server.id} 차단 도구`, value: (server.policy?.denied_tools || []).join('\n') });
+  const savePolicy = button('도구 정책 저장', () => run(async () => {
+    const keys = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'auth', 'protocol_version', 'enabled'];
+    const payload = Object.fromEntries(Object.entries(server).filter(([key]) => keys.includes(key)));
+    payload.policy = { allowed_tools: allowed.value.split(/\s+/).filter(Boolean), denied_tools: denied.value.split(/\s+/).filter(Boolean) };
+    await api('/api/v1/servers', { method: 'POST', body: JSON.stringify(payload) }); discardDraft(policyIdentity); await load(); showNotice('도구 정책을 저장했습니다.');
+  }), 'small');
+  settings.append(el('p', {}, '인증을 쓰는 연결은 목록에 없는 도구 호출마다 승인이 필요합니다. 정책을 저장하면 인증 없는 연결에도 적용합니다. 읽기 표시만으로 자동 허용하지 않습니다. *는 모든 도구를 뜻하므로 신뢰 범위를 확인하세요.'), el('label', {}, '항상 허용할 도구', allowed), el('label', {}, '차단할 도구', denied), savePolicy);
   return el('section', { class: 'connection' }, el('div', { class: 'connection-head' },
     el('div', {}, el('div', { class: 'item-title' }, el('h3', {}, server.name || server.id), statusBadge(server), badge(server.transport || 'stdio'))),
     el('div', { class: 'connection-actions' }, probe, remove)),
@@ -615,7 +647,7 @@ function authenticationPanel(server) {
     if (!settings || Array.isArray(settings) || typeof settings !== 'object') throw new Error('인증 설정은 객체여야 합니다.');
     settings.type = type.value;
     for (const [key, input] of Object.entries(fields)) if (input.value.trim()) settings[key] = key === 'scopes' ? input.value.trim().split(/\s+/) : input.value.trim();
-    const allowed = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'protocol_version', 'enabled'];
+    const allowed = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'protocol_version', 'enabled', 'policy'];
     const payload = Object.fromEntries(Object.entries(server).filter(([key]) => allowed.includes(key)));
     payload.auth = settings;
     await api('/api/v1/servers', { method: 'POST', headers: { 'X-Hub-Profile': profile }, body: JSON.stringify(payload) });
