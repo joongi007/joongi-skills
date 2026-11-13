@@ -10,6 +10,7 @@
 - JavaScript 없는 공개 문서 탐색, 실제 SVG 표시, 320–1440 화면 폭 검사 통과.
 - PR #16 CI에서 Linux Secret Service·macOS Keychain·native Windows의 실제 저장·읽기·교체·제거 통과.
 - 후속 dry-run 회귀 검사에서 HTTP 설치가 자격증명·상태 파일을 만들지 않는 것을 확인했다.
+- MRTR의 업무용 consent 응답이 독립적인 로컬 도구 실행 승인을 우회하지 못하는 실제 왕복 검사 통과.
 
 ## 현재 확인된 상태
 

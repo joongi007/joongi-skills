@@ -3,6 +3,7 @@
 import concurrent.futures
 import http.client
 import json
+import sys
 import tempfile
 import threading
 import unittest
@@ -156,9 +157,50 @@ class SecurityBoundaries(unittest.TestCase):
         with self.assertRaises(RpcError) as rejected:
             self.hub.invoke("protected__echo", {"message": self.fake})
         self.assertEqual(rejected.exception.code, -32044)
+        for secret in [
+            'fake-password-with-"quotes"',
+            "fake-password-with-\\backslash",
+            "임시-인증-비밀",
+        ]:
+            with self.assertRaises(RpcError):
+                reject_secret_reflection({"result": secret}, [secret])
         for value in [{"content": self.fake}, {"error": {"data": self.fake}}]:
             with self.assertRaises(RpcError):
                 reject_secret_reflection(value, [self.fake])
+
+    def test_mrtr_continuation_cannot_replace_local_security_approval(self):
+        self.hub.register(
+            {
+                "id": "roundtrip",
+                "transport": "stdio",
+                "command": sys.executable,
+                "args": [str(ROOT / "tests/fixtures/mcp_server.py")],
+                "protocol_version": "2026-07-28",
+                "policy": {},
+            }
+        )
+        with self.assertRaises(RpcError) as pending:
+            self.hub.invoke("roundtrip__confirm", {})
+        self.hub.tool_policy.decide(pending.exception.data["approval_id"], True)
+        initial = self.hub.invoke("roundtrip__confirm", {})
+        self.assertEqual(initial["resultType"], "input_required")
+        response = {"consent": {"action": "accept", "content": {"confirmed": True}}}
+        with self.assertRaises(RpcError) as continuation:
+            self.hub.invoke(
+                "roundtrip__confirm",
+                {},
+                input_responses=response,
+                request_state=initial["requestState"],
+            )
+        self.assertEqual(continuation.exception.code, -32043)
+        self.hub.tool_policy.decide(continuation.exception.data["approval_id"], True)
+        final = self.hub.invoke(
+            "roundtrip__confirm",
+            {},
+            input_responses=response,
+            request_state=initial["requestState"],
+        )
+        self.assertEqual(final["content"][0]["text"], "Confirmed True")
 
     def test_policy_is_shared_between_processes_and_atomic_under_concurrent_consumption(self):
         tool = {"name": "echo", "annotations": {"readOnlyHint": True}}

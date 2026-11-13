@@ -15,6 +15,7 @@ def reject_secret_reflection(value, values):
         encoded = value.encode()
         variants = {
             value,
+            json.dumps(value, ensure_ascii=False)[1:-1],
             quote(value, safe=""),
             quote_plus(value),
             base64.b64encode(encoded).decode(),
