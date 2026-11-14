@@ -41,6 +41,7 @@ def validate_sandbox(value):
         "memory_mb",
         "cpu_seconds",
         "process_backend",
+        "graph_python",
     }:
         raise RpcError(-32602, "샌드박스 설정 필드를 확인하세요.")
     if value.get("backend", "auto") not in {
@@ -53,6 +54,11 @@ def validate_sandbox(value):
         raise RpcError(-32602, "지원하지 않는 샌드박스입니다. 제한 없는 실행은 지원하지 않습니다.")
     if value.get("process_backend", "docker-native") not in {"auto", "landlock", "docker-native"}:
         raise RpcError(-32602, "코드 그래프 process backend를 확인하세요.")
+    if value.get("backend") == "first-party-graph" and (
+        not isinstance(value.get("graph_python"), str)
+        or not Path(value["graph_python"]).is_absolute()
+    ):
+        raise RpcError(-32602, "공용 그래프에는 격리할 backend Python의 절대 경로를 지정하세요.")
     for key in ("read", "write"):
         paths = value.get(key, [])
         if (
@@ -234,15 +240,14 @@ class Execution:
             validate_sandbox(settings)
             backend = settings.get("backend", "auto")
             if backend == "first-party-graph":
-                from joongi_hub.review_graph import trusted_adapter
+                from joongi_hub.review_graph import adapter_command
 
-                if not trusted_adapter(config):
-                    raise RpcError(-32046, "첫 번째 파티 adapter의 명령·권한이 일치하지 않습니다.")
+                command = adapter_command(config)
                 for granted in settings.get("read", []):
                     _grant(granted, state=state)
                 for granted in settings.get("write", []):
                     _grant(granted, write=True, state=state)
-                self.command = [config["command"], *config.get("args", [])]
+                self.command = command
                 self.environment = _helper_environment()
                 return
             windows_paths = [

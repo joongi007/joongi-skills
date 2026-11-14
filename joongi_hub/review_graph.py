@@ -149,6 +149,7 @@ def server_config(
             "enabled": True,
             "sandbox": {
                 "backend": "first-party-graph",
+                "graph_python": str(Path(interpreter).expanduser().absolute()),
                 "process_backend": process_backend,
                 "read": [str(Path(root).resolve()) for root in (read_roots or [])],
                 "write": [str(Path(directory).resolve())],
@@ -157,24 +158,22 @@ def server_config(
     )
 
 
-def trusted_adapter(config):
-    args = config.get("args", [])
+def adapter_command(config):
+    """Use this Hub's trusted broker; never execute a supplied adapter command."""
     policy = config.get("sandbox", {})
-    try:
-        if len(policy.get("write", [])) != 1:
-            return False
-        expected = module_command(
-            "--python",
-            args[args.index("--python") + 1],
-            "--data-dir",
-            policy["write"][0],
-            "--process-backend",
-            policy.get("process_backend", "docker-native"),
-            *[arg for root in policy.get("read", []) for arg in ("--read-root", root)],
+    if config.get("env") or len(policy.get("write", [])) != 1:
+        raise RpcError(
+            -32046, "공용 그래프 broker는 별도 환경변수나 추가 쓰기 범위를 받지 않습니다."
         )
-        return not config.get("env") and [config.get("command"), *args] == expected
-    except (ValueError, IndexError):
-        return False
+    return module_command(
+        "--python",
+        policy["graph_python"],
+        "--data-dir",
+        policy["write"][0],
+        "--process-backend",
+        policy.get("process_backend", "docker-native"),
+        *[arg for root in policy.get("read", []) for arg in ("--read-root", root)],
+    )
 
 
 def repository(value):

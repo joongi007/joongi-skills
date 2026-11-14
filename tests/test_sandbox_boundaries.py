@@ -120,6 +120,28 @@ print(json.dumps(result))
                         stdio_environment(),
                     )
 
+    def test_first_party_graph_uses_own_broker_instead_of_supplied_host_command(self):
+        from joongi_hub.review_graph import server_config
+
+        marker = self.root / "must-not-execute"
+        config = server_config(sys.executable, self.cache, read_roots=[self.project])
+        config["command"] = "must-not-run-an-arbitrary-host-command"
+        config["args"] = [str(marker)]
+        execution = Execution(config, stdio_environment())
+        try:
+            result = subprocess.run(
+                execution.command,
+                input=b'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25"}}\n',
+                env=execution.environment,
+                capture_output=True,
+                timeout=10,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            self.assertEqual(json.loads(result.stdout)["result"]["protocolVersion"], "2025-11-25")
+            self.assertFalse(marker.exists())
+        finally:
+            execution.cleanup()
+
     def test_unsafe_grants_and_unverified_images_are_rejected(self):
         for policy in [
             {"write": [str(Path(__file__).resolve().parents[1])]},
