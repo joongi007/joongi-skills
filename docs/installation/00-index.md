@@ -6,6 +6,10 @@ Python 3.10 이상이면 추가 패키지 없이 실행한다. 개발 기준은 
 `--mode hybrid --start`로 공유 서버를 켤 수도 있다.
 세부 사용은 [연결 방식과 웹 실행](../operations/06-connection-modes.md)을 본다. 실제 설치 전 `--dry-run`으로 경로를 확인할 수 있다.
 
+원격 설치·업데이트에는 [GitHub CLI](https://cli.github.com/)의 서명 검증 기능이 필요합니다.
+외부 stdio MCP에는 Linux/WSL 격리 또는 Docker가 필요하며, 준비되지 않으면 연결을 거절합니다.
+[보안 경계·플랫폼 준비](../operations/10-security-boundaries.md).
+
 ## 클론 없이 설치
 
 [설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서 OS별 명령을 복사해 터미널에서 실행한다.

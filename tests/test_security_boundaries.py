@@ -3,12 +3,11 @@
 import concurrent.futures
 import http.client
 import json
-import sys
 import tempfile
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from joongi_hub.connections import configuration
 from joongi_hub.errors import RpcError
@@ -61,6 +60,30 @@ class SecurityBoundaries(unittest.TestCase):
         result = response.status, json.loads(response.read() or b"null")
         client.close()
         return result
+
+    def test_bad_credentials_are_limited_without_locking_out_the_valid_owner(self):
+        for index in range(23):
+            status, _ = self.request(
+                "GET", "/api/v1/session", headers={"X-Hub-Token": "fake-invalid-secret"}
+            )
+            self.assertEqual(status, 403 if index < 20 else 429)
+        status, _ = self.request(
+            "GET", "/api/v1/session", headers={"X-Hub-Token": self.panel.token}
+        )
+        self.assertEqual(status, 200)
+        log = (self.hub.state_dir / "security-events.jsonl").read_text()
+        self.assertEqual(len(log.splitlines()), 21)
+        self.assertIn("authentication_limited", log)
+        self.assertNotIn("fake-invalid-secret", log)
+        self.assertNotIn(self.panel.token, log)
+
+    def test_network_session_response_cannot_invoke_the_owner_renewal_broker(self):
+        token = self.panel.token
+        with patch.object(HubServer, "token", new_callable=PropertyMock) as owner_broker:
+            owner_broker.side_effect = AssertionError("Network caller invoked the owner broker")
+            status, result = self.request("GET", "/api/v1/session", headers={"X-Hub-Token": token})
+        self.assertEqual(status, 200)
+        self.assertEqual(result["token"], token)
 
     def initialize(self):
         return {
@@ -169,16 +192,20 @@ class SecurityBoundaries(unittest.TestCase):
                 reject_secret_reflection(value, [self.fake])
 
     def test_mrtr_continuation_cannot_replace_local_security_approval(self):
-        self.hub.register(
+        from tests.fixtures.mcp_server import Fixture
+
+        self.provider.mcp = Fixture("2026-07-28")
+        config = self.hub.register(
             {
                 "id": "roundtrip",
-                "transport": "stdio",
-                "command": sys.executable,
-                "args": [str(ROOT / "tests/fixtures/mcp_server.py")],
+                "transport": "http",
+                "url": self.provider.resource,
+                "auth": {"type": "bearer"},
                 "protocol_version": "2026-07-28",
                 "policy": {},
             }
         )
+        self.hub.auth.set_manual(config, {"token": self.fake})
         with self.assertRaises(RpcError) as pending:
             self.hub.invoke("roundtrip__confirm", {})
         self.hub.tool_policy.decide(pending.exception.data["approval_id"], True)

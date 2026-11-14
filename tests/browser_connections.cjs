@@ -41,10 +41,10 @@ async function main() {
   await page.getByRole('button', { name: '에이전트 등록 계획 보기', exact: true }).click();
   await page.getByRole('button', { name: '에이전트 등록 적용', exact: true }).click();
   await page.getByText('에이전트에 연결을 등록했습니다.', { exact: false }).waitFor();
-  assert(readFileSync(join(directory, 'home/.codex/config.toml'), 'utf8').includes(`url = "${fixture.url}/mcp"`));
+  assert(readFileSync(join(directory, 'home/.codex/config.toml'), 'utf8').includes('"http"'));
   await page.getByText('수동 연결 설정', { exact: true }).click();
   await page.getByLabel('설정을 볼 에이전트').selectOption('gemini');
-  await page.locator('pre').filter({ hasText: 'httpUrl' }).waitFor();
+  await page.locator('pre').filter({ hasText: 'command' }).waitFor();
   await page.screenshot({ path: join(directory, 'settings-desktop.png'), fullPage: true });
   // Register a project, then override the inherited HTTP setting with pure stdio.
   await page.evaluate(async root => { await api('/api/v1/projects', { method: 'POST', body: JSON.stringify({ id: 'connection-project', root, common_skills: ['usual-korean'], common_servers: [] }) }); await loadProjects(); }, fixture.project);

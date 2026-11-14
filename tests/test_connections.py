@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -31,6 +32,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class Connections(unittest.TestCase):
     def setUp(self):
+        if os.name == "nt":
+            from tests.fixtures.protocol_execution import ProtocolExecution
+
+            executor = patch("joongi_hub.sandbox.Execution", ProtocolExecution)
+            executor.start()
+            self.addCleanup(executor.stop)
+
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name).resolve()
@@ -208,13 +216,12 @@ class Connections(unittest.TestCase):
     @unittest.skipIf(os.name == "nt", "Windows terminate uses immediate TerminateProcess")
     def test_stdio_sigterm_gracefully_closes_its_upstream(self):
         record = self.root / "upstream.pid"
+        record.touch()
         fixture = self.root / "owned-fixture.py"
         fixture.write_text(
-            "import os,runpy,sys\nfrom pathlib import Path\n"
-            + f"sys.path.insert(0,{str(ROOT)!r})\n"
+            "import os\nfrom pathlib import Path\n"
             + f"Path({str(record)!r}).write_text(str(os.getpid()))\n"
-            + f"runpy.run_path({str(ROOT / 'tests/fixtures/mcp_server.py')!r},"
-            + "run_name='__main__')\n"
+            + (ROOT / "tests/fixtures/mcp_server.py").read_text()
         )
         self.hub.register(
             {
@@ -222,6 +229,7 @@ class Connections(unittest.TestCase):
                 "transport": "stdio",
                 "command": sys.executable,
                 "args": ["-B", str(fixture)],
+                "sandbox": {"write": [str(record)]},
             }
         )
         child = subprocess.Popen(
@@ -370,13 +378,15 @@ class Connections(unittest.TestCase):
         status, result, _ = self.request("/mcp/projects/p", request)
         self.assertEqual(status, 200, result)
         self.assertNotIn("engineering-playbook", json.dumps(result))
-        self.assertEqual(
-            agent_value("gemini", cfg), {"httpUrl": cfg["url"], "headers": cfg["headers"]}
-        )
-        self.assertEqual(agent_value("opencode", cfg)["type"], "remote")
-        self.assertEqual(
-            agent_value("codex", cfg), {"url": cfg["url"], "http_headers": cfg["headers"]}
-        )
+        for agent in ("gemini", "codex"):
+            value = agent_value(agent, cfg)
+            self.assertIn("command", value)
+            self.assertNotIn("headers", value)
+            self.assertIn("http", value["args"])
+            self.assertIn("p", value["args"])
+            self.assertIn("-I", value["args"])
+        self.assertEqual(agent_value("opencode", cfg)["type"], "local")
+        self.assertGreater(cfg["credential_expires_at"], time.time())
 
     def test_project_http_url_cannot_end_a_different_profile_session(self):
         self.panel.sessions["global-session"] = {"profile": "global"}
@@ -407,21 +417,11 @@ class Connections(unittest.TestCase):
             self.assertIn('model = "keep-me"', (self.home / ".codex/config.toml").read_text())
             with self.assertRaises(RpcError):
                 manager.apply(plan["id"])
-        self.assertEqual(
-            json.loads((self.home / ".gemini/settings.json").read_text())["mcpServers"][
-                "joongi-hub"
-            ],
-            {
-                "httpUrl": self.url + "/mcp",
-                "headers": {"Authorization": "Bearer " + local_token(self.hub.state_dir)},
-            },
-        )
-        self.assertEqual(
-            json.loads((self.home / ".claude.json").read_text())["mcpServers"]["joongi-hub"][
-                "type"
-            ],
-            "http",
-        )
+        for path in (self.home / ".gemini/settings.json", self.home / ".claude.json"):
+            saved = json.loads(path.read_text())["mcpServers"]["joongi-hub"]
+            self.assertIn("command", saved)
+            self.assertIn("http", saved["args"])
+            self.assertNotIn("Authorization", json.dumps(saved))
 
     def test_registration_does_not_overwrite_unowned_or_edited_configs(self):
         (self.home / ".claude.json").write_text(
@@ -453,8 +453,8 @@ class Connections(unittest.TestCase):
         manager = project.agent_connections
         plan = manager.plan(["claude", "copilot", "codex", "cursor", "gemini", "opencode"])
         manager.apply(plan["id"])
-        self.assertIn("/mcp/projects/p", (self.project_root / ".mcp.json").read_text())
-        self.assertIn("/mcp/projects/p", (self.project_root / ".github/mcp.json").read_text())
+        self.assertIn('"--profile"', (self.project_root / ".mcp.json").read_text())
+        self.assertIn('"--profile"', (self.project_root / ".github/mcp.json").read_text())
         self.assertTrue((self.project_root / ".joongi/private/mcp-installation.json").is_file())
         self.assertFalse((self.home / ".claude.json").exists())
 
@@ -512,6 +512,7 @@ class Lifecycle(unittest.TestCase):
                     ROOT / name, source / name, ignore=shutil.ignore_patterns("__pycache__")
                 )
             shutil.copy2(ROOT / "scripts/install_manager.py", source / "scripts/install_manager.py")
+            shutil.copy2(ROOT / "scripts/verify_release.py", source / "scripts/verify_release.py")
             state = home / ".local/share/joongi-hub"
             command = [
                 sys.executable,
@@ -552,7 +553,7 @@ class Lifecycle(unittest.TestCase):
                 self.assertEqual(info["settings"]["mode"], "hybrid")
                 self.assertIn(
                     repr(str(home / ".local/share/joongi-skills/runtime")),
-                    info["connection"]["args"][1],
+                    " ".join(info["connection"]["args"]),
                 )
                 client.close()
             finally:
@@ -602,9 +603,10 @@ class Lifecycle(unittest.TestCase):
                 cmd, capture_output=True, text=True, encoding="utf-8", timeout=30
             )
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertIn(
-                'url = "http://127.0.0.1:12345/mcp"', (home / ".codex/config.toml").read_text()
-            )
+            saved = (home / ".codex/config.toml").read_text()
+            self.assertIn('"http"', saved)
+            self.assertIn('"http://127.0.0.1:12345"', saved)
+            self.assertNotIn("Authorization", saved)
             self.assertEqual(
                 ConnectionSettings(home / ".local/share/joongi-hub").get()["mode"], "http"
             )

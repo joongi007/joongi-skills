@@ -49,6 +49,7 @@ class FinalSecurityAudit(unittest.TestCase):
             with self.assertRaises(RpcError):
                 validate_url("http://mixed.audit.example/mcp")
 
+    @unittest.skipUnless(sys.platform == "linux", "native stdio sandbox requires Linux/WSL")
     def test_stdio_does_not_inherit_ambient_secrets_but_explicit_mapping_works(self):
         code = """import json,os,sys
 for line in sys.stdin:

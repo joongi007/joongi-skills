@@ -157,7 +157,7 @@ async function runCase(era, transportKind) {
       http = await startHttp(state);
       const Http = modernEra ? modern.StreamableHTTPClientTransport : LegacyHttp;
       const local = JSON.parse(readFileSync(join(state, 'http-auth.json'), 'utf8'));
-      transport = new Http(new URL(http.address + '/mcp'), { requestInit: { headers: { Authorization: 'Bearer ' + local['mcp:global'] } } });
+      transport = new Http(new URL(http.address + '/mcp'), { requestInit: { headers: { Authorization: 'Bearer ' + local.tokens['mcp:global'].current } } });
     }
     await client.connect(transport, { timeout: 10000 });
     assert.equal(client.getServerVersion().name, 'joongi-hub', `${label}: server identity`);
@@ -171,7 +171,7 @@ async function runCase(era, transportKind) {
   } finally {
     if (http && http.child.exitCode === null) {
       try {
-        const session = { token: JSON.parse(readFileSync(join(state, 'http-auth.json'), 'utf8')).management };
+        const session = { token: JSON.parse(readFileSync(join(state, 'http-auth.json'), 'utf8')).tokens.management.current };
         await fetch(http.address + '/api/v1/servers/sdk-upstream', { method: 'DELETE', headers: { 'X-Hub-Token': session.token } });
       } catch { /* Preserve the original SDK failure while cleanup remains best effort. */ }
     }

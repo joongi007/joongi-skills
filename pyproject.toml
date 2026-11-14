@@ -17,7 +17,7 @@ joongi-hub = "joongi_hub.__main__:main"
 include = ["joongi_hub*", "scripts*"]
 
 [tool.setuptools.package-data]
-joongi_hub = ["static/*", "review_graph_tools.json", "_vendor/yaml/LICENSE", "_vendor/yaml/PROVENANCE.json"]
+joongi_hub = ["static/*", "review_graph_tools.json", "_vendor/docker_seccomp/*", "_vendor/yaml/LICENSE", "_vendor/yaml/PROVENANCE.json"]
 scripts = ["templates/*.html"]
 
 [tool.ruff]

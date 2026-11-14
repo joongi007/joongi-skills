@@ -167,6 +167,7 @@ class Hub:
         self.lock = threading.RLock()
         self.task_slots = threading.BoundedSemaphore(8)
         self.cancelled = {}
+        self.task_threads = set()
         self.remote_tasks = {}
         self.answered_inputs = {}
         self.input_calls = {}
@@ -205,10 +206,16 @@ class Hub:
         self.closing = True
         for child in self.profile_hubs.values():
             child.close()
-        for event in self.cancelled.values():
+        for event in list(self.cancelled.values()):
             event.set()
         for client in list(self.clients.values()):
             client.close()
+        with self.lock:
+            workers = list(self.task_threads)
+        deadline = time.monotonic() + 10
+        for worker in workers:
+            if worker is not threading.current_thread():
+                worker.join(max(0, deadline - time.monotonic()))
 
     def register(self, data):
         config = validate_server(data)
@@ -779,6 +786,8 @@ class Hub:
         return rewrite_resources(result, server_id)
 
     def start_task(self, name, arguments, owner):
+        if self.closing:
+            raise RpcError(-32000, "Hub is shutting down")
         if not self.task_slots.acquire(blocking=False):
             raise RpcError(-32000, "Eight tasks are already running; retry later")
         try:
@@ -803,8 +812,22 @@ class Hub:
             finally:
                 self.cancelled.pop(task["taskId"], None)
                 self.task_slots.release()
+                with self.lock:
+                    self.task_threads.discard(threading.current_thread())
 
-        threading.Thread(target=work, daemon=True).start()
+        with self.lock:
+            if self.closing:
+                self.cancelled.pop(task["taskId"], None)
+                self.task_slots.release()
+                self.tasks.update(
+                    task["taskId"],
+                    status="failed",
+                    error={"code": -32000, "message": "Hub is shutting down"},
+                )
+                raise RpcError(-32000, "Hub is shutting down")
+            worker = threading.Thread(target=work, daemon=True)
+            self.task_threads.add(worker)
+            worker.start()
         return task
 
     def cancel_task(self, task_id, owner=None):

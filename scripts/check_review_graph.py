@@ -60,6 +60,11 @@ def server_config(interpreter, target, data_dir, server_id="code-review-graph"):
                 ",".join(TOOLS),
             ],
             "protocol_version": "2025-11-25",
+            "sandbox": {
+                "backend": "docker-native",
+                "read": [str(target.resolve())],
+                "write": [str(data_dir.resolve())],
+            },
             "enabled": True,
         }
     )
@@ -106,6 +111,10 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--python", type=Path, required=True)
     parser.add_argument("--target", type=Path)
+    parser.add_argument("--read-root", type=Path, action="append", default=[])
+    parser.add_argument(
+        "--process-backend", choices=["docker-native", "landlock", "auto"], default="docker-native"
+    )
     parser.add_argument("--data-dir", type=Path, default=default_directory() / "review-graphs")
     parser.add_argument(
         "--fixed-project", action="store_true", help="Explicitly bind this server to --target"
@@ -122,7 +131,13 @@ def main():
     config = (
         server_config(args.python, args.target, args.data_dir, args.id)
         if args.fixed_project
-        else project_server_config(args.python, args.data_dir, args.id)
+        else project_server_config(
+            args.python,
+            args.data_dir,
+            args.id,
+            read_roots=args.read_root or ([args.target] if args.target else []),
+            process_backend=args.process_backend,
+        )
     )
     if args.print_config:
         print(json.dumps(config, ensure_ascii=False, indent=2))

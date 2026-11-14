@@ -5,6 +5,7 @@ import mimetypes
 import os
 import secrets
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
@@ -12,7 +13,8 @@ from urllib.parse import parse_qs, unquote, urlparse
 from joongi_hub.apps import AppSessions
 from joongi_hub.connections import agent_value, configuration, state_id
 from joongi_hub.errors import RpcError
-from joongi_hub.local_auth import local_token
+from joongi_hub.local_auth import authenticate_local, local_token
+from joongi_hub.security_events import record
 from joongi_hub.upstream import MAX_MESSAGE, MODERN, VERSIONS
 
 STATIC = Path(__file__).parent / "static"
@@ -25,15 +27,20 @@ class HubServer(ThreadingHTTPServer):
     def __init__(self, address, hub):
         self.hub = hub
         self.apps = AppSessions(hub)
-        self.token = local_token(hub.state_dir, management=True)
+        local_token(hub.state_dir, management=True)
         local_token(hub.state_dir)
         self.instance_id = secrets.token_urlsafe(24)
         self.sessions = {}
         self.session_lock = threading.RLock()
         self.slots = threading.BoundedSemaphore(32)
+        self.auth_failures = {}
         super().__init__(address, Handler)
         self.hub.auth.callback_url = f"http://127.0.0.1:{self.server_address[1]}/oauth/callback"
         self.profile_apps = {"global": self.apps}
+
+    @property
+    def token(self):
+        return local_token(self.hub.state_dir, management=True)
 
     def apps_for(self, hub):
         session = self.profile_apps.get(hub.profile_id)
@@ -90,13 +97,44 @@ class Handler(BaseHTTPRequestHandler):
             "connect-src 'self'; frame-src 'self'; frame-ancestors 'none'; "
             "base-uri 'none'; form-action 'self'",
         )
+        if getattr(self, "next_local_token", None):
+            self.send_header("X-Hub-Next-Token", self.next_local_token)
         for key, value in (headers or {}).items():
             self.send_header(key, value)
         self.end_headers()
         if self.command != "HEAD":
             self.wfile.write(body)
 
+    def reject_authentication(self, scope, status, message, headers=None):
+        now = time.monotonic()
+        with self.server.session_lock:
+            start, count = self.server.auth_failures.get(scope, (now, 0))
+            if now - start >= 60:
+                start, count = now, 0
+            count += 1
+            self.server.auth_failures[scope] = (start, count)
+        # Valid credentials are checked first and can never be locked out by bad callers.
+        if count <= 21:
+            record(
+                self.server.hub.state_dir,
+                "authentication_limited" if count == 21 else "authentication_denied",
+                scope,
+            )
+        self.close_connection = True
+        if count > 20:
+            self.send_data(
+                429,
+                {"error": "인증 실패가 반복됐습니다. 잠시 후 다시 시도하세요."},
+                headers={"Retry-After": "60", "Connection": "close"},
+            )
+        else:
+            self.send_data(
+                status, {"error": message}, headers={**(headers or {}), "Connection": "close"}
+            )
+        return False
+
     def guard(self):
+        self.next_local_token = None
         host = self.headers.get("Host", "")
         port = self.server.server_address[1]
         allowed = {f"127.0.0.1:{port}", f"localhost:{port}"}
@@ -117,22 +155,30 @@ class Handler(BaseHTTPRequestHandler):
                 if path.startswith("/mcp/projects/")
                 else "global"
             )
-            expected = local_token(self.server.hub.state_dir, profile, create=False)
             supplied = self.headers.get("Authorization", "")
-            if not expected or not secrets.compare_digest(supplied, "Bearer " + expected):
-                self.send_data(
+            renewed = authenticate_local(
+                self.server.hub.state_dir,
+                supplied[7:] if supplied.startswith("Bearer ") else "",
+                profile,
+            )
+            if not renewed:
+                return self.reject_authentication(
+                    "mcp",
                     401,
-                    {"error": "HTTP MCP 연결 자격증명이 필요합니다."},
-                    headers={"WWW-Authenticate": 'Bearer realm="joongi-hub"'},
+                    "HTTP MCP 연결 자격증명이 필요합니다.",
+                    {"WWW-Authenticate": 'Bearer realm="joongi-hub"'},
                 )
-                return False
             if self.headers.get("X-Hub-Profile", profile) != profile:
                 self.send_data(400, {"error": "이 연결의 프로젝트를 변경할 수 없습니다."})
                 return False
         elif path.startswith("/api/v1/"):
-            if not secrets.compare_digest(self.headers.get("X-Hub-Token", ""), self.server.token):
-                self.send_data(403, {"error": "Open the local panel to obtain an API session"})
-                return False
+            self.next_local_token = authenticate_local(
+                self.server.hub.state_dir, self.headers.get("X-Hub-Token", ""), management=True
+            )
+            if not self.next_local_token:
+                return self.reject_authentication(
+                    "management", 403, "Open the local panel to obtain an API session"
+                )
         return True
 
     def mcp_path(self):
@@ -174,6 +220,7 @@ class Handler(BaseHTTPRequestHandler):
         self.do_GET()
 
     def do_GET(self):
+        self.next_local_token = None
         parsed = urlparse(self.path)
         if parsed.path == "/oauth/callback":
             port = self.server.server_address[1]
@@ -290,7 +337,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.command != "HEAD":
                     self.wfile.write(body)
             elif path == "/api/v1/session":
-                self.send_data(200, {"token": self.server.token})
+                self.send_data(200, {"token": self.next_local_token})
             elif path == "/api/v1/state":
                 self.send_data(200, hub.state())
             elif path == "/api/v1/search":

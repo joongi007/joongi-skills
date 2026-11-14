@@ -148,6 +148,7 @@ class TransportTests(unittest.TestCase):
         with self.assertRaisesRegex(RpcError, "exceeds 4 MiB"):
             HttpTransport({"url": f"http://127.0.0.1:{port}/mcp"}).exchange(self.message())
 
+    @unittest.skipUnless(sys.platform == "linux", "native stdio sandbox requires Linux/WSL")
     def test_subprocess_that_never_reads_cannot_block_pipe_write_forever(self):
         transport = StdioTransport(
             {"command": sys.executable, "args": ["-c", "import time; time.sleep(30)"]}

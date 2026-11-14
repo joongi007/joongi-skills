@@ -28,6 +28,13 @@ FIXTURE = ROOT / "tests/fixtures/mcp_server.py"
 
 class HubTest(unittest.TestCase):
     def setUp(self):
+        if os.name == "nt":
+            from tests.fixtures.protocol_execution import ProtocolExecution
+
+            executor = patch("joongi_hub.sandbox.Execution", ProtocolExecution)
+            executor.start()
+            self.addCleanup(executor.stop)
+
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.directory = Path(self.temp.name)

@@ -17,8 +17,50 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || vars.ENABLE_PAGES == 'true'
     uses: ./.github/workflows/check.yml
 
-  build:
+  release:
     needs: checks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    outputs:
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - name: Build reviewed release without third-party build dependencies
+        run: python -I scripts/build_release.py --out _release --base-url https://joongi007.github.io/joongi-skills
+      - name: Attest reviewed release subjects
+        id: attestation
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            _release/joongi-skills.tar.gz
+            _release/install.sh
+            _release/install.ps1
+            _release/bundle-manifest.json
+            _release/SHA256SUMS
+      - name: Verify generated provenance
+        env:
+          ATTESTATION_BUNDLE: ${{ steps.attestation.outputs.bundle-path }}
+        run: |
+          cp "$ATTESTATION_BUNDLE" _release/joongi-skills.sigstore.jsonl
+          python -I scripts/verify_release.py _release/joongi-skills.tar.gz _release/joongi-skills.sigstore.jsonl --revision "$GITHUB_SHA"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        id: upload
+        with:
+          name: signed-release
+          path: _release
+          if-no-files-found: error
+          retention-days: 7
+
+  build:
+    permissions:
+      contents: read
+    needs: [checks, release]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -43,6 +85,12 @@ jobs:
           python -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
           python scripts/build_pages.py --out _site --base-url "$PAGES_BASE_URL"
           node scripts/render_mermaid.mjs _site
+      - name: Use immutable subjects from the isolated signing job
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          artifact-ids: ${{ needs.release.outputs.artifact_id }}
+          path: _site
+          merge-multiple: true
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: _site
@@ -78,4 +126,5 @@ jobs:
       - name: Verify actual published bootstrap lifecycle
         env:
           PAGES_BASE_URL: ${{ needs.deploy.outputs.page_url }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: python -B tests/pages_live_smoke.py

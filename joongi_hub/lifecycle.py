@@ -96,6 +96,7 @@ def start(directory, skills_dir, port=None, source_root=None):
         )
         command = [
             sys.executable,
+            "-I",
             "-B",
             "-c",
             bootstrap,

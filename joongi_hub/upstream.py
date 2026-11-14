@@ -70,6 +70,7 @@ def validate_server(data):
         "headers",
         "auth",
         "policy",
+        "sandbox",
     }
     if set(data) - allowed:
         raise RpcError(-32602, "Unknown server fields")
@@ -77,6 +78,10 @@ def validate_server(data):
         from joongi_hub.auth import validate_auth
 
         validate_auth(data["auth"], data.get("transport"))
+    if "sandbox" in data:
+        from joongi_hub.sandbox import validate_sandbox
+
+        validate_sandbox(data["sandbox"])
     if "policy" in data:
         from joongi_hub.tool_policy import validate_policy
 
@@ -171,16 +176,24 @@ def stdio_environment(mapping=None):
 
 
 class StdioTransport:
-    def __init__(self, config):
+    def __init__(self, config, state=None):
+        from joongi_hub.sandbox import Execution
+
         environment = stdio_environment(config.get("env"))
-        self.process = subprocess.Popen(
-            [config["command"], *config.get("args", [])],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
-            env=environment,
-            shell=False,
-        )
+        self.execution = Execution(config, environment, state)
+        try:
+            self.process = subprocess.Popen(
+                self.execution.command,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                env=self.execution.environment,
+                start_new_session=os.name != "nt",
+                shell=False,
+            )
+        except Exception:
+            self.execution.cleanup()
+            raise
         self.messages = queue.Queue(maxsize=256)
         self.closed = False
         self.reader = threading.Thread(target=self._read, daemon=True)
@@ -278,6 +291,7 @@ class StdioTransport:
                     self.process.kill()
                     self.process.wait(timeout=2)
             self.process.stdin.close()
+            self.execution.cleanup(self.process)
             # Closing a BufferedReader held by its readline thread can deadlock
             # if a descendant inherited stdout. The reader closes its own file.
             if not self.reader.is_alive():
@@ -541,7 +555,12 @@ class Upstream:
             self.transport = (
                 factory(self.config, auth=self.auth)
                 if factory is HttpTransport
-                else factory(self.config)
+                else factory(
+                    self.config,
+                    state=self.auth.path.parent.parent
+                    if self.auth and hasattr(self.auth, "path")
+                    else None,
+                )
             )
             requested = self.config.get("protocol_version", "auto")
             self.version = MODERN if requested == "auto" else requested
