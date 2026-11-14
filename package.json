@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "build:apps": "node scripts/build_apps.mjs",
-    "test:browser": "node tests/browser_smoke.cjs && node tests/browser_management.cjs && node tests/browser_ux.cjs && node tests/browser_connections.cjs && node tests/browser_docs.cjs && node tests/mermaid_security.mjs",
+    "test:browser": "node tests/browser_smoke.cjs && node tests/browser_management.cjs && node tests/browser_ux.cjs && node tests/browser_connections.cjs && node tests/browser_docs.cjs && node tests/browser_approval.cjs && node tests/mermaid_security.mjs",
     "test:sdk": "node tests/sdk_interop.cjs",
     "build:docs": "node scripts/render_mermaid.mjs"
   },
