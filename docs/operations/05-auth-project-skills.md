@@ -25,6 +25,8 @@ OAuth는 **로그인 시작 → 브라우저에서 계속**을 누르고 서비�
 | client_credentials | client_id·client_secret_env 필수. 사용자 동의 없는 서비스 계정 grant |
 | external | stdio 서버 자체 CLI 로그인·자격증명 저장소·env 매핑 사용 |
 
+원격 MCP 주소는 HTTPS를 사용한다. HTTP는 실제 연결할 IP가 모두 loopback일 때만 허용한다.
+
 HTTP OAuth는 WWW-Authenticate의 Protected Resource Metadata, RFC 8414와 OIDC discovery,
 사전 등록 client ID, 서버가 지원하는 CIMD 또는 Dynamic Client Registration을 처리한다.
 client secret은 환경변수로 주고 client_secret_basic 또는 client_secret_post를 지정할 수 있다.
@@ -148,3 +150,17 @@ MCP 연결 화면의 **호출 승인**에서 서버·도구·인수를 검토해
 자주 쓰는 신뢰한 도구는 **연결 설정**의 허용 목록에 실제 upstream 도구 이름으로 등록한다.
 차단 목록이 우선하며 `*`는 전체 도구를 뜻한다. 인증 없는 서버에도 정책을 저장해 승인을 요구할 수 있다.
 승인 대기에는 호출 인수가 포함되므로 상태 디렉터리를 공개하지 않는다.
+
+## stdio 환경변수 전달
+
+Hub의 전체 환경변수를 자식 MCP에 복사하지 않는다. PATH·홈·임시 경로·Windows 실행 변수·locale 등
+실행에 필요한 기본 목록을 넘기며, 추가 값은 서버의 `env`에서 환경변수 이름으로 지정한다.
+기존에 암묵적으로 전달되던 API key·SSH agent socket·proxy·추가 인증서·PYTHONPATH 등이 필요하다면
+해당 서버에 필요한 것만 명시한다. 아래 예제는 실제 토큰 값을 등록 파일에 넣지 않는다.
+
+```json
+{"env":{"SERVICE_API_KEY":"MY_SERVICE_API_KEY","HTTPS_PROXY":"MY_COMPANY_PROXY"}}
+```
+
+이 설정은 우발적인 비밀 노출을 줄인다. 같은 OS 사용자 권한의 MCP가 홈의 파일이나 OS 자격증명에
+접근하는 것을 막는 샌드박스는 아니다. 임의 프로그램을 안전하게 실행해주는 기능으로 해석하지 않는다.

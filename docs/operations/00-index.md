@@ -107,3 +107,5 @@ native Skills manifest의 URI를 이용해 `resources/read`로 text·binary 파�
 manifest의 digest·size는 최종 읽은 바이트와 대조한다. 파일은 1 MiB, 스킬은 512개 파일·16 MiB 한도다.
 
 도구·스킬 검색 옵션과 검색 범위는 [카탈로그 검색](08-catalog-search.md)을 따른다.
+
+최종 신뢰 경계 점검의 재현 방법과 남은 한계는 [보안 점검 기록](09-security-audit.md)을 본다.

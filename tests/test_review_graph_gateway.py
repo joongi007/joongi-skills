@@ -1,10 +1,12 @@
 """A common graph MCP must isolate every explicitly selected repository."""
 
 import os
-import sys
+import shutil
+import subprocess
 import tempfile
 import time
 import unittest
+import venv
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,6 +18,29 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class ReviewGraphGatewayTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        # Model a genuinely installed backend; importing it through ambient
+        # PYTHONPATH would contradict the production credential boundary.
+        cls.backend_home = tempfile.TemporaryDirectory()
+        cls.addClassCleanup(cls.backend_home.cleanup)
+        directory = Path(cls.backend_home.name)
+        venv.EnvBuilder(with_pip=False, symlinks=os.name != "nt").create(directory)
+        cls.interpreter = directory / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
+        library = Path(
+            subprocess.check_output(
+                [
+                    str(cls.interpreter),
+                    "-c",
+                    "import sysconfig;print(sysconfig.get_path('purelib'))",
+                ],
+                text=True,
+            ).strip()
+        )
+        shutil.copytree(
+            ROOT / "tests/fixtures/graph_backend/code_review_graph", library / "code_review_graph"
+        )
+
     def setUp(self):
         from joongi_hub.review_graph import Gateway
 
@@ -27,10 +52,7 @@ class ReviewGraphGatewayTests(unittest.TestCase):
             repo.mkdir()
             (repo / ".git").mkdir()
             (repo / (name + ".py")).write_text("def " + name + "():\n return 1\n")
-        env = patch.dict(os.environ, {"PYTHONPATH": str(ROOT / "tests/fixtures/graph_backend")})
-        env.start()
-        self.addCleanup(env.stop)
-        self.gateway = Gateway(sys.executable, self.root / "cache")
+        self.gateway = Gateway(self.interpreter, self.root / "cache")
         self.addCleanup(self.gateway.close)
 
     def build(self, repo):
@@ -60,6 +82,15 @@ class ReviewGraphGatewayTests(unittest.TestCase):
         self.assertEqual((Path(a["data_dir"]) / "graph.db").read_bytes(), before)
         self.assertFalse((self.a / ".code-review-graph").exists())
         self.assertFalse((self.b / ".code-review-graph").exists())
+
+    def test_nested_build_and_analysis_do_not_inherit_ambient_secrets(self):
+        with patch.dict(os.environ, {"JOONGI_AUDIT_FAKE_TOKEN": "fake-only-not-real"}):
+            self.build(self.a)
+            content = self.gateway.query("list_graph_stats_tool", {"repo_root": str(self.a)})[
+                "structuredContent"
+            ]
+        self.assertFalse(content["build_ambient_secret"])
+        self.assertFalse(content["serve_ambient_secret"])
 
     def test_every_analysis_tool_requires_explicit_repository(self):
         from joongi_hub.review_graph import tool_definitions
@@ -98,7 +129,7 @@ class ReviewGraphGatewayTests(unittest.TestCase):
         from joongi_hub.review_graph import Gateway
 
         first = self.build(self.a)
-        other = Gateway(sys.executable, self.root / "cache")
+        other = Gateway(self.interpreter, self.root / "cache")
         self.addCleanup(other.close)
         second = other.query("graph_build", {"repo_root": str(self.a)})["structuredContent"]
         self.assertEqual(second["status"], "ready")
@@ -127,7 +158,7 @@ class ReviewGraphGatewayTests(unittest.TestCase):
     def test_hub_stdio_routes_two_projects_and_new_connection_reuses_the_index(self):
         from joongi_hub.review_graph import server_config
 
-        config = server_config(sys.executable, self.root / "cache")
+        config = server_config(self.interpreter, self.root / "cache")
         first = Hub(ROOT / "skills", self.root / "hub")
         self.addCleanup(first.close)
         first.register(config)

@@ -10,7 +10,13 @@ data = Path(os.environ["CRG_DATA_DIR"])
 if sys.argv[1] == "build":
     data.mkdir(parents=True, exist_ok=True)
     (data / "graph.db").write_text(
-        json.dumps({"repo_root": str(root), "files": sorted(p.name for p in root.glob("*.py"))})
+        json.dumps(
+            {
+                "repo_root": str(root),
+                "files": sorted(p.name for p in root.glob("*.py")),
+                "build_ambient_secret": "JOONGI_AUDIT_FAKE_TOKEN" in os.environ,
+            }
+        )
     )
 else:
     for line in sys.stdin:
@@ -31,7 +37,10 @@ else:
             assert args["repo_root"] == str(root)
             value = {
                 "content": [],
-                "structuredContent": json.loads((data / "graph.db").read_text()),
+                "structuredContent": {
+                    **json.loads((data / "graph.db").read_text()),
+                    "serve_ambient_secret": "JOONGI_AUDIT_FAKE_TOKEN" in os.environ,
+                },
             }
         else:
             value = {}
