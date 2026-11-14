@@ -63,7 +63,8 @@ Windows에서는 `& "$HOME/.local/bin/joongi-hub.cmd" open` 형식입니다.
 인증 정보는 Windows·WSL의 DPAPI, macOS Keychain, Linux Secret Service로 보호합니다.
 Linux의 서비스 로그인에는 `secret-tool`·`gdbus`와 열린 로그인 키링이 필요합니다.
 이전 평문 인증이 있다면 `joongi-hub credentials --migrate`로 옮기세요.
-인증을 사용하는 MCP의 도구는 관리 화면에서 한 번 승인하거나 허용 목록을 지정합니다.
+인증을 사용하는 MCP의 도구를 호출하면 로컬 브라우저에서 해당 요청을 한 번 승인합니다.
+관리 화면에서 신뢰한 도구의 허용 목록을 지정할 수도 있습니다.
 [인증 저장과 호출 승인](docs/operations/05-auth-project-skills.md).
 OAuth 연결은 에이전트에게 “Notion 로그인을 시작해줘”라고 요청해도 됩니다.
 로그인 링크에서 직접 승인하면 에이전트가 상태를 확인하고 다시 연결합니다. 웹을 미리 켤 필요는 없습니다.

@@ -162,9 +162,11 @@ class Hub:
         )
         self.tasks = TaskStore(state_dir)
         self.tool_policy = ToolPolicy(state_dir)
+        from joongi_hub.agent_approval import AgentApprovals
         from joongi_hub.agent_login import AgentLogins
 
         self.agent_logins = AgentLogins(self)
+        self.agent_approvals = AgentApprovals(self)
         self.clients = {}
         self.health = {}
         self.lock = threading.RLock()
@@ -208,6 +210,7 @@ class Hub:
     def close(self):
         self.closing = True
         self.agent_logins.close()
+        self.agent_approvals.close()
         for child in self.profile_hubs.values():
             child.close()
         for event in list(self.cancelled.values()):
@@ -627,6 +630,40 @@ class Hub:
                 },
             ]
         )
+        for name, description in (
+            (
+                "hub_approval_request",
+                "Open a local owner-browser review for a pending approval_id. "
+                "Only a local stdio connection can open it. Never approves a call itself. "
+                "Ask the user to review the browser, then hub_approval_status; "
+                "retry the original exact call only after approved.",
+            ),
+            (
+                "hub_approval_status",
+                "Check pending/approved/denied/unavailable call consent. "
+                "No approval capability is returned. Do not retry a denied call.",
+            ),
+        ):
+            tools.append(
+                {
+                    "name": name,
+                    "description": description,
+                    "execution": {"taskSupport": "forbidden"},
+                    "annotations": {
+                        "readOnlyHint": name.endswith("status"),
+                        "destructiveHint": False,
+                        "openWorldHint": False,
+                    },
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "approval_id": {"type": "string", "minLength": 40, "maxLength": 40}
+                        },
+                        "required": ["approval_id"],
+                        "additionalProperties": False,
+                    },
+                }
+            )
         # Native discovery preserves each upstream's schema, Apps metadata and
         # task execution contract. Search/call remain optional convenience tools.
         for server_id, client in list(self.clients.items()):
@@ -673,9 +710,22 @@ class Hub:
         local_task_id=None,
         input_responses=None,
         request_state=None,
+        local_owner=False,
     ):
         if not isinstance(name, str) or not isinstance(arguments, dict):
             raise RpcError(-32602, "Tool name and arguments must be a string and object")
+        if name in {"hub_approval_request", "hub_approval_status"}:
+            if set(arguments) != {"approval_id"}:
+                raise RpcError(-32602, "approval_id만 지정하세요.")
+            if name == "hub_approval_request":
+                if not local_owner:
+                    raise RpcError(
+                        -32043,
+                        "승인창은 로컬 stdio 연결에서만 열 수 있습니다. "
+                        "로컬 터미널에서 joongi-hub open을 사용하세요.",
+                    )
+                return text_result(self.agent_approvals.request(arguments["approval_id"]))
+            return text_result(self.agent_approvals.status(arguments["approval_id"]))
         if name == "hub_skills_status":
             return text_result(self.skill_manager.status())
         if name == "hub_skills_plan":
@@ -725,6 +775,7 @@ class Hub:
                 local_task_id,
                 input_responses,
                 request_state,
+                local_owner,
             )
         if "__" not in name:
             matches = self.alias_matches(name)
@@ -737,6 +788,7 @@ class Hub:
                 local_task_id,
                 input_responses,
                 request_state,
+                local_owner,
             )
         server_id, tool_name = name.split("__", 1)
         client = self.client(server_id)
@@ -744,12 +796,16 @@ class Hub:
         tool = next((tool for tool in client.tools if tool.get("name") == tool_name), None)
         if tool is None:
             raise RpcError(-32602, "Tool not found on the selected server")
-        self.tool_policy.authorize(
-            client.config,
-            tool,
-            arguments,
-            {"inputResponses": input_responses, "requestState": request_state},
-        )
+        try:
+            self.tool_policy.authorize(
+                client.config,
+                tool,
+                arguments,
+                {"inputResponses": input_responses, "requestState": request_state},
+            )
+        except RpcError as exc:
+            self.approval_error(exc, local_owner)
+            raise
         params = {"name": tool_name, "arguments": arguments}
         if input_responses is not None:
             if not isinstance(input_responses, dict):
@@ -857,7 +913,26 @@ class Hub:
                     self.answered_inputs.pop(local_task_id, None)
         return rewrite_resources(result, server_id)
 
-    def start_task(self, name, arguments, owner):
+    def approval_error(self, exc, local_owner):
+        if exc.code != -32043 or not isinstance(exc.data, dict) or not exc.data.get("approval_id"):
+            return
+        data = {
+            **exc.data,
+            "next_tool": "hub_approval_request",
+            "arguments": {"approval_id": exc.data["approval_id"]},
+        }
+        if local_owner:
+            try:
+                data.update(self.agent_approvals.request(exc.data["approval_id"]))
+            except Exception:
+                data["browser_opened"] = False
+        exc.data = data
+        exc.args = (
+            "사용자가 로컬 브라우저에서 호출을 검토해야 합니다. "
+            "hub_approval_status로 확인하고 approved일 때 원래 요청을 재시도하세요.",
+        )
+
+    def start_task(self, name, arguments, owner, local_owner=False):
         if self.closing:
             raise RpcError(-32000, "Hub is shutting down")
         if not self.task_slots.acquire(blocking=False):
@@ -872,7 +947,9 @@ class Hub:
 
         def work():
             try:
-                result = self.invoke(name, arguments, event, task["taskId"])
+                result = self.invoke(
+                    name, arguments, event, task["taskId"], local_owner=local_owner
+                )
                 self.tasks.update(task["taskId"], status="completed", result=result)
             except Exception as exc:
                 error = (
@@ -1162,7 +1239,9 @@ class Hub:
                         and (name == "hub_call" or "__" in name)
                     ) or (not modern and "task" in params)
                     if as_task:
-                        task = self.start_task(name, arguments, owner)
+                        task = self.start_task(
+                            name, arguments, owner, local_owner=context.get("local_owner", False)
+                        )
                         result = (
                             public_task(task, modern, include_result=False)
                             if modern
@@ -1176,6 +1255,7 @@ class Hub:
                             arguments,
                             input_responses=params.get("inputResponses"),
                             request_state=params.get("requestState"),
+                            local_owner=context.get("local_owner", False),
                         )
                         if not modern and result.get("resultType") == "input_required":
                             raise RpcError(-32021, "Run as a task to provide interactive input")
@@ -1267,6 +1347,7 @@ class Hub:
                                 **{
                                     "code": task["error"]["code"],
                                     "message": task["error"]["message"],
+                                    "data": task["error"].get("data"),
                                 }
                             )
                         raise RpcError(-32000, "Task is not completed; poll tasks/get")

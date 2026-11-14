@@ -27,7 +27,7 @@ from joongi_hub.upstream import MAX_MESSAGE, HttpTransport
 def serve_stdio(hub, bridge=None, profile="global"):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", newline="\n")
-    context = {"owner": "stdio-" + str(os.getpid()), "profile": profile}
+    context = {"owner": "stdio-" + str(os.getpid()), "profile": profile, "local_owner": True}
     while True:
         line = sys.stdin.buffer.readline(MAX_MESSAGE + 1)
         if not line:
@@ -74,7 +74,35 @@ def serve_stdio(hub, bridge=None, profile="global"):
                         "io.modelcontextprotocol/protocolVersion"
                     ):
                         bridge.version = meta["io.modelcontextprotocol/protocolVersion"]
-                    result = bridge.exchange(message)
+                    # Owner-only review is handled in this local process, never
+                    # authorized by an HTTP bearer or client-controlled metadata.
+                    call = params if message.get("method") == "tools/call" else {}
+                    tool_name = call.get("name")
+                    tool_args = call.get("arguments", {})
+                    if tool_name == "hub_call" and isinstance(tool_args, dict):
+                        tool_name, tool_args = tool_args.get("name"), tool_args.get("arguments", {})
+                    if tool_name in {"hub_approval_request", "hub_approval_status"}:
+                        if "task" in params:
+                            raise RpcError(
+                                -32602, "Approval helpers do not accept task augmentation"
+                            )
+                        result = {
+                            "jsonrpc": "2.0",
+                            "id": message.get("id"),
+                            "result": hub.invoke(tool_name, tool_args, local_owner=True),
+                        }
+                    else:
+                        result = bridge.exchange(message)
+                    envelopes = [result] if isinstance(result, dict) else []
+                    if message.get("method") == "tasks/get" and isinstance(result, dict):
+                        if isinstance(result.get("result"), dict):
+                            envelopes.append(result["result"])
+                    for envelope in envelopes:
+                        error = envelope.get("error", {})
+                        if isinstance(error, dict) and error.get("code") == -32043:
+                            exc = RpcError(error["code"], error["message"], error.get("data"))
+                            hub.approval_error(exc, True)
+                            envelope["error"] = exc.as_dict()
                     if message.get("method") == "initialize" and result and "result" in result:
                         bridge.version = result["result"]["protocolVersion"]
                 except RpcError as exc:
@@ -293,7 +321,7 @@ def main(argv=None):
         except RpcError as exc:
             print(str(exc), file=sys.stderr)
             return 1
-    hub = None if bridge else Hub(args.skills_dir, args.state_dir)
+    hub = Hub(args.skills_dir, args.state_dir)
     if os.name != "nt":
         import signal
 

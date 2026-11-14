@@ -8,6 +8,7 @@ import secrets
 import sqlite3
 import time
 from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
 
 from joongi_hub.errors import RpcError
 
@@ -91,6 +92,10 @@ class ToolPolicy:
             if approved:
                 db.execute("DELETE FROM approvals WHERE id=?", approved)
                 return
+            if db.execute(
+                "SELECT id FROM approvals WHERE identity=? AND status='denied'", (identity,)
+            ).fetchone():
+                raise RpcError(-32043, "사용자가 이 호출을 거절했습니다.", {"status": "denied"})
             pending = db.execute(
                 "SELECT id FROM approvals WHERE identity=? AND status='pending'", (identity,)
             ).fetchone()
@@ -102,6 +107,15 @@ class ToolPolicy:
                         -32043, "보류 중인 승인이 너무 많습니다. 관리 화면에서 정리하세요."
                     )
                 request_id = secrets.token_hex(20)
+                # Display-only snapshot is outside the canonical identity above.
+                # This preserves already-issued approvals and never stores credentials.
+                address = urlsplit(config.get("url", ""))
+                payload["review"] = {
+                    "transport": config.get("transport", ""),
+                    "endpoint": urlunsplit(
+                        (address.scheme, address.netloc.rsplit("@", 1)[-1], address.path, "", "")
+                    ),
+                }
                 db.execute(
                     "INSERT INTO approvals VALUES (?,?,?,?,?)",
                     (
@@ -124,7 +138,8 @@ class ToolPolicy:
             return [
                 {"id": row[0], **json.loads(row[1]), "status": row[2], "expires_at": row[3]}
                 for row in db.execute(
-                    "SELECT id,payload,status,expires FROM approvals ORDER BY expires"
+                    "SELECT id,payload,status,expires FROM approvals "
+                    "WHERE status!='denied' ORDER BY expires"
                 )
             ]
 
@@ -141,5 +156,21 @@ class ToolPolicy:
             if approve:
                 db.execute("UPDATE approvals SET status='approved' WHERE id=?", (identity,))
             else:
-                db.execute("DELETE FROM approvals WHERE id=?", (identity,))
+                db.execute("UPDATE approvals SET status='denied' WHERE id=?", (identity,))
         return {"id": identity, "approved": approve}
+
+    def get(self, request_id):
+        if not isinstance(request_id, str) or len(request_id) != 40:
+            raise RpcError(-32602, "승인 요청 ID를 확인하세요.")
+        with self.db() as db:
+            row = db.execute(
+                "SELECT payload,status,expires FROM approvals WHERE id=?", (request_id,)
+            ).fetchone()
+        if not row or row[2] <= time.time():
+            return {"approval_id": request_id, "status": "unavailable"}
+        return {
+            **json.loads(row[0]),
+            "approval_id": request_id,
+            "status": row[1],
+            "expires_at": row[2],
+        }
