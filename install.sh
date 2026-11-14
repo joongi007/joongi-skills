@@ -10,18 +10,18 @@ if ! command -v "$PYTHON" >/dev/null 2>&1; then
   printf '%s\n' 'Python 3.10+ is required. Set JOONGI_PYTHON to its executable.' >&2
   exit 1
 fi
-if ! "$PYTHON" -c 'import sys; raise SystemExit(sys.version_info < (3, 10))'; then
+if ! "$PYTHON" -I -c 'import sys; raise SystemExit(sys.version_info < (3, 10))'; then
   printf '%s\n' 'Python 3.10+ is required. Set JOONGI_PYTHON to a supported executable.' >&2
   exit 1
 fi
 if [[ -f "$SCRIPT_DIR/scripts/install_manager.py" ]]; then
-  exec "$PYTHON" -B "$SCRIPT_DIR/scripts/install_manager.py" "$@"
+  exec "$PYTHON" -I -B "$SCRIPT_DIR/scripts/install_manager.py" "$@"
 fi
 if [[ "$DOWNLOAD_BASE" == @* || -z "$DOWNLOAD_BASE" ]]; then
   printf '%s\n' 'Set JOONGI_DOWNLOAD_BASE=https://OWNER.github.io/REPOSITORY, or run install.sh from a clone.' >&2
   exit 1
 fi
-exec "$PYTHON" -B - "$DOWNLOAD_BASE" "$@" <<'PY'
+exec "$PYTHON" -I -B - "$DOWNLOAD_BASE" "$@" <<'PY'
 import hashlib
 import gzip
 import io
@@ -45,6 +45,12 @@ with urllib.request.urlopen(base + "joongi-skills.tar.gz", timeout=60) as respon
     data = response.read(32 * 1024**2 + 1)
 if len(data) > 32 * 1024**2 or hashlib.sha256(data).hexdigest() != manifest.get("sha256"):
     raise SystemExit("Bundle size or SHA256 check failed")
+# @ATTESTATION_VERIFIER@
+with urllib.request.urlopen(base + "joongi-skills.sigstore.jsonl", timeout=30) as response:
+    attestation = response.read(2 * 1024**2 + 1)
+verified = verify_download(data, attestation)
+if manifest.get("revision") != verified["revision"]:
+    raise SystemExit("Bundle source revision does not match its signature")
 with tempfile.TemporaryDirectory(prefix="joongi-bootstrap-") as temporary:
     target = Path(temporary).resolve()
     with gzip.GzipFile(fileobj=io.BytesIO(data)) as compressed:
@@ -76,5 +82,5 @@ with tempfile.TemporaryDirectory(prefix="joongi-bootstrap-") as temporary:
     if not manager.is_file():
         raise SystemExit("Bundle has no installer")
     environment = dict(os.environ, JOONGI_INSTALL_DOWNLOAD_BASE=base.rstrip("/"))
-    raise SystemExit(subprocess.call([sys.executable, "-B", str(manager), *sys.argv[2:]], env=environment))
+    raise SystemExit(subprocess.call([sys.executable, "-I", "-B", str(manager), *sys.argv[2:]], env=environment))
 PY

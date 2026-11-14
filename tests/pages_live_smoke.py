@@ -70,15 +70,17 @@ def main():
         script_name = "install.ps1" if os.name == "nt" else "install.sh"
         with urllib.request.urlopen(BASE + "/" + script_name, timeout=30) as r:
             script = r.read()
-        expected = (
-            (ROOT / script_name)
-            .read_text(encoding="utf-8")
-            .replace("@DOWNLOAD_BASE@", BASE)
-            .encode()
-        )
+        from scripts.build_pages import bootstrap_text
+
+        expected = bootstrap_text(ROOT, script_name, BASE).encode()
         assert script == expected, "Published bootstrap differs from reviewed source"
         bootstrap = temp / script_name
         bootstrap.write_bytes(script)
+        from scripts.verify_release import verify_download
+
+        with urllib.request.urlopen(BASE + "/joongi-skills.sigstore.jsonl", timeout=30) as response:
+            attestation = response.read(2 * 1024**2 + 1)
+        verify_download(script, attestation)
         if os.name == "nt":
             ps = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
             command = [

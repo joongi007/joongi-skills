@@ -149,6 +149,13 @@
       "credentials": [
         "--help",
         "--migrate",
+        "--rotate-local",
+        "--skills-dir",
+        "--state-dir"
+      ],
+      "sandbox": [
+        "--help",
+        "--prepare",
         "--skills-dir",
         "--state-dir"
       ]

@@ -1,10 +1,12 @@
 """The code graph parses real source, detects staleness and works through Hub."""
 
 import json
+import os
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from joongi_hub.code_graph import CodeGraph, rpc, server_config
 from joongi_hub.errors import RpcError
@@ -17,6 +19,13 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class CodeGraphTests(unittest.TestCase):
     def setUp(self):
+        if os.name == "nt":
+            from tests.fixtures.protocol_execution import ProtocolExecution
+
+            executor = patch("joongi_hub.sandbox.Execution", ProtocolExecution)
+            executor.start()
+            self.addCleanup(executor.stop)
+
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
         self.root = Path(self.temporary.name)

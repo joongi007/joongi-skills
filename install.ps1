@@ -25,7 +25,7 @@ foreach ($candidate in $candidates) {
 if (-not $python) { throw "Python 3.10+ is required. Set JOONGI_PYTHON to its executable." }
 $manager = Join-Path $PSScriptRoot "scripts/install_manager.py"
 if (Test-Path $manager) {
-    & $python @pythonArgs -B $manager $Action @InstallArgs
+    & $python @pythonArgs -I -B $manager $Action @InstallArgs
     exit $LASTEXITCODE
 }
 if (-not $DownloadBase) { $DownloadBase = "@DOWNLOAD_BASE@" }
@@ -47,6 +47,12 @@ with urllib.request.urlopen(base + 'joongi-skills.tar.gz', timeout=60) as r:
     data = r.read(32 * 1024**2 + 1)
 if len(data) > 32 * 1024**2 or hashlib.sha256(data).hexdigest() != manifest.get('sha256'):
     raise SystemExit('Bundle size or SHA256 check failed')
+# @ATTESTATION_VERIFIER@
+with urllib.request.urlopen(base + 'joongi-skills.sigstore.jsonl', timeout=30) as response:
+    attestation = response.read(2 * 1024**2 + 1)
+verified = verify_download(data, attestation)
+if manifest.get('revision') != verified['revision']:
+    raise SystemExit('Bundle source revision does not match its signature')
 with gzip.GzipFile(fileobj=io.BytesIO(data)) as compressed:
     unpacked = compressed.read(144 * 1024**2 + 1)
 if len(unpacked) > 144 * 1024**2:
@@ -71,9 +77,9 @@ with tarfile.open(fileobj=io.BytesIO(unpacked), mode='r:') as archive:
 manager = target / 'joongi-skills/scripts/install_manager.py'
 if not manager.is_file(): raise SystemExit('Bundle has no installer')
 environment = dict(os.environ, JOONGI_INSTALL_DOWNLOAD_BASE=base.rstrip('/'))
-raise SystemExit(subprocess.call([sys.executable, '-B', str(manager), *sys.argv[3:]], env=environment))
+raise SystemExit(subprocess.call([sys.executable, '-I', '-B', str(manager), *sys.argv[3:]], env=environment))
 '@
-    $bootstrap | & $python @pythonArgs -B - $DownloadBase $temporary $Action @InstallArgs
+    $bootstrap | & $python @pythonArgs -I -B - $DownloadBase $temporary $Action @InstallArgs
     $result = $LASTEXITCODE
 } finally {
     Remove-Item -LiteralPath $temporary -Recurse -Force

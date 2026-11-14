@@ -21,6 +21,7 @@ python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs
 ./build.sh --check
 python3 scripts/check_docs.py
 python3 scripts/check_contracts.py
+python3 -m joongi_hub sandbox --prepare
 python3 -m unittest discover -s tests -v
 python3 -m joongi_hub --help
 python3 scripts/mutation_check.py
@@ -112,3 +113,7 @@ node tests/mermaid_security.mjs
 Mermaid 보안 검사는 정상 도표, SVG 스크립트·이벤트·foreignObject 제거,
 설정 재정의·click·외부 CSS 거절을 포함한다. 문서 브라우저 검사는 JavaScript를 끈 상태에서
 실제 SVG 표시·링크·모바일 폭을 확인한다. 배포 후 검사도 공개 SVG를 다시 내려받는다.
+
+Linux CI는 실제 Landlock·Docker 경계 검사를 수행한다. Windows의 프로토콜 단위 fixture에는
+테스트 전용 executor를 사용하며 제품의 미격리 실행 경로를 만들지 않는다. Docker boundary 검사는
+Linux/WSL에서 실제 프로세스로 수행한다.

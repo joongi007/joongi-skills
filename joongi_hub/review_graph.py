@@ -119,15 +119,24 @@ def module_command(*arguments):
         f"import sys,runpy;sys.path.insert(0,{str(source)!r});"
         "runpy.run_module('joongi_hub.review_graph',run_name='__main__')"
     )
-    return [sys.executable, "-B", "-c", bootstrap, *map(str, arguments)]
+    return [sys.executable, "-I", "-B", "-c", bootstrap, *map(str, arguments)]
 
 
-def server_config(interpreter, directory, server_id="code-review-graph"):
+def server_config(
+    interpreter,
+    directory,
+    server_id="code-review-graph",
+    read_roots=None,
+    process_backend="docker-native",
+):
     command = module_command(
         "--python",
         Path(interpreter).expanduser().absolute(),
         "--data-dir",
         Path(directory).expanduser().resolve(),
+        "--process-backend",
+        process_backend,
+        *[arg for root in (read_roots or []) for arg in ("--read-root", str(Path(root).resolve()))],
     )
     return validate_server(
         {
@@ -138,8 +147,34 @@ def server_config(interpreter, directory, server_id="code-review-graph"):
             "args": command[1:],
             "protocol_version": "2025-11-25",
             "enabled": True,
+            "sandbox": {
+                "backend": "first-party-graph",
+                "process_backend": process_backend,
+                "read": [str(Path(root).resolve()) for root in (read_roots or [])],
+                "write": [str(Path(directory).resolve())],
+            },
         }
     )
+
+
+def trusted_adapter(config):
+    args = config.get("args", [])
+    policy = config.get("sandbox", {})
+    try:
+        if len(policy.get("write", [])) != 1:
+            return False
+        expected = module_command(
+            "--python",
+            args[args.index("--python") + 1],
+            "--data-dir",
+            policy["write"][0],
+            "--process-backend",
+            policy.get("process_backend", "docker-native"),
+            *[arg for root in policy.get("read", []) for arg in ("--read-root", root)],
+        )
+        return not config.get("env") and [config.get("command"), *args] == expected
+    except (ValueError, IndexError):
+        return False
 
 
 def repository(value):
@@ -175,15 +210,32 @@ def result(value):
 
 
 class Gateway:
-    def __init__(self, interpreter, directory):
+    def __init__(self, interpreter, directory, read_roots=None, process_backend="docker-native"):
         self.interpreter = Path(interpreter).expanduser().absolute()
         if not self.interpreter.is_file():
             raise RpcError(-32602, "Code Review Graph Python 실행 환경을 찾지 못했습니다.")
         self.directory = Path(directory).expanduser().resolve()
         self.clients = OrderedDict()
+        self.read_roots = [Path(root).expanduser().resolve() for root in (read_roots or [])]
+        self.process_backend = process_backend
 
     def select(self, value):
         root = repository(value)
+        if not any(
+            root.is_relative_to(allowed)
+            or any(
+                allowed.exists() and parent.samefile(allowed) for parent in [root, *root.parents]
+            )
+            for allowed in self.read_roots
+        ):
+            raise RpcError(
+                -32046,
+                "이 프로젝트는 샌드박스 읽기 범위에 없습니다. 관리자가 read-root를 등록하세요.",
+            )
+        from joongi_hub.sandbox import _grant
+
+        _grant(root)
+
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         # Persistent paths survive remounts; samefile joins Windows case aliases.
         # Never persist device/inode as a cache key: mount IDs can change on reboot.
@@ -193,9 +245,13 @@ class Gateway:
                 if record:
                     saved = Path(record["repo_root"])
                     if saved.is_dir() and saved.samefile(root):
+                        for name in ("home", "data"):
+                            (path.parent / name).mkdir(exist_ok=True, mode=0o700)
                         return saved, path.parent
             folder = self.directory / hashlib.sha256(str(root).encode()).hexdigest()
             folder.mkdir(parents=True, exist_ok=True, mode=0o700)
+            for name in ("home", "data"):
+                (folder / name).mkdir(exist_ok=True, mode=0o700)
             atomic_json(folder / "project.json", {"repo_root": str(root)})
         return root, folder
 
@@ -253,7 +309,11 @@ class Gateway:
             old = self.clients.pop(str(root), None)
             if old:
                 old.close()
-            plan = {"repo_root": str(root), "python": str(self.interpreter)}
+            plan = {
+                "repo_root": str(root),
+                "python": str(self.interpreter),
+                "process_backend": self.process_backend,
+            }
             atomic_json(folder / "build-plan.json", plan)
             with (folder / "worker.log").open("ab") as log:
                 child = subprocess.Popen(
@@ -321,6 +381,11 @@ class Gateway:
                     ",".join(t["name"] for t in json.loads(SCHEMAS.read_text())),
                 ],
                 "protocol_version": "2025-11-25",
+                "sandbox": {
+                    "backend": self.process_backend,
+                    "read": [str(root), str(folder / "home"), str(folder / "data")],
+                    "write": [str(folder / "home"), str(folder / "data")],
+                },
             }
             client = Upstream(validate_server(config))
         self.clients[key] = client
@@ -361,14 +426,32 @@ def worker(folder):
     status = "error"
     try:
         with (folder / "build.log").open("wb") as log:
-            completed = subprocess.run(
-                command,
-                stdin=subprocess.DEVNULL,
-                stdout=log,
-                stderr=log,
-                timeout=300,
-                env=stdio_environment(),
+            from joongi_hub.sandbox import Execution
+
+            execution = Execution(
+                {
+                    "command": command[0],
+                    "args": command[1:],
+                    "sandbox": {
+                        "backend": plan["process_backend"],
+                        "read": [str(root), str(folder / "home"), str(folder / "data")],
+                        "write": [str(folder / "home"), str(folder / "data")],
+                    },
+                },
+                stdio_environment(),
             )
+            try:
+                completed = subprocess.run(
+                    execution.command,
+                    stdin=subprocess.DEVNULL,
+                    stdout=log,
+                    stderr=log,
+                    timeout=300,
+                    env=execution.environment,
+                    start_new_session=os.name != "nt",
+                )
+            finally:
+                execution.cleanup()
         if completed.returncode == 0 and (folder / "data/graph.db").is_file():
             status = "ready"
     except (OSError, subprocess.TimeoutExpired):
@@ -426,6 +509,10 @@ def main():
     parser.add_argument("--python", type=Path)
     parser.add_argument("--data-dir", type=Path)
     parser.add_argument("--worker", type=Path)
+    parser.add_argument("--read-root", action="append", type=Path, default=[])
+    parser.add_argument(
+        "--process-backend", choices=["docker-native", "landlock", "auto"], default="docker-native"
+    )
     args = parser.parse_args()
     if args.worker:
         return worker(args.worker)
@@ -434,7 +521,7 @@ def main():
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
-    gateway = Gateway(args.python, args.data_dir)
+    gateway = Gateway(args.python, args.data_dir, args.read_root, args.process_backend)
     if os.name != "nt":
 
         def terminate(signum, frame):

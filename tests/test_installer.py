@@ -58,6 +58,18 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse((self.home / ".claude/skills/example/old.md").exists())
         self.assertTrue((self.home / ".cursor/skills/example/SKILL.md").exists())
 
+    def test_windows_wsl_backend_is_preserved_and_uses_argument_list(self):
+        installer = self.installer()
+        backend = {"distribution": "Ubuntu", "launcher": "/home/example/.local/bin/joongi-hub"}
+        installer.manifest["wsl_backend"] = backend
+        installer.install(["codex"])
+        code = (installer.runtime / "scripts/hub_launcher.py").read_text()
+        self.assertIn("subprocess.call", code)
+        self.assertIn("wsl.exe", code)
+        self.assertIn("sys.argv[1:]", code)
+        self.assertEqual(self.installer().manifest["wsl_backend"], backend)
+        self.assertTrue((installer.runtime / "scripts/verify_release.py").is_file())
+
     def test_dry_run_writes_nothing(self):
         installer = self.installer(dry_run=True)
         installer.install(["claude", "codex"])
@@ -357,8 +369,20 @@ class InstallerTests(unittest.TestCase):
             info.size = 4
             archive.addfile(info, io.BytesIO(b"oops"))
         raw = data.getvalue()
-        manifest = json.dumps({"sha256": hashlib.sha256(raw).hexdigest()}).encode()
-        with patch("urllib.request.urlopen", side_effect=[io.BytesIO(manifest), io.BytesIO(raw)]):
+        manifest = json.dumps(
+            {"sha256": hashlib.sha256(raw).hexdigest(), "revision": "a" * 40}
+        ).encode()
+        with (
+            patch(
+                "urllib.request.urlopen",
+                side_effect=[
+                    io.BytesIO(manifest),
+                    io.BytesIO(raw),
+                    io.BytesIO(b"fake-attestation"),
+                ],
+            ),
+            patch("scripts.verify_release.verify_download", return_value={"revision": "a" * 40}),
+        ):
             with self.assertRaises(InstallError):
                 download_bundle("https://example.invalid", self.root / "extract")
         self.assertFalse((self.root / "escaped").exists())

@@ -23,8 +23,19 @@ class PagesTests(unittest.TestCase):
             self.assertIn("https://example.invalid/project", (output / "install.sh").read_text())
             manifest = (output / "bundle-manifest.json").read_bytes()
             archive = (output / "joongi-skills.tar.gz").read_bytes()
-            with patch(
-                "urllib.request.urlopen", side_effect=[io.BytesIO(manifest), io.BytesIO(archive)]
+            with (
+                patch(
+                    "urllib.request.urlopen",
+                    side_effect=[
+                        io.BytesIO(manifest),
+                        io.BytesIO(archive),
+                        io.BytesIO(b"fake-attestation"),
+                    ],
+                ),
+                patch(
+                    "scripts.verify_release.verify_download",
+                    return_value={"revision": json.loads(manifest)["revision"]},
+                ),
             ):
                 source = download_bundle("https://example.invalid/project", root / "download")
             self.assertTrue((source / "scripts/install_manager.py").is_file())

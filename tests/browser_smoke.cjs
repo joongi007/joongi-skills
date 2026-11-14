@@ -29,7 +29,7 @@ async function main() {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
-  await page.goto(address + '/#session=' + JSON.parse(readFileSync(join(stateDir, 'http-auth.json'), 'utf8')).management);
+  await page.goto(address + '/#session=' + JSON.parse(readFileSync(join(stateDir, 'http-auth.json'), 'utf8')).tokens.management.current);
   await page.getByRole('heading', { name: '나의 도구를 연결하는 곳' }).waitFor();
   await page.getByRole('button', { name: '스킬 라이브러리', exact: true }).click();
   await page.getByRole('button', { name: /engineering-playbook/ }).click();
@@ -56,9 +56,9 @@ async function main() {
   await toolSearch.fill('echo');
   if (await page.locator('.tool-row').count() !== 1) throw new Error('Tool filter did not narrow the list');
   await toolSearch.fill('');
-  await page.locator('.connection-settings').first().locator('summary').click();
+  await page.locator('.connection-settings').first().locator(':scope > summary').click();
   await page.locator('.connection-settings').first().getByText('mcp_server.py', { exact: false }).waitFor();
-  await page.locator('.connection-settings').first().locator('summary').click();
+  await page.locator('.connection-settings').first().locator(':scope > summary').click();
   await page.locator('.tool-row').filter({ hasText: 'Echo a message' }).getByRole('button', { name: '실행', exact: true }).click();
   await page.getByRole('textbox', { name: '도구 입력 JSON', exact: true }).fill('{"message":"browser-e2e"}');
   await page.getByRole('button', { name: '도구 실행', exact: true }).click();

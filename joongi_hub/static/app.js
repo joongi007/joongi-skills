@@ -76,6 +76,11 @@ async function api(path, options = {}) {
     headers['Content-Type'] = 'application/json';
   }
   const response = await fetch(path, { ...options, headers, cache: 'no-store' });
+  const renewed = response.headers.get('X-Hub-Next-Token');
+  if (renewed && /^[A-Za-z0-9_-]{43}$/.test(renewed)) {
+    csrfToken = renewed;
+    try { sessionStorage.setItem('joongi-hub-session', renewed); } catch { /* Memory remains usable. */ }
+  }
   if (response.status === 204) return null;
   let data;
   try { data = await response.json(); } catch { throw new Error('서버 응답을 읽을 수 없습니다. Hub가 실행 중인지 확인하세요.'); }
@@ -343,10 +348,13 @@ function connection(server) {
   const policyIdentity = `tool-policy:${server.id}`;
   const settings = preserveEditor(el('details', { class: 'connection-settings', 'data-disclosure': `settings:${server.id}` }, el('summary', {}, '연결 설정'),
     el('pre', {}, configuration), el('p', { class: 'mono' }, `규격 ${server.protocol_version || '자동 감지'}`)), policyIdentity);
+  if (server.transport === 'stdio') {
+    settings.append(el('p', {}, `실행 격리: ${server.sandbox?.backend || 'auto'} · 네트워크 차단 · 격리 없는 실행 거절`), el('details', {}, el('summary', {}, '파일 접근 범위'), el('pre', {}, JSON.stringify({ read: server.sandbox?.read || [], write: server.sandbox?.write || [] }, null, 2))));
+  }
   const allowed = el('textarea', { rows: '3', 'aria-label': `${server.name || server.id} 허용 도구`, value: (server.policy?.allowed_tools || []).join('\n'), placeholder: '신뢰한 읽기 도구 이름을 한 줄에 하나씩' });
   const denied = el('textarea', { rows: '2', 'aria-label': `${server.name || server.id} 차단 도구`, value: (server.policy?.denied_tools || []).join('\n') });
   const savePolicy = button('도구 정책 저장', () => run(async () => {
-    const keys = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'auth', 'protocol_version', 'enabled'];
+    const keys = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'auth', 'protocol_version', 'enabled', 'sandbox'];
     const payload = Object.fromEntries(Object.entries(server).filter(([key]) => keys.includes(key)));
     payload.policy = { allowed_tools: allowed.value.split(/\s+/).filter(Boolean), denied_tools: denied.value.split(/\s+/).filter(Boolean) };
     await api('/api/v1/servers', { method: 'POST', body: JSON.stringify(payload) }); discardDraft(policyIdentity); await load(); showNotice('도구 정책을 저장했습니다.');
@@ -647,7 +655,7 @@ function authenticationPanel(server) {
     if (!settings || Array.isArray(settings) || typeof settings !== 'object') throw new Error('인증 설정은 객체여야 합니다.');
     settings.type = type.value;
     for (const [key, input] of Object.entries(fields)) if (input.value.trim()) settings[key] = key === 'scopes' ? input.value.trim().split(/\s+/) : input.value.trim();
-    const allowed = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'protocol_version', 'enabled', 'policy'];
+    const allowed = ['id', 'name', 'transport', 'command', 'args', 'env', 'url', 'headers', 'protocol_version', 'enabled', 'policy', 'sandbox'];
     const payload = Object.fromEntries(Object.entries(server).filter(([key]) => allowed.includes(key)));
     payload.auth = settings;
     await api('/api/v1/servers', { method: 'POST', headers: { 'X-Hub-Profile': profile }, body: JSON.stringify(payload) });

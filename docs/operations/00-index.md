@@ -2,7 +2,7 @@
 
 문서 ID: OPS-LOCAL · 요구사항: REQ-UI, REQ-REGISTRY, REQ-TASKS
 
-<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--skills-dir","--state-dir"]} -->
+<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--rotate-local","--skills-dir","--state-dir"],"sandbox":["--help","--prepare","--skills-dir","--state-dir"]} -->
 
 설치는 [설치 안내](../installation/00-index.md), 기능 경계는
 [호환성 계약](../architecture/02-compatibility.md)을 먼저 확인한다.
@@ -109,3 +109,5 @@ manifest의 digest·size는 최종 읽은 바이트와 대조한다. 파일은 1
 도구·스킬 검색 옵션과 검색 범위는 [카탈로그 검색](08-catalog-search.md)을 따른다.
 
 최종 신뢰 경계 점검의 재현 방법과 남은 한계는 [보안 점검 기록](09-security-audit.md)을 본다.
+
+실행 격리·서명 검증·토큰 만료는 [보안 경계 운영](10-security-boundaries.md)을 따른다.

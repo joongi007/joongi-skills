@@ -3,6 +3,7 @@
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 import unittest
@@ -17,6 +18,7 @@ from joongi_hub.storage import atomic_json
 ROOT = Path(__file__).resolve().parents[1]
 
 
+@unittest.skipUnless(sys.platform == "linux", "native graph sandbox requires Linux/WSL")
 class ReviewGraphGatewayTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -52,7 +54,7 @@ class ReviewGraphGatewayTests(unittest.TestCase):
             repo.mkdir()
             (repo / ".git").mkdir()
             (repo / (name + ".py")).write_text("def " + name + "():\n return 1\n")
-        self.gateway = Gateway(self.interpreter, self.root / "cache")
+        self.gateway = Gateway(self.interpreter, self.root / "cache", [self.root], "landlock")
         self.addCleanup(self.gateway.close)
 
     def build(self, repo):
@@ -104,7 +106,7 @@ class ReviewGraphGatewayTests(unittest.TestCase):
 
     def test_ready_is_not_reported_until_worker_releases_its_log(self):
         root, folder = self.gateway.select(str(self.a))
-        (folder / "data").mkdir()
+        (folder / "data").mkdir(exist_ok=True)
         (folder / "data/graph.db").touch()
         atomic_json(folder / "build.json", {"status": "ready", "pid": 12345})
         with patch("joongi_hub.review_graph.process_alive", return_value=True):
@@ -129,7 +131,7 @@ class ReviewGraphGatewayTests(unittest.TestCase):
         from joongi_hub.review_graph import Gateway
 
         first = self.build(self.a)
-        other = Gateway(self.interpreter, self.root / "cache")
+        other = Gateway(self.interpreter, self.root / "cache", [self.root], "landlock")
         self.addCleanup(other.close)
         second = other.query("graph_build", {"repo_root": str(self.a)})["structuredContent"]
         self.assertEqual(second["status"], "ready")
@@ -158,7 +160,12 @@ class ReviewGraphGatewayTests(unittest.TestCase):
     def test_hub_stdio_routes_two_projects_and_new_connection_reuses_the_index(self):
         from joongi_hub.review_graph import server_config
 
-        config = server_config(self.interpreter, self.root / "cache")
+        config = server_config(
+            self.interpreter,
+            self.root / "cache",
+            read_roots=[self.a, self.b],
+            process_backend="landlock",
+        )
         first = Hub(ROOT / "skills", self.root / "hub")
         self.addCleanup(first.close)
         first.register(config)

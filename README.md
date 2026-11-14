@@ -13,6 +13,10 @@
 - 외부 MCP는 사용자가 별도로 등록합니다. 설치만으로 외부 서비스가 자동 연결되지는 않습니다.
 - 개인 컴퓨터에서 사용하는 도구입니다. 런타임에 별도 패키지 설치·프론트엔드 빌드·DB 서버가 필요하지 않습니다.
 
+원격 설치·업데이트에는 [GitHub CLI](https://cli.github.com/)의 서명 검증 기능이 필요합니다.
+외부 stdio MCP에는 Linux/WSL 격리 또는 Docker가 필요하며, 준비되지 않으면 연결을 거절합니다.
+[보안 경계·플랫폼 준비](docs/operations/10-security-boundaries.md).
+
 ## 설치
 
 클론 없이 설치하려면 [설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서

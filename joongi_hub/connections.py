@@ -144,6 +144,7 @@ def mcp_url(url, profile="global"):
 
 
 def agent_value(agent, connection):
+    connection = connection.get("credential_bridge", connection)
     if "url" in connection:
         url = connection["url"]
         auth = {"headers": connection["headers"]} if connection.get("headers") else {}
@@ -171,17 +172,13 @@ def configuration(hub, profile="global", mode=None, wsl_distribution=None):
         if mode not in MODES:
             raise RpcError(-32602, "연결 방식을 확인하세요.")
         settings = {**settings, "mode": mode}
-    if settings["mode"] == "http":
-        return {
-            "url": mcp_url(settings["url"], profile),
-            "headers": {"Authorization": "Bearer " + local_token(hub.root_hub.state_dir, profile)},
-        }
     source = Path(__file__).resolve().parent.parent
     bootstrap = (
         f"import runpy,sys;sys.path.insert(0,{str(source)!r});"
         "runpy.run_module('joongi_hub',run_name='__main__')"
     )
     args = [
+        "-I",
         "-c",
         bootstrap,
         "stdio",
@@ -196,6 +193,8 @@ def configuration(hub, profile="global", mode=None, wsl_distribution=None):
     ]
     if settings["mode"] == "hybrid":
         args += ["--fallback", settings["fallback"]]
+    if settings["mode"] == "http":
+        args.extend(["--url", settings["url"]])
     connection = {"command": sys.executable, "args": args}
     if wsl_distribution:
         if (
@@ -207,5 +206,14 @@ def configuration(hub, profile="global", mode=None, wsl_distribution=None):
         connection = {
             "command": "wsl.exe",
             "args": ["-d", wsl_distribution, "--exec", connection["command"], *args],
+        }
+    if settings["mode"] == "http":
+        from joongi_hub.local_auth import token_status
+
+        return {
+            "url": mcp_url(settings["url"], profile),
+            "headers": {"Authorization": "Bearer " + local_token(hub.root_hub.state_dir, profile)},
+            "credential_bridge": connection,
+            "credential_expires_at": token_status(hub.root_hub.state_dir, profile)["expires_at"],
         }
     return connection

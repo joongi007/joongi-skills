@@ -475,6 +475,7 @@ def server_config(project, server_id="code-graph"):
         "transport": "stdio",
         "command": sys.executable,
         "args": [
+            "-I",
             "-B",
             "-c",
             bootstrap,
@@ -484,6 +485,7 @@ def server_config(project, server_id="code-graph"):
         ],
         "enabled": True,
         "protocol_version": "auto",
+        "sandbox": {"read": [str(target)]},
     }
 
 

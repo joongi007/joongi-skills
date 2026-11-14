@@ -13,6 +13,7 @@ import os
 import re
 import shlex
 import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -222,6 +223,16 @@ def download_bundle(base: str, target: Path) -> Path:
         data = response.read(32 * 1024 * 1024 + 1)
     if len(data) > 32 * 1024 * 1024 or digest(data) != expected:
         raise InstallError("Bundle size or SHA256 check failed")
+    from scripts.verify_release import VerificationError, verify_download
+
+    try:
+        with urllib.request.urlopen(base + "joongi-skills.sigstore.jsonl", timeout=30) as response:
+            attestation = response.read(2 * 1024**2 + 1)
+        verified = verify_download(data, attestation)
+    except (VerificationError, OSError) as exc:
+        raise InstallError("Signed release verification failed; installation was stopped") from exc
+    if manifest.get("revision") != verified["revision"]:
+        raise InstallError("Bundle metadata does not match verified source revision")
     with gzip.GzipFile(fileobj=io.BytesIO(data)) as compressed:
         unpacked = compressed.read(144 * 1024**2 + 1)
     if len(unpacked) > 144 * 1024**2:
@@ -255,6 +266,44 @@ def download_bundle(base: str, target: Path) -> Path:
     if not (source / "skills").is_dir():
         raise InstallError("Bundle has no skills directory")
     return source
+
+
+def validate_wsl_backend(value):
+    if (
+        not isinstance(value, dict)
+        or set(value) != {"distribution", "launcher"}
+        or not isinstance(value["distribution"], str)
+        or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", value["distribution"])
+        or not isinstance(value["launcher"], str)
+        or not value["launcher"].startswith("/home/")
+        or any(c in value["launcher"] for c in "\x00\r\n")
+    ):
+        raise InstallError("Invalid saved WSL backend")
+    return value
+
+
+def discover_wsl_backend(distribution):
+    if os.name != "nt" or not re.fullmatch(r"[A-Za-z0-9_.-]{1,80}", distribution):
+        raise InstallError("--wsl-distribution requires Windows and an installed WSL distribution")
+    script = (
+        "from pathlib import Path;import json;p=Path.home()/'.local/bin/joongi-hub';"
+        "print(json.dumps({'launcher':str(p),'exists':p.is_file()}))"
+    )
+    try:
+        result = subprocess.run(
+            ["wsl.exe", "-d", distribution, "--exec", "python3", "-I", "-c", script],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            timeout=30,
+            check=True,
+        )
+        value = json.loads(result.stdout)
+        if value.get("exists") is not True:
+            raise ValueError
+        return validate_wsl_backend({"distribution": distribution, "launcher": value["launcher"]})
+    except (OSError, ValueError, subprocess.SubprocessError) as exc:
+        raise InstallError("Install Joongi Hub inside the selected WSL distribution first") from exc
 
 
 class Installer:
@@ -465,14 +514,33 @@ class Installer:
                 manager_source if manager_source.is_file() else Path(__file__),
                 runtime / "scripts/install_manager.py",
             )
-            (runtime / "scripts/hub_launcher.py").write_text(
-                "import os\nimport runpy\nimport sys\nfrom pathlib import Path\n"
-                "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n"
-                "os.environ['JOONGI_HUB_INSTALL_STATE_DIR'] = "
-                f"{str(self.home / '.local/share/joongi-hub')!r}\n"
-                'runpy.run_module("joongi_hub", run_name="__main__")\n',
-                encoding="utf-8",
-            )
+            verifier = self.source / "scripts/verify_release.py"
+            if not verifier.is_file():
+                verifier = Path(__file__).with_name("verify_release.py")
+            shutil.copy2(verifier, runtime / "scripts/verify_release.py")
+            backend = self.manifest.get("wsl_backend")
+            if backend:
+                validate_wsl_backend(backend)
+                delegation = [
+                    "wsl.exe",
+                    "-d",
+                    backend["distribution"],
+                    "--exec",
+                    backend["launcher"],
+                ]
+                launcher_code = (
+                    "import subprocess,sys\n"
+                    + f"raise SystemExit(subprocess.call({delegation!r} + sys.argv[1:]))\n"
+                )
+            else:
+                launcher_code = (
+                    "import os\nimport runpy\nimport sys\nfrom pathlib import Path\n"
+                    "sys.path.insert(0, str(Path(__file__).resolve().parents[1]))\n"
+                    "os.environ['JOONGI_HUB_INSTALL_STATE_DIR'] = "
+                    f"{str(self.home / '.local/share/joongi-hub')!r}\n"
+                    'runpy.run_module("joongi_hub", run_name="__main__")\n'
+                )
+            (runtime / "scripts/hub_launcher.py").write_text(launcher_code, encoding="utf-8")
             for filename in ("VERSION", "LICENSE", "install.sh", "install.ps1"):
                 if (self.source / filename).is_file():
                     shutil.copy2(self.source / filename, runtime / filename)
@@ -496,7 +564,7 @@ class Installer:
                 manager_target = command_path(self.runtime / "scripts/install_manager.py")
                 # End batch context first: Python may replace/delete this launcher.
                 # Arguments expand before goto; the native command preserves its exit status.
-                handoff = prefix + f'(goto) 2>nul & "{interpreter}" -B '
+                handoff = prefix + f'(goto) 2>nul & "{interpreter}" -I -B '
                 hub_script = handoff + f'"{hub_target}" %*\n'
                 manager_script = handoff + f'"{manager_target}" %*\n'
             else:
@@ -505,13 +573,13 @@ class Installer:
                 prefix = "#!/bin/sh\n"
                 hub_script = (
                     prefix
-                    + f"exec {shlex.quote(python)} -B "
+                    + f"exec {shlex.quote(python)} -I -B "
                     + shlex.quote(str(self.runtime / "scripts/hub_launcher.py"))
                     + ' "$@"\n'
                 )
                 manager_script = (
                     prefix
-                    + f"exec {shlex.quote(python)} -B "
+                    + f"exec {shlex.quote(python)} -I -B "
                     + shlex.quote(str(self.runtime / "scripts/install_manager.py"))
                     + ' "$@"\n'
                 )
@@ -685,6 +753,10 @@ def main(argv: list[str] | None = None) -> int:
         "--all", action="store_true", help="Explicitly install to every supported agent"
     )
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--wsl-distribution",
+        help="Windows: delegate Hub commands and state to an installed WSL Hub",
+    )
     parser.add_argument("--download-base", help="Fetch latest bundle from an HTTPS Pages URL")
     parser.add_argument("--mode", choices=["stdio", "hybrid", "http"])
     parser.add_argument("--url", help="Local HTTP Hub base URL")
@@ -715,12 +787,14 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 source = download_bundle(download_base, Path(temporary))
             installer = Installer(args.home, source, args.dry_run)
+            if args.wsl_distribution:
+                installer.manifest["wsl_backend"] = discover_wsl_backend(args.wsl_distribution)
             saved_base = download_base or os.environ.get("JOONGI_INSTALL_DOWNLOAD_BASE")
             if saved_base:
                 installer.manifest["download_base"] = saved_base
             elif args.source:
                 installer.manifest.pop("download_base", None)
-            from joongi_hub.connections import ConnectionSettings, mcp_url
+            from joongi_hub.connections import ConnectionSettings
 
             hub_state = installer.home / ".local/share/joongi-hub"
             selected = ConnectionSettings(hub_state).get()
@@ -729,14 +803,12 @@ def main(argv: list[str] | None = None) -> int:
                     selected[key] = getattr(args, key)
             selected = ConnectionSettings.validate(selected)
             if selected["mode"] == "http":
-                from joongi_hub.local_auth import local_token
-
+                launcher = installer.bin_dir / (
+                    "joongi-hub.cmd" if os.name == "nt" else "joongi-hub"
+                )
                 installer.connection = {
-                    "url": mcp_url(selected["url"]),
-                    "headers": {
-                        "Authorization": "Bearer "
-                        + ("GENERATED_ON_INSTALL" if args.dry_run else local_token(hub_state))
-                    },
+                    "command": str(launcher),
+                    "args": ["stdio", "--mode", "http", "--url", selected["url"]],
                 }
             elif selected["mode"] == "hybrid":
                 launcher = installer.bin_dir / (

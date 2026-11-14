@@ -103,6 +103,7 @@ def main(argv=None):
         "configure",
         "state",
         "credentials",
+        "sandbox",
     ):
         command = subparsers.add_parser(name)
         command.add_argument(
@@ -143,7 +144,16 @@ def main(argv=None):
                 action="store_true",
                 help="Restore a missing server registry from its last committed backup",
             )
+        if name == "sandbox":
+            command.add_argument(
+                "--prepare", action="store_true", help="Prepare the pinned sandbox runtime image"
+            )
         if name == "credentials":
+            command.add_argument(
+                "--rotate-local",
+                action="store_true",
+                help="Immediately revoke and rotate local HTTP credentials",
+            )
             command.add_argument(
                 "--migrate",
                 action="store_true",
@@ -155,11 +165,27 @@ def main(argv=None):
         return 0
     args.state_dir = args.state_dir.expanduser().resolve()
     args.skills_dir = args.skills_dir.expanduser().resolve()
+    if args.command == "sandbox":
+        from joongi_hub.sandbox import prepare, status
+
+        try:
+            print(json.dumps(prepare() if args.prepare else status()))
+            return 0
+        except RpcError as error:
+            print(str(error), file=sys.stderr)
+            return 1
     if args.command == "credentials":
         from joongi_hub.auth import AuthManager
 
         manager = AuthManager(args.state_dir)
         try:
+            if args.rotate_local:
+                if args.migrate:
+                    raise RpcError(-32602, "인증 이전과 로컬 토큰 회전은 따로 실행하세요.")
+                from joongi_hub.local_auth import rotate_local_tokens
+
+                print(json.dumps(rotate_local_tokens(args.state_dir)))
+                return 0
             with manager.lock:
                 if (
                     manager.path.is_symlink()
