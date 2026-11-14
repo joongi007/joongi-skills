@@ -466,7 +466,12 @@ def server_config(project, server_id="code-graph"):
     if not target.is_dir():
         raise RpcError(-32602, "Project directory does not exist")
     bootstrap = (
-        "import runpy,sys;sys.path.insert(0,sys.argv.pop(1));"
+        "import importlib.util,runpy,sys;from pathlib import Path;"
+        "package=Path(sys.argv.pop(1))/'joongi_hub';"
+        "spec=importlib.util.spec_from_file_location('joongi_hub',package/'__init__.py',"
+        "submodule_search_locations=[str(package)]);"
+        "module=importlib.util.module_from_spec(spec);sys.modules['joongi_hub']=module;"
+        "spec.loader.exec_module(module);"
         "runpy.run_module('joongi_hub.code_graph',run_name='__main__')"
     )
     return {
