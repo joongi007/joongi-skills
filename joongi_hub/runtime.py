@@ -2,7 +2,9 @@
 
 import ctypes
 import os
+import sys
 from ctypes import wintypes
+from pathlib import Path
 
 
 def process_alive(pid):
@@ -26,6 +28,13 @@ def process_alive(pid):
             return kernel.WaitForSingleObject(handle, 0) != 0
         finally:
             kernel.CloseHandle(handle)
+    if sys.platform == "linux":
+        try:
+            state = (Path("/proc") / str(pid) / "stat").read_text().rsplit(")", 1)[1].split()[0]
+            if state in {"Z", "X"}:
+                return False
+        except (OSError, ValueError, IndexError):
+            pass
     try:
         os.kill(pid, 0)
     except ProcessLookupError:

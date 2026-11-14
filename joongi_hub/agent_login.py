@@ -162,6 +162,7 @@ class AgentLogins:
                     if not any(
                         row["result"]["flow"] == "authorization_code" for row in self.flows.values()
                     ):
+                        server.server_close()
                         if self.server is server:
                             self.server = None
                         break
@@ -233,10 +234,11 @@ class AgentLogins:
     def close(self):
         with self.lock:
             self.closed = True
-            with self.hub.auth.lock:
-                for row in self.flows.values():
-                    self.hub.auth.pending.pop(row["result"]["login_id"], None)
-            self.flows.clear()
+            if self.flows:
+                with self.hub.auth.lock:
+                    for row in self.flows.values():
+                        self.hub.auth.pending.pop(row["result"]["login_id"], None)
+                self.flows.clear()
             server, thread = self.server, self.thread
             if server:
                 server.stopping.set()
