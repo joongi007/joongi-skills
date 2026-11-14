@@ -162,6 +162,9 @@ class Hub:
         )
         self.tasks = TaskStore(state_dir)
         self.tool_policy = ToolPolicy(state_dir)
+        from joongi_hub.agent_login import AgentLogins
+
+        self.agent_logins = AgentLogins(self)
         self.clients = {}
         self.health = {}
         self.lock = threading.RLock()
@@ -204,6 +207,7 @@ class Hub:
 
     def close(self):
         self.closing = True
+        self.agent_logins.close()
         for child in self.profile_hubs.values():
             child.close()
         for event in list(self.cancelled.values()):
@@ -273,6 +277,22 @@ class Hub:
         except (RpcError, OSError) as exc:
             message = str(exc) if isinstance(exc, RpcError) else "Cannot start upstream process"
             self.health[server_id] = {"status": "error", "error": message}
+            config = next((c for c in self.registry.list() if c["id"] == server_id), None)
+            if config and config.get("auth", {}).get("type") in {"oauth", "device_code"}:
+                status = self.auth.status(config)
+                if status["login_required"]:
+                    raise RpcError(
+                        -32040,
+                        (
+                            "MCP 인증이 필요합니다. hub_auth_start로 로그인 링크를 만들고 "
+                            "사용자 승인 후 다시 연결하세요."
+                        ),
+                        {
+                            "server": server_id,
+                            "next_tool": "hub_auth_start",
+                            "arguments": {"server": server_id},
+                        },
+                    ) from exc
             raise RpcError(-32000, message) from exc
 
     @staticmethod
@@ -554,10 +574,54 @@ class Hub:
                 },
                 {
                     "name": "hub_auth_status",
-                    "description": "연결된 MCP의 인증 상태를 비밀값 없이 조회합니다.",
+                    "description": (
+                        "연결된 MCP의 인증 상태를 비밀값 없이 조회합니다. "
+                        "login_required이면 hub_auth_start를 호출하세요."
+                    ),
                     "inputSchema": {
                         "type": "object",
                         "properties": {"server": {"type": "string"}},
+                        "additionalProperties": False,
+                    },
+                },
+            ]
+        )
+        tools.extend(
+            [
+                {
+                    "name": "hub_auth_start",
+                    "description": (
+                        "Start upstream OAuth/device login without the control panel. "
+                        "Show the returned url to the user for browser approval, "
+                        "then hub_auth_poll and hub_connect. Never ask for tokens."
+                    ),
+                    "annotations": {
+                        "readOnlyHint": False,
+                        "destructiveHint": False,
+                        "openWorldHint": True,
+                    },
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"server": {"type": "string"}},
+                        "required": ["server"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "hub_auth_poll",
+                    "description": (
+                        "Check agent-started OAuth login or poll device authorization. "
+                        "Returns status, never access/refresh tokens. "
+                        "Retry hub_connect after authenticated."
+                    ),
+                    "annotations": {"readOnlyHint": False, "destructiveHint": False},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "server": {"type": "string"},
+                            "login_id": {"type": "string"},
+                        },
+                        "required": ["server"],
                         "additionalProperties": False,
                     },
                 },
@@ -620,6 +684,14 @@ class Hub:
             return text_result(self.skill_manager.plan(**arguments))
         if name == "hub_skills_apply":
             return text_result(self.skill_manager.apply(arguments.get("plan_id")))
+        if name == "hub_auth_start":
+            if set(arguments) != {"server"}:
+                raise RpcError(-32602, "로그인 시작에는 server만 지정하세요.")
+            return text_result(self.agent_logins.start(arguments["server"]))
+        if name == "hub_auth_poll":
+            if set(arguments) - {"server", "login_id"} or "server" not in arguments:
+                raise RpcError(-32602, "인증 상태 조회 필드를 확인하세요.")
+            return text_result(self.agent_logins.poll(**arguments))
         if name == "hub_auth_status":
             configs = self.registry.list()
             if arguments.get("server"):

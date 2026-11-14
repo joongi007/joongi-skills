@@ -65,6 +65,8 @@ Linux의 서비스 로그인에는 `secret-tool`·`gdbus`와 열린 로그인 �
 이전 평문 인증이 있다면 `joongi-hub credentials --migrate`로 옮기세요.
 인증을 사용하는 MCP의 도구는 관리 화면에서 한 번 승인하거나 허용 목록을 지정합니다.
 [인증 저장과 호출 승인](docs/operations/05-auth-project-skills.md).
+OAuth 연결은 에이전트에게 “Notion 로그인을 시작해줘”라고 요청해도 됩니다.
+로그인 링크에서 직접 승인하면 에이전트가 상태를 확인하고 다시 연결합니다. 웹을 미리 켤 필요는 없습니다.
 
 stdio·stdio + HTTP·HTTP 중 선택하는 방법은 [연결 방식과 웹 실행](docs/operations/06-connection-modes.md)에 있습니다.
 
