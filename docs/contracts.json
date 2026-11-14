@@ -30,6 +30,7 @@
       "tools/list"
     ],
     "http.routes": [
+      "DELETE /api/v1/permissions/{value}",
       "DELETE /api/v1/projects/{value}",
       "DELETE /api/v1/servers/{value}",
       "DELETE /mcp",
@@ -37,6 +38,8 @@
       "GET /",
       "GET /api/v1/approvals",
       "GET /api/v1/connection",
+      "GET /api/v1/panel",
+      "GET /api/v1/permissions",
       "GET /api/v1/projects",
       "GET /api/v1/search",
       "GET /api/v1/session",
@@ -58,6 +61,8 @@
       "POST /api/v1/connection",
       "POST /api/v1/connection/apply",
       "POST /api/v1/connection/plan",
+      "POST /api/v1/panel/close",
+      "POST /api/v1/panel/heartbeat",
       "POST /api/v1/projects",
       "POST /api/v1/runtime/stop",
       "POST /api/v1/servers",

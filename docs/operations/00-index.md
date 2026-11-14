@@ -111,3 +111,5 @@ manifest의 digest·size는 최종 읽은 바이트와 대조한다. 파일은 1
 최종 신뢰 경계 점검의 재현 방법과 남은 한계는 [보안 점검 기록](09-security-audit.md)을 본다.
 
 실행 격리·서명 검증·토큰 만료는 [보안 경계 운영](10-security-boundaries.md)을 따른다.
+
+반복 허용과 임시 설정 화면의 추가 보안 검수는 [승인·설정 보안 검수](11-consent-settings-review.md)를 본다.

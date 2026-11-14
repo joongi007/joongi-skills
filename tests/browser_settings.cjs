@@ -1,0 +1,64 @@
+/* Repeat permissions, real popup auto-close, lease refresh, close and live MCP owner. */
+'use strict';
+const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const { mkdtempSync, rmSync } = require('node:fs');
+const { tmpdir } = require('node:os');
+const { join, resolve } = require('node:path');
+const { once } = require('node:events');
+const { chromium } = require('playwright');
+const directory = mkdtempSync(join(tmpdir(), 'joongi-settings-browser-'));
+const child = spawn(process.env.PYTHON || 'python3', ['-B', '-m', 'tests.fixtures.settings_hub', directory], { cwd: resolve(__dirname, '..'), stdio: ['pipe', 'pipe', 'pipe'] });
+const lines = [], readers = []; let buffer = '';
+child.stdout.on('data', data => { buffer += data; while (buffer.includes('\n')) { const i = buffer.indexOf('\n'); const row = JSON.parse(buffer.slice(0, i)); buffer = buffer.slice(i + 1); if (readers.length) readers.shift()(row); else lines.push(row); } });
+const read = () => lines.length ? Promise.resolve(lines.shift()) : new Promise((resolve, reject) => { const timer = setTimeout(() => reject(Error('Fixture timeout')), 15000); readers.push(row => { clearTimeout(timer); resolve(row); }); });
+let browser;
+async function main() {
+  const fixture = await read();
+  assert.equal(fixture.result.mode, 'temporary');
+  const capability = new URLSearchParams(new URL(fixture.settings).hash.slice(1)).get('session');
+  assert(!JSON.stringify(fixture.result).includes(capability));
+  browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
+  const context = await browser.newContext({ viewport: { width: 390, height: 850 } });
+  const page = await context.newPage(); const errors = [];
+  context.on('page', p => p.on('pageerror', e => errors.push(e.message)));
+  await page.goto(fixture.settings);
+  await page.getByRole('heading', { name: '연결 설정', exact: true }).waitFor();
+  await page.locator('#temporary-panel').waitFor();
+  assert(!page.url().includes(capability));
+  await page.reload();
+  await page.locator('#temporary-panel').waitFor();
+  // A confirmed owner-opened popup closes after the success feedback delay.
+  const created = context.waitForEvent('page');
+  await page.evaluate(url => window.open(url, '_blank'), fixture.approvals[0]);
+  const popup = await created;
+  await popup.locator('#scope').selectOption('hour');
+  await popup.getByRole('button', {name:'이 도구 1시간 허용', exact:true}).click();
+  await popup.getByRole('heading', {name:'승인 완료', exact:true}).waitFor();
+  await popup.getByText('이 도구를 1시간 허용했습니다.', {exact:false}).waitFor();
+  await popup.waitForEvent('close', {timeout:6000});
+  await page.getByRole('button', {name:'MCP 연결', exact:true}).click();
+  const section = page.getByRole('region', {name:'도구 호출 승인'});
+  await section.getByText('1시간 허용 ·', {exact:false}).waitFor();
+  const pending = section.locator('section.form-panel').filter({has: page.getByRole('heading', {name:'notion-fixture · notion-search', exact:true})});
+  await pending.getByLabel('notion-fixture notion-search 허용 범위').selectOption('always');
+  await pending.getByRole('button', {name:'이 도구 항상 허용', exact:true}).click();
+  await section.getByText('항상 허용 · 직접 취소할 때까지', {exact:true}).waitFor();
+  const grant = section.locator('div.form-panel').filter({has:page.locator('strong').filter({hasText:'notion-fixture · notion-fetch'})});
+  await grant.getByRole('button', {name:'허용 취소', exact:true}).click();
+  await page.getByText('반복 허용을 취소했습니다.', {exact:false}).waitFor();
+  assert.equal(await section.getByText('1시간 허용 ·', {exact:false}).count(), 0);
+  assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+  // Saving permissions and refreshing must not end the temporary settings session.
+  child.stdin.write('status\n'); assert.equal((await read()).temporary_running, true);
+  await page.getByRole('button', {name:'이 설정 창 닫기', exact:true}).click();
+  await page.getByRole('heading', {name:'설정 창 연결을 종료했습니다.', exact:true}).waitFor();
+  await page.waitForTimeout(5700);
+  child.stdin.write('status\n');
+  assert.deepEqual(await read(), {mcp_alive:true, temporary_running:false, grants:1});
+  assert.deepEqual(errors, []);
+  await browser.close(); browser = null;
+  child.stdin.end(); await once(child,'exit');
+  console.log('Settings browser: scoped grants/revoke, popup auto-close, refresh lease and temporary shutdown while MCP remains live passed.');
+}
+main().catch(error => { console.error(error); process.exitCode=1; }).finally(async () => { if (browser) await browser.close(); if (child.exitCode===null) child.kill(); rmSync(directory,{recursive:true,force:true}); });

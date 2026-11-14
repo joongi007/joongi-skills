@@ -122,6 +122,7 @@ class Authentication(unittest.TestCase):
 
     def test_expiry_refresh_rotation_and_server_rejection_retry(self):
         self.authorize()
+        epoch = self.hub.auth.consent_epoch(self.config)
         before = self.hub.auth.headers(self.config)["Authorization"]
         with self.hub.auth.lock:
             row = self.hub.auth._record(self.config)
@@ -133,6 +134,7 @@ class Authentication(unittest.TestCase):
         self.provider.access.clear()
         self.hub.invoke("protected__echo", {})
         self.assertEqual(self.provider.refreshes, 2)
+        self.assertEqual(self.hub.auth.consent_epoch(self.config), epoch)
 
     def test_invalid_refresh_discards_token_and_logout_revokes(self):
         self.authorize()

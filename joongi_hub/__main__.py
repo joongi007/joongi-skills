@@ -81,16 +81,22 @@ def serve_stdio(hub, bridge=None, profile="global"):
                     tool_args = call.get("arguments", {})
                     if tool_name == "hub_call" and isinstance(tool_args, dict):
                         tool_name, tool_args = tool_args.get("name"), tool_args.get("arguments", {})
-                    if tool_name in {"hub_approval_request", "hub_approval_status"}:
+                    if tool_name in {
+                        "hub_approval_request",
+                        "hub_approval_status",
+                        "hub_open_settings",
+                    }:
                         if "task" in params:
                             raise RpcError(
                                 -32602, "Approval helpers do not accept task augmentation"
                             )
-                        result = {
-                            "jsonrpc": "2.0",
-                            "id": message.get("id"),
-                            "result": hub.invoke(tool_name, tool_args, local_owner=True),
-                        }
+                        result = hub.rpc(
+                            {
+                                **message,
+                                "params": {**params, "name": tool_name, "arguments": tool_args},
+                            },
+                            {**context, "version": bridge.version, "ready": True},
+                        )
                     else:
                         result = bridge.exchange(message)
                     envelopes = [result] if isinstance(result, dict) else []

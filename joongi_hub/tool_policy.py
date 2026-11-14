@@ -39,6 +39,11 @@ class ToolPolicy:
                 "CREATE TABLE IF NOT EXISTS approvals "
                 "(id TEXT PRIMARY KEY, identity TEXT, payload TEXT, status TEXT, expires REAL)"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS grants "
+                "(id TEXT PRIMARY KEY, server TEXT, tool TEXT, binding TEXT, scope TEXT, "
+                "expires REAL, created REAL, UNIQUE(server,tool,binding))"
+            )
         os.chmod(self.path, 0o600)
 
     @contextlib.contextmanager
@@ -47,7 +52,26 @@ class ToolPolicy:
             with db:
                 yield db
 
-    def authorize(self, config, tool, arguments, continuation=None):
+    @staticmethod
+    def binding(config, tool, auth_epoch=""):
+        # Store only a digest of connection, definition and resolved env values.
+        names = set(config.get("env", {}).values()) | set(config.get("headers", {}).values())
+        names.update(
+            v
+            for k, v in config.get("auth", {}).items()
+            if k.endswith("_env") and isinstance(v, str)
+        )
+        value = {
+            "config": config,
+            "auth_epoch": auth_epoch,
+            "definition": tool,
+            "environment": {name: os.environ.get(name) for name in sorted(names)},
+        }
+        return hashlib.sha256(
+            json.dumps(value, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()
+        ).hexdigest()
+
+    def authorize(self, config, tool, arguments, continuation=None, auth_epoch=""):
         policy = config.get("policy", {})
         name = tool["name"]
         if name in policy.get("denied_tools", []) or "*" in policy.get("denied_tools", []):
@@ -63,7 +87,9 @@ class ToolPolicy:
             and "policy" not in config
         ):
             return
+        binding = self.binding(config, tool, auth_epoch)
         payload = {
+            "binding": binding,
             "server": config["id"],
             "tool": name,
             "arguments": arguments,
@@ -86,21 +112,57 @@ class ToolPolicy:
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
             db.execute("DELETE FROM approvals WHERE expires < ?", (now,))
+            db.execute("DELETE FROM grants WHERE expires IS NOT NULL AND expires<=?", (now,))
+            obsolete = {
+                row[0]
+                for row in db.execute(
+                    "SELECT binding FROM grants WHERE server=? AND tool=? AND binding!=?",
+                    (config["id"], name, binding),
+                )
+            }
+            if obsolete:
+                for request_id, encoded in db.execute(
+                    "SELECT id,payload FROM approvals"
+                ).fetchall():
+                    if json.loads(encoded).get("binding") in obsolete:
+                        db.execute("DELETE FROM approvals WHERE id=?", (request_id,))
+            db.execute(
+                "DELETE FROM grants WHERE server=? AND tool=? AND binding!=?",
+                (config["id"], name, binding),
+            )
+            denied = db.execute(
+                "SELECT id FROM approvals WHERE identity=? AND status='denied'", (identity,)
+            ).fetchone()
+            if denied:
+                raise RpcError(-32043, "사용자가 이 호출을 거절했습니다.", {"status": "denied"})
+            if db.execute(
+                "SELECT id FROM grants WHERE server=? AND tool=? AND binding=?",
+                (config["id"], name, binding),
+            ).fetchone():
+                db.execute("DELETE FROM approvals WHERE identity=?", (identity,))
+                return
             approved = db.execute(
                 "SELECT id FROM approvals WHERE identity=? AND status='approved'", (identity,)
             ).fetchone()
             if approved:
                 db.execute("DELETE FROM approvals WHERE id=?", approved)
                 return
-            if db.execute(
-                "SELECT id FROM approvals WHERE identity=? AND status='denied'", (identity,)
-            ).fetchone():
-                raise RpcError(-32043, "사용자가 이 호출을 거절했습니다.", {"status": "denied"})
             pending = db.execute(
                 "SELECT id FROM approvals WHERE identity=? AND status='pending'", (identity,)
             ).fetchone()
             if pending:
                 request_id = pending[0]
+                stored = json.loads(
+                    db.execute(
+                        "SELECT payload FROM approvals WHERE id=?", (request_id,)
+                    ).fetchone()[0]
+                )
+                if "binding" not in stored:
+                    stored["binding"] = binding
+                    db.execute(
+                        "UPDATE approvals SET payload=? WHERE id=?",
+                        (json.dumps(stored, ensure_ascii=False), request_id),
+                    )
             else:
                 if db.execute("SELECT count(*) FROM approvals").fetchone()[0] >= 32:
                     raise RpcError(
@@ -108,8 +170,9 @@ class ToolPolicy:
                     )
                 request_id = secrets.token_hex(20)
                 # Display-only snapshot is outside the canonical identity above.
-                # This preserves already-issued approvals and never stores credentials.
+                # The binding is part of consent identity; only this display snapshot is not.
                 address = urlsplit(config.get("url", ""))
+                payload["binding"] = binding
                 payload["review"] = {
                     "transport": config.get("transport", ""),
                     "endpoint": urlunsplit(
@@ -143,21 +206,53 @@ class ToolPolicy:
                 )
             ]
 
-    def decide(self, identity, approve):
+    def decide(self, identity, approve, scope="once"):
+        if type(approve) is not bool or (
+            not isinstance(scope, str) or scope not in {"once", "hour", "always"}
+        ):
+            raise RpcError(-32602, "승인 범위를 확인하세요.")
+        if not approve and scope != "once":
+            raise RpcError(-32602, "거절에는 허용 범위를 지정할 수 없습니다.")
         if not isinstance(identity, str) or len(identity) != 40:
             raise RpcError(-32602, "승인 요청 ID를 확인하세요.")
         with self.db() as db:
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
-                "SELECT status,expires FROM approvals WHERE id=?", (identity,)
+                "SELECT status,expires,payload FROM approvals WHERE id=?", (identity,)
             ).fetchone()
             if not row or row[0] != "pending" or row[1] < time.time():
                 raise RpcError(-32043, "승인 요청이 만료되었거나 이미 처리됐습니다.")
+            if approve and scope != "once":
+                payload = json.loads(row[2])
+                binding = payload.get("binding")
+                if not isinstance(binding, str) or len(binding) != 64:
+                    raise RpcError(
+                        -32043, "이전 요청은 반복 허용할 수 없습니다. 호출을 다시 요청하세요."
+                    )
+                db.execute(
+                    "INSERT OR REPLACE INTO grants VALUES (?,?,?,?,?,?,?)",
+                    (
+                        secrets.token_hex(20),
+                        payload["server"],
+                        payload["tool"],
+                        binding,
+                        scope,
+                        time.time() + 3600 if scope == "hour" else None,
+                        time.time(),
+                    ),
+                )
+                for request_id, encoded in db.execute(
+                    "SELECT id,payload FROM approvals WHERE status='pending'"
+                ).fetchall():
+                    if json.loads(encoded).get("binding") == binding:
+                        db.execute(
+                            "UPDATE approvals SET status='approved' WHERE id=?", (request_id,)
+                        )
             if approve:
                 db.execute("UPDATE approvals SET status='approved' WHERE id=?", (identity,))
             else:
                 db.execute("UPDATE approvals SET status='denied' WHERE id=?", (identity,))
-        return {"id": identity, "approved": approve}
+        return {"id": identity, "approved": approve, "scope": scope}
 
     def get(self, request_id):
         if not isinstance(request_id, str) or len(request_id) != 40:
@@ -174,3 +269,44 @@ class ToolPolicy:
             "status": row[1],
             "expires_at": row[2],
         }
+
+    def grants(self):
+        with self.db() as db:
+            db.execute(
+                "DELETE FROM grants WHERE expires IS NOT NULL AND expires<=?", (time.time(),)
+            )
+            return [
+                dict(
+                    zip(
+                        ("id", "server", "tool", "scope", "expires_at", "created_at"),
+                        row,
+                        strict=True,
+                    )
+                )
+                for row in db.execute(
+                    "SELECT id,server,tool,scope,expires,created FROM grants ORDER BY created DESC"
+                )
+            ]
+
+    def revoke_grant(self, identity):
+        if not isinstance(identity, str) or len(identity) != 40:
+            raise RpcError(-32602, "허용 ID를 확인하세요.")
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT binding FROM grants WHERE id=?", (identity,)).fetchone()
+            if row:
+                for request_id, encoded in db.execute(
+                    "SELECT id,payload FROM approvals"
+                ).fetchall():
+                    if json.loads(encoded).get("binding") == row[0]:
+                        db.execute("DELETE FROM approvals WHERE id=?", (request_id,))
+                db.execute("DELETE FROM grants WHERE id=?", (identity,))
+        return {"revoked": bool(row)}
+
+    def revoke_server(self, server):
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            db.execute("DELETE FROM grants WHERE server=?", (server,))
+            for request_id, encoded in db.execute("SELECT id,payload FROM approvals").fetchall():
+                if json.loads(encoded)["server"] == server:
+                    db.execute("DELETE FROM approvals WHERE id=?", (request_id,))

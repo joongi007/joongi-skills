@@ -5,7 +5,7 @@
   const approvalId = fragment.get('approval_id');
   history.replaceState(null, '', location.pathname);
   const node = (id) => document.getElementById(id);
-  let timer, pendingTimer;
+  let timer, pendingTimer, closeTimer;
   const message = (text, error = false) => {
     node('status').textContent = text;
     node('status').classList.toggle('error', error);
@@ -13,6 +13,7 @@
   const disable = () => {
     node('approve').disabled = true;
     node('deny').disabled = true;
+    node('scope').disabled = true;
   };
   async function request(action, timeout = 5000) {
     const controller = new AbortController();
@@ -20,7 +21,7 @@
     try {
       const response = await fetch('/decision', {
         method: 'POST', headers: {'Content-Type': 'application/json', Authorization: `Bearer ${session}`},
-        body: JSON.stringify({approval_id: approvalId, action}), credentials: 'omit', cache: 'no-store',
+        body: JSON.stringify({approval_id: approvalId, action, ...(action === 'approve' ? {scope: node('scope').value} : {})}), credentials: 'omit', cache: 'no-store',
         signal: controller.signal,
       });
       if (!response.ok) throw new Error('승인 요청의 상태를 확인하지 못했습니다.');
@@ -41,10 +42,21 @@
     node('retry-status').hidden = true;
     node('actions').hidden = true;
     node('title').textContent = row.status === 'approved' ? '승인 완료' : '요청 거절';
+    const approved = {once: '한 번 승인했습니다.', hour: '이 도구를 1시간 허용했습니다.', always: '이 도구를 항상 허용했습니다.'}[row.scope || 'once'];
     message(row.status === 'approved'
-      ? '한 번 승인했습니다. 이 창은 닫아도 됩니다. 이제 에이전트가 같은 요청을 다시 실행합니다. 서비스의 실행 결과는 에이전트에서 확인하세요.'
+      ? `${approved} 이 창은 닫아도 됩니다. 이제 에이전트가 같은 요청을 다시 실행합니다. 서비스의 실행 결과는 에이전트에서 확인하세요.`
       : '거절했습니다. 이 호출은 실행되지 않습니다. 이 창을 닫아도 됩니다.');
     session = null;
+    if (row.status === 'approved' && node('auto-close').checked) {
+      node('close-status').hidden = false;
+      node('keep-open').hidden = false;
+      node('close-status').textContent = '3초 후 이 승인 창을 닫습니다.';
+      closeTimer = setTimeout(() => {
+        node('keep-open').hidden = true;
+        window.close();
+        node('close-status').textContent = '승인은 완료됐습니다. 자동으로 닫히지 않으면 브라우저의 탭 닫기를 사용하세요.';
+      }, 3000);
+    }
     return true;
   }
   async function checkStatus() {
@@ -78,6 +90,12 @@
       await checkStatus(); // Read-only recovery. Never repeat a decision POST.
     }
   }
+  node('keep-open').addEventListener('click', () => { clearTimeout(closeTimer); node('keep-open').hidden = true; node('close-status').textContent = '승인 완료 화면을 유지합니다. 필요할 때 이 탭을 닫으세요.'; });
+  node('auto-close').addEventListener('change', () => { if (!node('auto-close').checked) { clearTimeout(closeTimer); node('keep-open').hidden = true; node('close-status').hidden = true; } });
+  node('scope').addEventListener('change', () => {
+    node('approve').textContent = {once: '이 호출 한 번 승인', hour: '이 도구 1시간 허용', always: '이 도구 항상 허용'}[node('scope').value];
+    node('scope-note').textContent = node('scope').value === 'once' ? '현재 도구와 인수 조합에 한 번 적용합니다.' : '같은 프로젝트 범위·연결의 이 도구를 반복 허용합니다. 다른 인수와 페이지도 포함하며 MCP 연결 화면에서 취소할 수 있습니다.';
+  });
   node('approve').addEventListener('click', () => decide('approve'));
   node('deny').addEventListener('click', () => decide('deny'));
   node('retry-status').addEventListener('click', checkStatus);
