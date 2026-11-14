@@ -76,11 +76,21 @@ def main():
         assert script == expected, "Published bootstrap differs from reviewed source"
         bootstrap = temp / script_name
         bootstrap.write_bytes(script)
-        from scripts.verify_release import verify_download
+        from scripts.verify_release import VerificationError, verify_download
 
         with urllib.request.urlopen(BASE + "/joongi-skills.sigstore.jsonl", timeout=30) as response:
             attestation = response.read(2 * 1024**2 + 1)
         verify_download(script, attestation)
+        for changed, revision in ((script + b"\n# tampered\n", None), (script, "0" * 40)):
+            try:
+                verify_download(changed, attestation, revision=revision)
+            except VerificationError:
+                pass
+            else:
+                raise AssertionError(
+                    "Real verifier accepted tampered content or the wrong source commit"
+                )
+
         if os.name == "nt":
             ps = Path(os.environ["SystemRoot"]) / "System32/WindowsPowerShell/v1.0/powershell.exe"
             command = [
