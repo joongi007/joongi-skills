@@ -20,6 +20,6 @@
 
 | [ADR-0011](0011-local-credential-boundaries.md) | accepted | OS 인증 저장소·로컬 HTTP 자격증명·호출 승인 |
 
-새 결정은 맥락·선택·대안·결과·검증을 포함한다. 상태가 바뀌면 대체 ADR을 연결한다.
-
 | [ADR-0012](0012-enforced-security-boundaries.md) | accepted | 외부 MCP 실행 격리·배포 provenance·로컬 세션 자동 교체 |
+
+새 결정은 맥락·선택·대안·결과·검증을 포함한다. 상태가 바뀌면 대체 ADR을 연결한다.

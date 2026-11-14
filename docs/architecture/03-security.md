@@ -16,12 +16,13 @@ Hub는 loopback에 바인딩한다. 로컬 서비스라도 외부 웹페이지�
 
 ## 등록과 실행
 
-등록한 stdio 명령은 사용자 권한으로 실행되는 프로그램이다. 자동 발견을 위해
+등록한 외부 stdio 명령은 Landlock·seccomp 또는 제한한 Docker 안에서 실행한다. 격리할 수 없으면 거절한다. 자동 발견을 위해
 프로세스를 실행하는 시점도 실행 경계로 다룬다. 명령·인자는 배열로 전달하고 shell을 쓰지 않는다.
 외부 MCP 서버가 반환한 지침은 untrusted content이며 사용자 권한이나 설치 승인을 대체하지 않는다.
 stdio 자식에는 PATH·홈·임시 경로·OS 실행·locale 등 기본 허용 목록만 전달한다.
 API key·proxy·인증 agent socket·인터프리터 주입 변수 등은 자동 상속하지 않는다.
-추가 변수가 필요하면 서버별 env 매핑을 명시한다. 이는 파일·네트워크 접근 격리는 아니다.
+추가 변수가 필요하면 서버별 env 매핑을 명시한다. 파일 접근은 명시한 경로로 제한하고 네트워크 연결은 차단한다.
+프로필·플랫폼 준비·신뢰한 그래프 adapter 경계는 [보안 운영 계약](../operations/10-security-boundaries.md)을 따른다.
 
 HTTP upstream 주소는 로컬 MCP를 연결할 필요가 있어 일반 웹 fetch와 정책이 다르다.
 사용자가 명시적으로 등록한 endpoint에 한정하고, cloud metadata·redirect·URL 자격증명 등은
@@ -47,8 +48,9 @@ view token은 만료 시간이 있으며 원래 MCP 서버와 도구에 묶인�
 ## 배포
 
 GitHub Pages는 공개 정적 파일만 제공한다. 개인 config·state·토큰은 산출물에서 제외한다.
-터미널 다운로드에는 브라우저 CORS가 적용되지 않는다. 설치 스크립트를 검토한 다음 실행하며,
-릴리스·commit 고정과 checksum 검증을 제공할 때 공급망의 변동 범위를 줄일 수 있다.
+터미널 다운로드에는 브라우저 CORS가 적용되지 않는다. bootstrap과 archive를 실행하기 전에 GitHub CLI로 Sigstore provenance를 검증한다.
+신뢰한 workflow·main commit·저장소와 소유자 ID·digest가 다르면 설치를 거절한다.
+서명 job은 외부 빌드 의존성을 실행하지 않으며 문서 build job과 권한을 분리한다.
 
 ## Upstream 인증과 프로젝트
 
@@ -80,3 +82,5 @@ OS 키링은 저장 시 보호이며 프로세스 샌드박스가 아니다. 최
 Markdown의 raw HTML 실행은 끈다. 공개 문서의 Mermaid는 격리한 빌드 브라우저에서만 실행하고
 안전 검사한 SVG 이미지로 배포한다. 설정 재정의·상호작용·외부 리소스는 허용하지 않는다.
 [문서 빌드와 안전 설정](../installation/02-github-pages.md#markdown-문서를-사이트에서-읽기)을 따른다.
+
+관리·HTTP MCP 로컬 토큰의 유효 기간·자동 교체·강제 폐기는 [로컬 세션 계약](../operations/10-security-boundaries.md#로컬-토큰-자동-교체)을 따른다.

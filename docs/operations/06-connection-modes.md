@@ -132,3 +132,7 @@ stdout은 stdio 모드에서 JSON-RPC 전용이다. daemon의 시작 오류는 �
 - [Gemini CLI MCP](https://geminicli.com/docs/tools/mcp-server/): Streamable HTTP `httpUrl`.
 - [Copilot CLI](https://docs.github.com/en/copilot/reference/copilot-cli-reference/cli-command-reference): `type: http`, `url`, tools 및 프로젝트 `.github/mcp.json`.
 - [OpenCode MCP](https://opencode.ai/docs/mcp-servers/): `type: remote`, `url`.
+
+HTTP 모드의 관리되는 에이전트 설정은 자동 갱신 stdio credential bridge를 통해 HTTP Hub에 연결한다.
+만료되는 Bearer를 에이전트 설정에 영구 저장하지 않는다. 사용자 정의 직접 HTTP 연결의 만료와
+재발급은 [로컬 토큰 수명](10-security-boundaries.md#로컬-토큰-자동-교체)을 따른다.

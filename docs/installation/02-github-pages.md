@@ -17,31 +17,21 @@ GitHub Pages는 정적 안내 페이지, HTML 문서, 설치 스크립트, 소�
 
 워크플로는 재사용하는 Check 워크플로의 비밀 값 검사·Python·Windows 설치·문서·SDK·브라우저·
 스킬·뮤테이션 검증이 모두 통과한 후 사이트를 만든다. 실제 Pages 주소는
-`actions/configure-pages`의 출력으로 주입한다. 저장소 소유자·주소를 하드코딩하지 않는다.
+`actions/configure-pages`의 출력으로 문서 사이트에 주입한다. 배포 서명의 신뢰 정책은
+공식 저장소 ID·소유자 ID·workflow와 공개 설치 주소를 의도적으로 고정한다.
+fork는 이 신뢰 정책과 배포 주소를 검토해 변경해야 한다.
 실제 배포 성공 여부는 원격 Actions 실행 결과에서 확인한다.
 
 ## 사용자가 실행하는 명령
 
-실제 배포 주소에서 설치 스크립트를 내려받고 읽은 후 실행한다.
+먼저 [공식 GitHub CLI](https://cli.github.com/)와 Python 3.10 이상을 준비한다.
+[설치 안내 사이트](https://joongi007.github.io/joongi-skills/)의 OS별 명령은 bootstrap·attestation을
+임시 디렉터리에 받고 `gh attestation verify`가 성공한 뒤에만 bootstrap을 실행한다.
+처음 복사하는 명령은 공식 저장소의 `site/install.js`와 대조한다.
 
-```bash
-curl --fail --location https://OWNER.github.io/REPOSITORY/install.sh -o install.sh
-less install.sh
-bash install.sh install --dry-run
-bash install.sh install
-```
-
-사이트에 제공된 스크립트에는 해당 배포의 다운로드 주소가 들어 있다. 소스의
-`install.sh`를 단독 복사했다면 아래처럼 주소를 명시한다.
-
-```bash
-JOONGI_DOWNLOAD_BASE=https://OWNER.github.io/REPOSITORY bash install.sh install
-```
-
-PowerShell에서는 내려받은 `install.ps1`에 `-DownloadBase`를 지정할 수 있다.
-사이트의 Windows 명령은 자식 PowerShell 프로세스에만 실행 정책 예외를 적용하며 전역 설정은 바꾸지 않는다.
-스크립트 실행 정책을 전역으로 완화하지 않는다. 정책상 실행이 제한되면 클론의
-`scripts/install_manager.py`를 Python으로 직접 실행한다.
+검증하지 않은 다운로드 파일을 바로 실행하는 예전 설치 명령은 사용하지 않는다.
+PowerShell 명령은 자식 프로세스에만 실행 정책 예외를 적용하며 전역 정책을 바꾸지 않는다.
+로컬 checkout을 신뢰하고 설치하는 방법은 [클론에서 설치](00-index.md#클론에서-설치)를 따른다.
 
 ## CORS와 다운로드 검증
 
@@ -51,8 +41,9 @@ PowerShell에서는 내려받은 `install.ps1`에 `-DownloadBase`를 지정할 �
 
 부트스트랩은 `bundle-manifest.json`과 고정 파일명 `joongi-skills.tar.gz`를 HTTPS로 받고,
 SHA256·다운로드 크기·압축 해제 크기·파일 개수·경로·링크를 검사한 뒤 설치기를 실행한다.
-체크섬은 전송·파일 일관성을 확인하며, 같은 출처가 침해됐을 때를 막는 서명은 아니다.
-서명·버전 고정·플랫폼별 바이너리는 이후 배포 요구가 생기면 추가한다.
+체크섬 외에 Sigstore 서명·인증서·출처·현재 main commit 검증이 필수다.
+서명이 없거나 검증기가 없으면 실행·압축 해제를 하지 않는다.
+원격 업데이트도 설치된 검증기로 같은 정책을 적용한다. [세부 신뢰 정책](../operations/10-security-boundaries.md#다운로드-실행-전-서명-검증).
 
 ## 배포 산출물 로컬 확인
 
