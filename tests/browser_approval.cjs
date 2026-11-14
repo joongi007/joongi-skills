@@ -68,6 +68,7 @@ async function main() {
     assert.equal(statusReads, index === 2 ? 2 : 1, 'Lost response is recovered with a read-only status check');
     assert(await target.isDisabled());
     assert.equal(await page.locator('#retry-status').isVisible(), false);
+    assert.equal(await page.locator('#actions').isVisible(), false, 'Completed review must not retain loading-looking disabled controls');
   }
   assert.deepEqual(errors, []);
   await browser.close(); browser = null;

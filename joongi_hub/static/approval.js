@@ -39,6 +39,7 @@
     node('approve').textContent = '이 호출 한 번 승인';
     node('deny').textContent = '거절';
     node('retry-status').hidden = true;
+    node('actions').hidden = true;
     node('title').textContent = row.status === 'approved' ? '승인 완료' : '요청 거절';
     message(row.status === 'approved'
       ? '한 번 승인했습니다. 이 창은 닫아도 됩니다. 이제 에이전트가 같은 요청을 다시 실행합니다. 서비스의 실행 결과는 에이전트에서 확인하세요.'
