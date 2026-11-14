@@ -57,8 +57,9 @@ def stop(directory):
             child = _children.pop(record.get("pid"), None)
             if child:
                 child.wait(timeout=5)
-            elif os.name == "nt":
-                # HTTP can stop before Windows releases the daemon's log handle.
+            else:
+                # The socket can close before a separately started daemon finishes
+                # its credential/task cleanup. Wait on every supported platform.
                 while process_alive(record.get("pid")) and time.monotonic() < deadline:
                     time.sleep(0.05)
                 if process_alive(record.get("pid")):
