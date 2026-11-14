@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from scripts.verify_release import VerificationError, verify_release
+from scripts.verify_release import VerificationError, verify_download, verify_release
 
 
 class ReleaseVerification(unittest.TestCase):
@@ -78,6 +78,11 @@ class ReleaseVerification(unittest.TestCase):
         self.archive.write_bytes(b"modified artifact")
         with self.assertRaises(VerificationError):
             self.run_verifier()
+
+    def test_temporary_file_replacement_cannot_authorize_different_downloaded_bytes(self):
+        with patch("scripts.verify_release.verify_release", return_value={"sha256": "0" * 64}):
+            with self.assertRaises(VerificationError):
+                verify_download(b"original-downloaded-bytes", b"fake-attestation", self.sha)
 
     def test_failed_or_missing_verifier_never_falls_back_to_checksums(self):
         with (

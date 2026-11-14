@@ -32,7 +32,7 @@ if (-not $DownloadBase) { $DownloadBase = "@DOWNLOAD_BASE@" }
 if (-not $DownloadBase.StartsWith("https://")) {
     throw "Set -DownloadBase to your HTTPS GitHub Pages URL, or run from a clone."
 }
-$temporary = Join-Path ([System.IO.Path]::GetTempPath()) ([Guid]::NewGuid().ToString())
+$temporary = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) ([Guid]::NewGuid().ToString())
 New-Item -ItemType Directory -Path $temporary | Out-Null
 try {
     # The same bounded, verified extraction code used by the POSIX bootstrap.

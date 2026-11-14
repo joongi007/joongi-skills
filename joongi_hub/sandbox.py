@@ -223,7 +223,9 @@ def prepare():
 
 class Execution:
     def __init__(self, config, environment, state=None):
-        self.directory = tempfile.TemporaryDirectory(prefix="joongi-mcp-sandbox-")
+        self.directory = tempfile.TemporaryDirectory(
+            prefix="joongi-mcp-sandbox-", dir=Path.home() if os.name == "nt" else None
+        )
         self.container = None
         self.engine = None
         self.environment = _helper_environment()

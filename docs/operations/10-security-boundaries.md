@@ -67,12 +67,16 @@ macOS/Windows의 로컬 프로그램은 검토한 Docker 이미지로 등록하�
 고정한 저장소 ID와 소유자 ID, GitHub-hosted runner다.
 현재 보호된 main commit과 다르면 거절하므로 이전 정상 서명으로 되돌리는 공격도 거절한다.
 main 변경 직후 Pages 배포가 완료되기 전에는 설치가 잠시 실패할 수 있다. 배포 완료 후 다시 시도한다.
+Windows의 검증·설치 임시 파일은 공유 TEMP 대신 사용자 프로필 아래에 둔다.
+검증 결과는 다운로드한 원래 bytes의 digest와 다시 결합해 파일 교체를 거절한다.
 GitHub 계정·workflow·GitHub/Sigstore 자체는 신뢰 기반이다. 처음 복사하는 명령은
 [공식 저장소](https://github.com/joongi007/joongi-skills)와 대조한다.
 
 서명 job은 stdlib만으로 검토한 checkout의 배포본을 만들며 npm·문서 빌드 코드를 실행하지 않는다.
 사이트 build job에는 OIDC 서명 권한이 없다. 서명 job의 immutable artifact ID로 파일을 전달한다.
 클론한 checkout을 직접 설치하는 것은 사용자가 로컬 소스를 신뢰하는 별도 경로다.
+이전 checksum-only 설치기에서 처음 전환할 때는 사이트의 서명 검증 명령이나 검토한 clone의 설치기를 사용한다.
+구버전의 update 명령에 새 검증 정책이 소급 적용되지는 않는다.
 
 ## 로컬 토큰 자동 교체
 

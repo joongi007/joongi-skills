@@ -174,12 +174,19 @@ def verify_release(archive, bundle, revision=None):
 
 
 def verify_download(data, attestation, revision=None):
-    with tempfile.TemporaryDirectory(prefix="joongi-release-verification-") as directory:
+    with tempfile.TemporaryDirectory(
+        prefix="joongi-release-verification-", dir=Path.home() if os.name == "nt" else None
+    ) as directory:
         root = Path(directory)
         archive, bundle = root / "joongi-skills.tar.gz", root / "attestation.jsonl"
         archive.write_bytes(data)
         bundle.write_bytes(attestation)
-        return verify_release(archive, bundle, revision)
+        verified = verify_release(archive, bundle, revision)
+        if verified["sha256"] != hashlib.sha256(data).hexdigest():
+            raise VerificationError(
+                "Verified artifact does not match the immutable downloaded bytes"
+            )
+        return verified
 
 
 def main():

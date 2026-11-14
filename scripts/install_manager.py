@@ -517,7 +517,9 @@ class Installer:
         if not (self.source / "skills").is_dir():
             raise InstallError(f"Source has no skills directory: {self.source}")
         # Keep staged files alive through apply; nothing is written to home during preflight.
-        with tempfile.TemporaryDirectory(prefix="joongi-install-") as temporary:
+        with tempfile.TemporaryDirectory(
+            prefix="joongi-install-", dir=Path.home() if os.name == "nt" else None
+        ) as temporary:
             staging = Path(temporary)
             runtime = staging / "runtime"
             runtime.mkdir()
@@ -534,6 +536,9 @@ class Installer:
             if not verifier.is_file():
                 verifier = Path(__file__).with_name("verify_release.py")
             shutil.copy2(verifier, runtime / "scripts/verify_release.py")
+            (runtime / "scripts/__init__.py").write_text(
+                '"""Trusted installation helpers."""\n', encoding="utf-8"
+            )
             backend = self.manifest.get("wsl_backend")
             if backend:
                 validate_wsl_backend(backend)
@@ -799,7 +804,9 @@ def main(argv: list[str] | None = None) -> int:
                     source = previous_source
             if download_base and args.action in {"install", "update"}:
                 temporary = stack.enter_context(
-                    tempfile.TemporaryDirectory(prefix="joongi-download-")
+                    tempfile.TemporaryDirectory(
+                        prefix="joongi-download-", dir=Path.home() if os.name == "nt" else None
+                    )
                 )
                 source = download_bundle(download_base, Path(temporary))
             installer = Installer(args.home, source, args.dry_run)
