@@ -26,10 +26,8 @@ class ReleaseVerification(unittest.TestCase):
                 "verificationResult": {
                     "signature": {
                         "certificate": {
-                            "extensions": {
-                                "SourceRepositoryIdentifier": "1452939341",
-                                "SourceRepositoryOwnerIdentifier": "68692377",
-                            }
+                            "sourceRepositoryIdentifier": "1452939341",
+                            "sourceRepositoryOwnerIdentifier": "68692377",
                         }
                     },
                     "statement": {
@@ -63,13 +61,14 @@ class ReleaseVerification(unittest.TestCase):
                 "--source-ref",
             ]:
                 self.assertIn(expected, args)
+            self.assertNotIn("--signer-workflow", args)
             self.assertNotIn("GH_TOKEN", command.call_args.kwargs["env"])
             return verified
 
     def test_verifier_pins_workflow_source_repository_identity_and_digest(self):
         self.assertEqual(self.run_verifier()["revision"], self.sha)
-        self.verified[0]["verificationResult"]["signature"]["certificate"]["extensions"][
-            "SourceRepositoryIdentifier"
+        self.verified[0]["verificationResult"]["signature"]["certificate"][
+            "sourceRepositoryIdentifier"
         ] = "different-repository"
         with self.assertRaises(VerificationError):
             self.run_verifier()

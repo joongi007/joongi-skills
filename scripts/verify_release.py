@@ -104,8 +104,6 @@ def verify_release(archive, bundle, revision=None):
         str(bundle),
         "--repo",
         TRUSTED_REPOSITORY,
-        "--signer-workflow",
-        TRUSTED_WORKFLOW,
         "--cert-identity",
         "https://github.com/" + TRUSTED_WORKFLOW + "@" + TRUSTED_REF,
         "--cert-oidc-issuer",
