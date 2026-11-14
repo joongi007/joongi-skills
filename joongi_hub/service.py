@@ -641,6 +641,7 @@ class Hub:
             (
                 "hub_approval_status",
                 "Check pending/approved/denied/unavailable call consent. "
+                "Use wait_seconds=20 to wait for the user decision without repeated polling. "
                 "No approval capability is returned. Do not retry a denied call.",
             ),
         ):
@@ -657,7 +658,19 @@ class Hub:
                     "inputSchema": {
                         "type": "object",
                         "properties": {
-                            "approval_id": {"type": "string", "minLength": 40, "maxLength": 40}
+                            "approval_id": {"type": "string", "minLength": 40, "maxLength": 40},
+                            **(
+                                {
+                                    "wait_seconds": {
+                                        "type": "number",
+                                        "minimum": 0,
+                                        "maximum": 20,
+                                        "default": 0,
+                                    }
+                                }
+                                if name == "hub_approval_status"
+                                else {}
+                            ),
                         },
                         "required": ["approval_id"],
                         "additionalProperties": False,
@@ -715,8 +728,11 @@ class Hub:
         if not isinstance(name, str) or not isinstance(arguments, dict):
             raise RpcError(-32602, "Tool name and arguments must be a string and object")
         if name in {"hub_approval_request", "hub_approval_status"}:
-            if set(arguments) != {"approval_id"}:
-                raise RpcError(-32602, "approval_id만 지정하세요.")
+            allowed = (
+                {"approval_id", "wait_seconds"} if name.endswith("status") else {"approval_id"}
+            )
+            if "approval_id" not in arguments or set(arguments) - allowed:
+                raise RpcError(-32602, "승인 조회 필드를 확인하세요.")
             if name == "hub_approval_request":
                 if not local_owner:
                     raise RpcError(
@@ -725,7 +741,7 @@ class Hub:
                         "로컬 터미널에서 joongi-hub open을 사용하세요.",
                     )
                 return text_result(self.agent_approvals.request(arguments["approval_id"]))
-            return text_result(self.agent_approvals.status(arguments["approval_id"]))
+            return text_result(self.agent_approvals.wait_status(**arguments))
         if name == "hub_skills_status":
             return text_result(self.skill_manager.status())
         if name == "hub_skills_plan":
@@ -926,6 +942,9 @@ class Hub:
                 data.update(self.agent_approvals.request(exc.data["approval_id"]))
             except Exception:
                 data["browser_opened"] = False
+        if data.get("browser_opened"):
+            data["next_tool"] = "hub_approval_status"
+            data["arguments"] = {"approval_id": exc.data["approval_id"], "wait_seconds": 20}
         exc.data = data
         exc.args = (
             "사용자가 로컬 브라우저에서 호출을 검토해야 합니다. "
