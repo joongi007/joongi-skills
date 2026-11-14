@@ -16,7 +16,7 @@ try:
     with patch(
         "joongi_hub.agent_approval.open_browser", side_effect=lambda url: urls.append(url) or True
     ):
-        for action in ("approve", "deny"):
+        for action in ("approve", "deny", "unknown"):
             try:
                 hub.tool_policy.authorize(
                     {

@@ -1,4 +1,4 @@
-/* Owner-browser real consent: CSP, script injection, mobile, keyboard and denial. */
+/* Real owner consent, slow/lost responses, bounded recovery, CSP and XSS. */
 'use strict';
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
@@ -26,22 +26,54 @@ async function main() {
     assert(response.headers()['content-security-policy'].includes("frame-ancestors 'none'"));
     await page.getByRole('button', { name: '이 호출 한 번 승인', exact: true }).waitFor();
     assert.equal(new URL(page.url()).hash, '');
-    assert.equal(await page.locator('#arguments').innerText(), JSON.stringify({page: '<img src=x onerror="window.injected=true">', test: index === 0 ? 'approve' : 'deny'}, null, 2));
+    assert.equal(await page.locator('#arguments').innerText(), JSON.stringify({page: '<img src=x onerror="window.injected=true">', test: ['approve', 'deny', 'unknown'][index]}, null, 2));
     assert.equal(await page.evaluate(() => window.injected), undefined);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-    const target = page.getByRole('button', { name: index === 0 ? '이 호출 한 번 승인' : '거절', exact: true });
+    const action = index === 1 ? 'deny' : 'approve';
+    const target = page.locator(action === 'approve' ? '#approve' : '#deny');
+    let releaseDecision;
+    const gate = new Promise(resolve => { releaseDecision = resolve; });
+    let writes = 0, statusReads = 0;
+    await page.route('**/decision', async route => {
+      const body = route.request().postDataJSON();
+      if (body.action === 'status') {
+        statusReads++;
+        if (index === 2 && statusReads === 1) { await route.abort('failed'); return; }
+      }
+      if (body.action !== action) { await route.continue(); return; }
+      writes++;
+      const saved = await route.fetch();
+      assert.equal((await saved.json()).status, action === 'approve' ? 'approved' : 'denied');
+      await gate;
+      await route.abort('failed').catch(() => {}); // Lost response or client deadline.
+    });
     await target.focus();
-    const decision = page.waitForResponse(r => r.url().endsWith('/decision') && r.request().postDataJSON().action !== 'view');
+    const started = performance.now();
     await page.keyboard.press('Enter');
-    assert.equal((await (await decision).json()).status, index === 0 ? 'approved' : 'denied');
-    await page.getByRole('status').getByText(index === 0 ? /한 번 승인했습니다/ : /거절했습니다/).waitFor();
+    await page.waitForTimeout(250);
+    assert.match(await page.getByRole('status').innerText(), /저장하고 있습니다/, 'Click must show a saving state before the delayed POST returns');
     assert(await target.isDisabled());
+    if (index !== 1) releaseDecision(); // Lost acknowledgement after commit.
+    // For denial, withhold acknowledgement past the real 5s browser deadline.
+    if (index === 2) {
+      await page.getByRole('button', { name: '승인 상태 다시 확인' }).waitFor();
+      assert.match(await page.getByRole('status').innerText(), /응답을 확인하지 못/);
+      assert.equal(await page.locator('#title').innerText(), '이 요청을 허용할까요?');
+      await page.getByRole('button', { name: '승인 상태 다시 확인' }).click();
+    }
+    await page.getByRole('heading', { name: action === 'approve' ? '승인 완료' : '요청 거절', exact: true }).waitFor();
+    if (index === 1) { assert(performance.now() - started >= 4500, `Deadline elapsed ${performance.now() - started}ms`); releaseDecision(); }
+    await page.unrouteAll({ behavior: 'wait' });
+    assert.equal(writes, 1, 'Recovery must never send a second decision');
+    assert.equal(statusReads, index === 2 ? 2 : 1, 'Lost response is recovered with a read-only status check');
+    assert(await target.isDisabled());
+    assert.equal(await page.locator('#retry-status').isVisible(), false);
   }
   assert.deepEqual(errors, []);
   await browser.close(); browser = null;
   child.stdin.end();
   await once(child, 'exit');
-  console.log('Owner approval browser: approve/deny, keyboard, mobile, CSP and XSS passed.');
+  console.log('Owner approval browser: instant progress, lost response/deadline recovery without duplicate writes, mobile, keyboard, CSP and XSS passed.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
   if (browser) await browser.close();

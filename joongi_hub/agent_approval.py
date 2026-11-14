@@ -138,6 +138,7 @@ class AgentApprovals:
         self.server = None
         self.thread = None
         self.closed = False
+        self.changed = threading.Event()
 
     def status(self, approval_id):
         result = self.hub.tool_policy.get(approval_id)
@@ -147,6 +148,24 @@ class AgentApprovals:
             for key, value in result.items()
             if key in {"approval_id", "status", "expires_at", "server", "tool"}
         }
+
+    def wait_status(self, approval_id, wait_seconds=0):
+        if (
+            isinstance(wait_seconds, bool)
+            or not isinstance(wait_seconds, (int, float))
+            or not 0 <= wait_seconds <= 20
+        ):
+            raise RpcError(-32602, "wait_seconds는 0~20초로 지정하세요.")
+        deadline = time.monotonic() + wait_seconds
+        while True:
+            result = self.status(approval_id)
+            remaining = deadline - time.monotonic()
+            if result["status"] != "pending" or remaining <= 0 or self.closed:
+                return result
+            # Wake immediately for this process, and detect decisions made by a
+            # separate owner process within 250 ms. Never hold the controller lock.
+            self.changed.wait(min(0.25, remaining))
+            self.changed.clear()
 
     def request(self, approval_id):
         with self.lock:
@@ -158,6 +177,13 @@ class AgentApprovals:
             flow = self.flows.get(approval_id)
             if flow:
                 return {**result, "browser_opened": flow["opened"]}
+            if len(self.flows) >= 32:
+                receipt = next(
+                    (key for key, item in self.flows.items() if item.get("receipt")), None
+                )
+                if receipt is None:
+                    raise RpcError(-32043, "승인창이 너무 많습니다. 기존 요청을 먼저 처리하세요.")
+                self.flows.pop(receipt)
             if self.server is None:
                 self.server = ApprovalServer(self)
                 self.thread = threading.Thread(target=self.serve, args=(self.server,), daemon=True)
@@ -182,8 +208,10 @@ class AgentApprovals:
             **result,
             "browser_opened": opened,
             "next_tool": "hub_approval_status",
+            "arguments": {"approval_id": approval_id, "wait_seconds": 20},
             "instructions": "사용자가 로컬 브라우저에서 이 호출을 검토하도록 안내하세요. "
-            "승인 후 원래 요청을 그대로 재시도하세요. "
+            "hub_approval_status에 wait_seconds=20을 주어 사용자 결정을 기다린 뒤 "
+            "approved일 때만 원래 요청을 그대로 재시도하세요. "
             "창이 열리지 않으면 로컬 터미널의 joongi-hub open으로 관리 화면을 여세요.",
         }
 
@@ -196,6 +224,10 @@ class AgentApprovals:
                 or not secrets.compare_digest(authorization, "Bearer " + flow["secret"])
             ):
                 raise RpcError(-32043, "유효하지 않은 승인 세션입니다.")
+            if action == "status":
+                return flow.get("receipt") or self.status(approval_id)
+            if flow.get("receipt"):
+                raise RpcError(-32043, "이미 처리된 승인 요청입니다.")
             row = self.hub.tool_policy.get(approval_id)
             if row["status"] != "pending":
                 raise RpcError(-32043, "이미 처리됐거나 만료된 승인 요청입니다.")
@@ -204,8 +236,16 @@ class AgentApprovals:
             if action not in {"approve", "deny"}:
                 raise RpcError(-32602, "허용하지 않는 작업입니다.")
             self.hub.tool_policy.decide(approval_id, action == "approve")
-            self.flows.pop(approval_id, None)
-            return self.status(approval_id)
+            # A short, read-only receipt lets a browser recover a lost response,
+            # even when the agent already consumed the one-time grant. It grants
+            # no further decisions and never asserts upstream execution success.
+            flow["receipt"] = {
+                "approval_id": approval_id,
+                "status": "approved" if action == "approve" else "denied",
+            }
+            flow["expires"] = time.time() + 30
+            self.changed.set()
+            return flow["receipt"]
 
     def serve(self, server):
         try:
@@ -213,9 +253,8 @@ class AgentApprovals:
                 server.handle_request()
                 with self.lock:
                     for key, flow in list(self.flows.items()):
-                        if (
-                            flow["expires"] <= time.time()
-                            or self.status(key)["status"] != "pending"
+                        if flow["expires"] <= time.time() or (
+                            not flow.get("receipt") and self.status(key)["status"] != "pending"
                         ):
                             self.flows.pop(key, None)
                     if not self.flows:
@@ -231,6 +270,7 @@ class AgentApprovals:
     def close(self):
         with self.lock:
             self.closed = True
+            self.changed.set()
             self.flows.clear()
             server, thread = self.server, self.thread
             if server:

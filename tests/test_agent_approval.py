@@ -236,6 +236,70 @@ class AgentApproval(unittest.TestCase):
             self.hub.tool_policy.get(result["error"]["data"]["approval_id"])["status"], "pending"
         )
 
+    def test_saved_decision_receipt_survives_consumption_without_granting_again(self):
+        identity, url, _ = self.start()
+        self.assertEqual(self.request(url, action="approve")[0], 200)
+        self.assertNotIn("error", self.call())
+        self.assertEqual(self.hub.agent_approvals.status(identity)["status"], "unavailable")
+        status, body, _ = self.request(url, action="status")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["status"], "approved")
+        self.assertEqual(self.request(url, action="approve")[0], 403)
+        self.assertEqual(self.request(url, action="deny")[0], 403)
+        self.assertEqual(self.request(url, action="view")[0], 403)
+        self.assertEqual(self.request(url, action="status", secret="wrong")[0], 403)
+        with self.hub.agent_approvals.lock:
+            self.hub.agent_approvals.flows[identity]["expires"] = time.time() - 1
+        deadline = time.monotonic() + 2
+        while self.hub.agent_approvals.server and time.monotonic() < deadline:
+            time.sleep(0.02)
+        self.assertIsNone(self.hub.agent_approvals.server)
+
+    def test_status_wait_returns_on_human_decision_without_model_poll_loop(self):
+        identity, url, _ = self.start()
+        outcome = []
+        waiting = threading.Thread(
+            target=lambda: outcome.append(
+                self.call("hub_approval_status", {"approval_id": identity, "wait_seconds": 2})
+            )
+        )
+        waiting.start()
+        time.sleep(0.1)
+        self.assertTrue(waiting.is_alive())
+        start = time.monotonic()
+        self.assertEqual(self.request(url, action="approve")[0], 200)
+        waiting.join(timeout=1)
+        self.assertFalse(waiting.is_alive())
+        self.assertLess(time.monotonic() - start, 1)
+        self.assertEqual(
+            json.loads(outcome[0]["result"]["content"][0]["text"])["status"], "approved"
+        )
+        for invalid in (-1, 21, True, "2"):
+            self.assertIn(
+                "error",
+                self.call(
+                    "hub_approval_status", {"approval_id": identity, "wait_seconds": invalid}
+                ),
+            )
+
+    def test_wait_has_a_deadline_and_detects_another_owner_process_decision(self):
+        identity, _, _ = self.start()
+        start = time.monotonic()
+        self.assertEqual(self.hub.agent_approvals.wait_status(identity, 0.05)["status"], "pending")
+        self.assertLess(time.monotonic() - start, 1)
+        self.assertGreaterEqual(time.monotonic() - start, 0.04)
+        outcome = []
+        waiting = threading.Thread(
+            target=lambda: outcome.append(self.hub.agent_approvals.wait_status(identity, 2))
+        )
+        waiting.start()
+        time.sleep(0.05)
+        # Independent DB writer, without this controller's event notification.
+        self.hub.tool_policy.decide(identity, False)
+        waiting.join(timeout=1)
+        self.assertFalse(waiting.is_alive())
+        self.assertEqual(outcome[0]["status"], "denied")
+
     def test_legacy_task_failure_preserves_request_id_for_human_approval(self):
         context = {"owner": "legacy-task", "local_owner": True}
 
