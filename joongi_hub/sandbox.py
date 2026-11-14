@@ -416,7 +416,7 @@ class Execution:
         ):
             raise RpcError(-32046, "신뢰한 Docker seccomp 프로필이 변경됐습니다.")
         profile = json.loads(profile_bytes)
-        blocked = {"socket", "connect", "bind", "listen", "accept", "accept4"}
+        blocked = {"socket", "socketcall", "connect", "bind", "listen", "accept", "accept4"}
         for rule in profile["syscalls"]:
             if rule["action"] == "SCMP_ACT_ALLOW":
                 rule["names"] = [name for name in rule["names"] if name not in blocked]

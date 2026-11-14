@@ -2,6 +2,8 @@
 
 import json
 import os
+import platform
+import shutil
 import socket
 import subprocess
 import sys
@@ -88,6 +90,44 @@ print(json.dumps(result))
     @unittest.skipUnless(sys.platform == "linux", "Linux host runtime in Docker")
     def test_docker_native_denies_unmounted_io_symlink_network_and_readonly_writes(self):
         self.run_program("docker-native")
+
+    @unittest.skipUnless(
+        sys.platform == "linux" and platform.machine().lower() == "x86_64",
+        "x86 Linux compatibility syscall",
+    )
+    def test_docker_blocks_legacy_32bit_socketcall(self):
+        if not shutil.which("as") or not shutil.which("ld"):
+            self.skipTest("binutils required for the independent compatibility probe")
+        source = Path(__file__).parent / "fixtures/socket_probe_i386.s"
+        object_file = self.root / "socket_probe.o"
+        program = self.root / "socket_probe"
+        subprocess.run(
+            ["as", "--32", str(source), "-o", str(object_file)], check=True, capture_output=True
+        )
+        subprocess.run(
+            ["ld", "-m", "elf_i386", str(object_file), "-o", str(program)],
+            check=True,
+            capture_output=True,
+        )
+        execution = Execution(
+            {
+                "command": str(program),
+                "sandbox": {"backend": "docker-native", "read": [str(program)]},
+            },
+            stdio_environment(),
+        )
+        try:
+            result = subprocess.run(
+                execution.command, capture_output=True, env=execution.environment, timeout=15
+            )
+            self.assertEqual(
+                result.returncode,
+                0,
+                "Compatibility socketcall was not rejected with EPERM: "
+                + result.stderr.decode(errors="replace"),
+            )
+        finally:
+            execution.cleanup()
 
     def test_missing_backend_fails_before_running_the_program(self):
         with patch("joongi_hub.sandbox.sys.platform", "unsupported"):
