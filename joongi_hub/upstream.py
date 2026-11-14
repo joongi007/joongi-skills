@@ -18,6 +18,38 @@ MODERN = "2026-07-28"
 VERSIONS = [MODERN, "2025-11-25", "2025-06-18"]
 MAX_MESSAGE = 4 * 1024 * 1024
 TIMEOUT = 20
+# Execution essentials only. Credentials, proxy URLs and interpreter injection
+# variables require an explicit per-server env mapping.
+STDIO_ENVIRONMENT = {
+    "PATH",
+    "HOME",
+    "USERPROFILE",
+    "APPDATA",
+    "LOCALAPPDATA",
+    "PROGRAMDATA",
+    "ALLUSERSPROFILE",
+    "SYSTEMROOT",
+    "WINDIR",
+    "PATHEXT",
+    "COMSPEC",
+    "PROGRAMFILES",
+    "PROGRAMFILES(X86)",
+    "PROGRAMW6432",
+    "COMMONPROGRAMFILES",
+    "TEMP",
+    "TMP",
+    "TMPDIR",
+    "LANG",
+    "LANGUAGE",
+    "LC_ALL",
+    "LC_CTYPE",
+    "TZ",
+    "TERM",
+    "PYTHONIOENCODING",
+    "PYTHONUTF8",
+    "WSL_DISTRO_NAME",
+    "WSL_INTEROP",
+}
 SERVER_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
 CLIENT_INFO = {"name": "joongi-hub", "version": "0.1.0"}
 
@@ -122,16 +154,25 @@ def validate_url(url, timeout=None):
         ip = ip.ipv4_mapped if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped else ip
         if ip.is_link_local or ip.is_multicast or ip.is_unspecified:
             raise RpcError(-32602, "Metadata/link-local and multicast destinations are blocked")
+        if parsed.scheme == "http" and not ip.is_loopback:
+            raise RpcError(-32602, "Remote MCP connections require HTTPS; HTTP is loopback-only")
     return addresses
+
+
+def stdio_environment(mapping=None):
+    environment = {
+        key: value for key, value in os.environ.items() if key.upper() in STDIO_ENVIRONMENT
+    }
+    for key, variable in (mapping or {}).items():
+        if variable not in os.environ:
+            raise RpcError(-32000, "Required upstream environment variable is missing")
+        environment[key] = os.environ[variable]
+    return environment
 
 
 class StdioTransport:
     def __init__(self, config):
-        environment = dict(os.environ)
-        for key, variable in config.get("env", {}).items():
-            if variable not in os.environ:
-                raise RpcError(-32000, "Required upstream environment variable is missing")
-            environment[key] = os.environ[variable]
+        environment = stdio_environment(config.get("env"))
         self.process = subprocess.Popen(
             [config["command"], *config.get("args", [])],
             stdin=subprocess.PIPE,

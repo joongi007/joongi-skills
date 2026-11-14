@@ -23,7 +23,7 @@ from joongi_hub.credential_lock import CredentialLock
 from joongi_hub.errors import RpcError
 from joongi_hub.runtime import process_alive
 from joongi_hub.storage import atomic_json
-from joongi_hub.upstream import MAX_MESSAGE, Upstream, validate_server
+from joongi_hub.upstream import MAX_MESSAGE, Upstream, stdio_environment, validate_server
 
 SCHEMAS = Path(__file__).with_name("review_graph_tools.json")
 PURPOSES = {
@@ -259,6 +259,7 @@ class Gateway:
                 child = subprocess.Popen(
                     module_command("--worker", folder),
                     stdin=subprocess.DEVNULL,
+                    env=stdio_environment(),
                     stdout=log,
                     stderr=log,
                     start_new_session=os.name != "nt",
@@ -361,7 +362,12 @@ def worker(folder):
     try:
         with (folder / "build.log").open("wb") as log:
             completed = subprocess.run(
-                command, stdin=subprocess.DEVNULL, stdout=log, stderr=log, timeout=300
+                command,
+                stdin=subprocess.DEVNULL,
+                stdout=log,
+                stderr=log,
+                timeout=300,
+                env=stdio_environment(),
             )
         if completed.returncode == 0 and (folder / "data/graph.db").is_file():
             status = "ready"
