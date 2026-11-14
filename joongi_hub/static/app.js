@@ -16,10 +16,17 @@ let selectedPath = 'SKILL.md';
 let remoteSkill = null;
 let searchQuery = '';
 let csrfToken = '';
+let panelMode = 'persistent';
+let panelSetup = null;
+let panelPage = crypto.randomUUID();
 try {
-  const handoff = new URLSearchParams(location.hash.slice(1)).get('session');
+  const params = new URLSearchParams(location.hash.slice(1));
+  const handoff = params.get('session');
   if (handoff && /^[A-Za-z0-9_-]{43}$/.test(handoff)) {
     csrfToken = handoff;
+    panelPage = params.get('panel_page') || panelPage;
+    activeProfile = params.get('profile') || 'global';
+    if (params.get('view') === 'settings') currentView = 'settings';
     history.replaceState(null, '', location.pathname + location.search);
     sessionStorage.setItem('joongi-hub-session', handoff);
   } else csrfToken = sessionStorage.getItem('joongi-hub-session') || '';
@@ -28,6 +35,7 @@ let activeCall = null;
 let appView = null;
 let searchTimer;
 let loadCounter = 0;
+let permissionGeneration = 0;
 let skillCounter = 0;
 const expandedServers = new Set();
 const toolQueries = new Map();
@@ -102,14 +110,16 @@ function navigate(view) {
   }
   $('#crumb').textContent = labels[currentView];
   render();
+  if (currentView === 'connections' && workspaceStatus === 'ready') run(refreshApprovalPanel);
 }
 async function load({ quiet = false } = {}) {
   const id = ++loadCounter;
+  ++permissionGeneration;
   try {
-    const [incoming, approvals] = await Promise.all([api('/api/v1/state'), api('/api/v1/approvals')]);
+    const [incoming, approvals, permissions] = await Promise.all([api('/api/v1/state'), api('/api/v1/approvals'), api('/api/v1/permissions')]);
     if (id !== loadCounter) return;
     workspaceStatus = 'ready'; workspaceError = '';
-    state = { skills: [], servers: [], tasks: [], compatibility: {}, ...incoming, approvals };
+    state = { skills: [], servers: [], tasks: [], compatibility: {}, ...incoming, approvals, permissions };
     state.skills = Array.isArray(state.skills) ? state.skills : [];
     state.servers = Array.isArray(state.servers) ? state.servers : [];
     state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
@@ -171,7 +181,7 @@ function render() {
   page.dataset.profile = activeProfile;
 }
 async function refreshWorkspace() {
-  try { await loadProjects(); await load(); }
+  try { await setupPanelLifetime(); await loadProjects(); await load(); }
   catch (error) {
     showNotice(error.message, true);
     if (workspaceStatus !== 'ready') { workspaceStatus = 'error'; workspaceError = error.message; render(); }
@@ -322,19 +332,44 @@ function renderConnections() {
   else list.replaceChildren(...state.servers.map(connection));
   if (activeCall) renderCallPanel(activeCall);
 }
+async function refreshApprovalPanel() {
+  const profile = activeProfile, generation = ++permissionGeneration;
+  const [approvals, permissions] = await Promise.all([api('/api/v1/approvals'), api('/api/v1/permissions')]);
+  if (profile !== activeProfile || generation !== permissionGeneration || currentView !== 'connections') return;
+  state.approvals = approvals; state.permissions = permissions;
+  const previous = page.querySelector('[aria-label="도구 호출 승인"]');
+  if (previous) previous.replaceWith(approvalPanel());
+}
 function approvalPanel() {
   const rows = state.approvals || [];
+  const grants = state.permissions || [];
   return el('section', { class: 'section', 'aria-label': '도구 호출 승인' },
     el('h2', {}, '도구 호출 승인'),
-    el('p', {}, '서버·도구·인수를 확인하세요. 승인은 이 요청 한 번에만 적용되며, 승인 후 에이전트가 같은 호출을 다시 실행해야 합니다.'),
+    el('p', {}, '서버·도구·인수를 확인하세요. 허용 범위를 선택하세요. 1시간·항상 허용은 같은 도구의 다른 인수와 페이지도 포함합니다. 승인 후 에이전트가 같은 호출을 다시 실행해야 합니다.'),
     button('승인 요청 새로고침', () => run(() => load()), 'small'),
     ...(rows.length ? rows.map(row => el('section', { class: 'form-panel' },
       el('h3', {}, `${row.server} · ${row.tool}`),
       el('p', {}, row.status === 'approved' ? '승인됨 · 동일한 요청을 다시 실행하세요.' : '검토 대기 · 5분 후 만료'),
       el('details', {}, el('summary', {}, '실행할 인수와 이어가기 입력'), el('pre', {}, JSON.stringify({ arguments: row.arguments, continuation: row.continuation }, null, 2))),
-      row.status === 'pending' ? el('div', { class: 'form-actions' }, ...[true, false].map(approve => button(approve ? '이 호출 한 번 승인' : '거절', () => run(async () => { await api(`/api/v1/approvals/${encodeURIComponent(row.id)}`, { method: 'POST', body: JSON.stringify({ approve }) }); await load(); }), approve ? 'primary small' : 'quiet small'))) : null
-    )) : [el('p', {}, '검토할 호출이 없습니다. 원격 도구를 실행하면 필요한 승인 요청이 여기에 표시됩니다.')])
+      row.status === 'pending' ? approvalControls(row) : null
+    )) : [el('p', {}, '검토할 호출이 없습니다. 원격 도구를 실행하면 필요한 승인 요청이 여기에 표시됩니다.')]),
+    el('h3', {}, '반복 허용 내역'),
+    ...(grants.length ? grants.map(grant => el('div', {class: 'form-panel'},
+      el('strong', {}, `${grant.server} · ${grant.tool}`),
+      el('p', {}, grant.scope === 'always' ? '항상 허용 · 직접 취소할 때까지' : `1시간 허용 · ${new Date(grant.expires_at * 1000).toLocaleString()} 만료`),
+      button('허용 취소', () => run(async () => { await api(`/api/v1/permissions/${encodeURIComponent(grant.id)}`, {method: 'DELETE'}); await load(); showNotice('반복 허용을 취소했습니다. 이후 호출은 다시 확인합니다.'); }), 'quiet small')))
+      : [el('p', {}, '반복 허용한 도구가 없습니다.')])
   );
+}
+function approvalControls(row) {
+  const scope = el('select', {'aria-label': `${row.server} ${row.tool} 허용 범위`},
+    el('option', {value: 'once'}, '이번 호출만'), el('option', {value: 'hour'}, '이 도구 1시간 허용'), el('option', {value: 'always'}, '이 도구 항상 허용'));
+  const decide = approve => run(async () => {
+    await api(`/api/v1/approvals/${encodeURIComponent(row.id)}`, {method: 'POST', body: JSON.stringify({approve, scope: approve ? scope.value : 'once'})}); await load();
+  });
+  const allow = button('이 호출 한 번 승인', () => decide(true), 'primary small');
+  scope.addEventListener('change', () => { allow.textContent = {once: '이 호출 한 번 승인', hour: '이 도구 1시간 허용', always: '이 도구 항상 허용'}[scope.value]; });
+  return el('div', {class: 'form-actions'}, scope, allow, button('거절', () => decide(false), 'quiet small'));
 }
 function connection(server) {
   const probe = button('연결 확인', async () => run(async () => { showNotice(`${server.name || server.id}에서 도구를 확인하고 있습니다.`); await api(`/api/v1/servers/${encodeURIComponent(server.id)}/probe`, { method: 'POST', body: '{}' }); await load(); showNotice('연결 정보를 갱신했습니다.'); }, probe), 'small');
@@ -474,7 +509,7 @@ function renderCompatibility() {
 for (const node of document.querySelectorAll('[data-view]')) node.addEventListener('click', () => navigate(node.dataset.view));
 $('#refresh').addEventListener('click', event => run(refreshWorkspace, event.currentTarget));
 window.addEventListener('hashchange', () => { const next = location.hash.slice(1); if (Object.hasOwn(labels, next) && next !== currentView) navigate(next); });
-currentView = Object.hasOwn(labels, location.hash.slice(1)) ? location.hash.slice(1) : 'overview';
+currentView = Object.hasOwn(labels, location.hash.slice(1)) ? location.hash.slice(1) : currentView;
 for (const node of document.querySelectorAll('[data-view]')) if (node.dataset.view === currentView) node.setAttribute('aria-current', 'page');
 $('#crumb').textContent = labels[currentView];
 refreshWorkspace();
@@ -743,7 +778,7 @@ async function renderConnectionSettings() {
       el('section', { class: 'section' }, el('h2', {}, profile === 'global' ? '내 에이전트에 등록' : '이 프로젝트에 등록'), el('p', {}, '현재 환경에서 선택한 에이전트의 설정만 변경합니다. 설치할 스킬 선택은 스킬 라이브러리에서 관리합니다.'), agents, plan, review),
       el('details', { class: 'compat-detail' }, el('summary', {}, '수동 연결 설정'), client, code, copy,
         el('details', {}, el('summary', {}, 'Windows 에이전트에서 WSL 사용'), field('WSL 배포판 이름', 'wsl-distribution', distro), windows, preview)),
-      el('details', { class: 'compat-detail' }, el('summary', {}, '웹 UI 실행·종료'), el('p', {}, '웹 탭을 닫아도 HTTP Hub는 계속 실행됩니다. 중지하면 HTTP로 연결된 에이전트와 진행 중인 작업도 영향을 받습니다.'),
+      el('details', { class: 'compat-detail' }, el('summary', {}, '웹 UI 실행·종료'), el('p', {}, `${panelMode === 'temporary' ? '이 창은 임시 설정 화면입니다. 닫으면 웹만 정리되며 stdio는 유지됩니다. 상시 웹은 joongi-hub open으로 시작하세요.' : '웹 탭을 닫아도 HTTP Hub는 계속 실행됩니다. 중지하면 HTTP로 연결된 에이전트와 진행 중인 작업도 영향을 받습니다.'}`),
         el('pre', {}, 'joongi-hub start\njoongi-hub stop\njoongi-hub restart\njoongi-hub status\njoongi-hub open'),
         button('HTTP Hub 중지 확인', () => {
           const confirm = el('div', { class: 'notice' }, el('p', {}, 'HTTP 연결과 실행 중인 작업이 종료됩니다. 다시 켜려면 터미널에서 joongi-hub start를 실행하세요.'), button('HTTP Hub 중지', () => run(async () => {
@@ -754,4 +789,33 @@ async function renderConnectionSettings() {
         }, 'quiet small')));
     for (const group of target.querySelectorAll('details')) { group.addEventListener('input', event => event.stopPropagation()); group.addEventListener('change', event => event.stopPropagation()); }
   });
+}
+
+function setupPanelLifetime() {
+  if (!panelSetup) panelSetup = configurePanelLifetime().catch(error => { panelSetup = null; throw error; });
+  return panelSetup;
+}
+async function configurePanelLifetime() {
+  const info = await api('/api/v1/panel');
+  panelMode = info.mode;
+  if (panelMode !== 'temporary') return;
+  let ended = false;
+  const body = () => JSON.stringify({page: panelPage});
+  const heartbeat = () => api('/api/v1/panel/heartbeat', {method: 'POST', body: body()});
+  await heartbeat();
+  const timer = setInterval(() => { if (!ended) heartbeat().catch(() => { clearInterval(timer); showNotice('임시 설정 연결이 끝났습니다. 에이전트에 설정 화면을 다시 열어 달라고 요청하세요.', true); }); }, 20000);
+  const release = () => {
+    if (ended) return;
+    ended = true; clearInterval(timer);
+    fetch('/api/v1/panel/close', {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Hub-Token': csrfToken}, body: body(), keepalive: true}).catch(() => {});
+  };
+  window.addEventListener('pagehide', release);
+  window.addEventListener('pageshow', event => { if (event.persisted && ended) location.reload(); });
+  const banner = el('aside', {class: 'notice', id: 'temporary-panel'},
+    el('p', {}, '임시 설정 창입니다. 설정은 저장되며, 창을 닫으면 약 5초 뒤 웹만 종료됩니다. stdio 연결은 유지됩니다.'),
+    button('이 설정 창 닫기', () => {
+      release(); workspaceStatus = 'closed';
+      document.body.replaceChildren(el('main', {class: 'main'}, el('h1', {}, '설정 창 연결을 종료했습니다.'), el('p', {}, '이 창을 닫아도 됩니다. 다른 설정 창이 없다면 임시 웹이 종료되며 stdio는 유지됩니다.')));
+    }, 'small'));
+  $('#main').prepend(banner);
 }

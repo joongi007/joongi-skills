@@ -300,6 +300,24 @@ class AgentApproval(unittest.TestCase):
         self.assertFalse(waiting.is_alive())
         self.assertEqual(outcome[0]["status"], "denied")
 
+    def test_login_swap_after_authorization_cannot_send_new_account_credentials(self):
+        _, url, _ = self.start()
+        self.assertEqual(self.request(url, action="approve")[0], 200)
+        client = self.hub.client("protected")
+        original = client.request
+
+        def swapped(method, params=None):
+            if method == "tools/call":
+                self.hub.auth.set_manual(client.config, {"token": "fake-other-account"})
+            return original(method, params)
+
+        with patch.object(client, "request", side_effect=swapped):
+            result = self.call()
+        self.assertEqual(result["error"]["code"], -32043)
+        self.assertFalse(
+            any(c.args[0]["method"] == "tools/call" for c in self.calls.call_args_list)
+        )
+
     def test_legacy_task_failure_preserves_request_id_for_human_approval(self):
         context = {"owner": "legacy-task", "local_owner": True}
 

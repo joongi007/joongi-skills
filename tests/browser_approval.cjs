@@ -26,6 +26,7 @@ async function main() {
     assert(response.headers()['content-security-policy'].includes("frame-ancestors 'none'"));
     await page.getByRole('button', { name: '이 호출 한 번 승인', exact: true }).waitFor();
     assert.equal(new URL(page.url()).hash, '');
+    if (index === 0) await page.locator('#auto-close').uncheck();
     assert.equal(await page.locator('#arguments').innerText(), JSON.stringify({page: '<img src=x onerror="window.injected=true">', test: ['approve', 'deny', 'unknown'][index]}, null, 2));
     assert.equal(await page.evaluate(() => window.injected), undefined);
     assert(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
@@ -59,10 +60,12 @@ async function main() {
       await page.getByRole('button', { name: '승인 상태 다시 확인' }).waitFor();
       assert.match(await page.getByRole('status').innerText(), /응답을 확인하지 못/);
       assert.equal(await page.locator('#title').innerText(), '이 요청을 허용할까요?');
+      assert.equal(await page.locator('#close-status').isVisible(), false, 'Unconfirmed outcomes must never start auto-close');
+      await page.locator('#auto-close').uncheck();
       await page.getByRole('button', { name: '승인 상태 다시 확인' }).click();
     }
     await page.getByRole('heading', { name: action === 'approve' ? '승인 완료' : '요청 거절', exact: true }).waitFor();
-    if (index === 1) { assert(performance.now() - started >= 4500, `Deadline elapsed ${performance.now() - started}ms`); releaseDecision(); }
+    if (index === 1) { assert.equal(await page.locator('#close-status').isVisible(), false, 'Denial must remain visible'); assert(performance.now() - started >= 4500, `Deadline elapsed ${performance.now() - started}ms`); releaseDecision(); }
     await page.unrouteAll({ behavior: 'wait' });
     assert.equal(writes, 1, 'Recovery must never send a second decision');
     assert.equal(statusReads, index === 2 ? 2 : 1, 'Lost response is recovered with a read-only status check');

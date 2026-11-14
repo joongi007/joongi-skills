@@ -24,11 +24,14 @@ class HubServer(ThreadingHTTPServer):
     daemon_threads = True
     request_queue_size = 16
 
-    def __init__(self, address, hub):
+    def __init__(self, address, hub, temporary=None):
         self.hub = hub
         self.apps = AppSessions(hub)
-        local_token(hub.state_dir, management=True)
-        local_token(hub.state_dir)
+        self.temporary = temporary
+        self.private_token = secrets.token_urlsafe(32) if temporary else None
+        if not temporary:
+            local_token(hub.state_dir, management=True)
+            local_token(hub.state_dir)
         self.instance_id = secrets.token_urlsafe(24)
         self.sessions = {}
         self.session_lock = threading.RLock()
@@ -40,7 +43,7 @@ class HubServer(ThreadingHTTPServer):
 
     @property
     def token(self):
-        return local_token(self.hub.state_dir, management=True)
+        return self.private_token or local_token(self.hub.state_dir, management=True)
 
     def apps_for(self, hub):
         session = self.profile_apps.get(hub.profile_id)
@@ -150,6 +153,11 @@ class Handler(BaseHTTPRequestHandler):
             return False
         path = unquote(urlparse(self.path).path)
         if path == "/mcp" or path.startswith("/mcp/projects/"):
+            if self.server.temporary:
+                self.send_data(
+                    403, {"error": "임시 설정 화면은 MCP HTTP 연결을 제공하지 않습니다."}
+                )
+                return False
             profile = (
                 path.removeprefix("/mcp/projects/")
                 if path.startswith("/mcp/projects/")
@@ -172,8 +180,16 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_data(400, {"error": "이 연결의 프로젝트를 변경할 수 없습니다."})
                 return False
         elif path.startswith("/api/v1/"):
-            self.next_local_token = authenticate_local(
-                self.server.hub.state_dir, self.headers.get("X-Hub-Token", ""), management=True
+            supplied = self.headers.get("X-Hub-Token", "")
+            self.next_local_token = (
+                (
+                    self.server.private_token
+                    if supplied.isascii()
+                    and secrets.compare_digest(supplied, self.server.private_token)
+                    else None
+                )
+                if self.server.temporary
+                else authenticate_local(self.server.hub.state_dir, supplied, management=True)
             )
             if not self.next_local_token:
                 return self.reject_authentication(
@@ -258,7 +274,17 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         try:
             hub = self.active_hub()
-            if path == "/api/v1/approvals":
+            if path == "/api/v1/panel":
+                self.send_data(
+                    200,
+                    {
+                        "mode": "temporary" if self.server.temporary else "persistent",
+                        "instance": self.server.instance_id,
+                    },
+                )
+            elif path == "/api/v1/permissions":
+                self.send_data(200, hub.tool_policy.grants())
+            elif path == "/api/v1/approvals":
                 self.send_data(200, hub.tool_policy.list())
             elif path == "/api/v1/projects":
                 self.send_data(
@@ -380,13 +406,20 @@ class Handler(BaseHTTPRequestHandler):
                 return
             if not isinstance(body, dict):
                 raise RpcError(-32602, "Request body must be an object")
-            if self.path.startswith("/api/v1/approvals/"):
-                if set(body) != {"approve"} or type(body["approve"]) is not bool:
+            if self.path == "/api/v1/panel/heartbeat" or self.path == "/api/v1/panel/close":
+                if not self.server.temporary or set(body) != {"page"}:
+                    raise RpcError(-32602, "임시 설정 창을 확인하세요.")
+                self.server.temporary.touch(body["page"], close=self.path.endswith("/close"))
+                self.send_data(200, {"ok": True})
+            elif self.path.startswith("/api/v1/approvals/"):
+                if set(body) - {"approve", "scope"} or type(body.get("approve")) is not bool:
                     raise RpcError(-32602, "승인 여부를 지정하세요.")
                 self.send_data(
                     200,
                     hub.tool_policy.decide(
-                        self.path.removeprefix("/api/v1/approvals/"), body["approve"]
+                        self.path.removeprefix("/api/v1/approvals/"),
+                        body["approve"],
+                        body.get("scope", "once"),
                     ),
                 )
             elif self.path == "/api/v1/connection":
@@ -551,7 +584,17 @@ class Handler(BaseHTTPRequestHandler):
         # DELETE bodies are unused. Close rather than leave unread bytes on keep-alive.
         if self.headers.get("Content-Length", "0") != "0" or self.headers.get("Transfer-Encoding"):
             self.close_connection = True
-        if self.path.startswith("/api/v1/projects/"):
+        if self.path.startswith("/api/v1/permissions/"):
+            try:
+                self.send_data(
+                    200,
+                    self.active_hub().tool_policy.revoke_grant(
+                        self.path.removeprefix("/api/v1/permissions/")
+                    ),
+                )
+            except RpcError as exc:
+                self.send_data(400, {"error": str(exc)})
+        elif self.path.startswith("/api/v1/projects/"):
             identity = self.path.split("/")[-1]
             try:
                 self.server.hub.projects.delete(identity)

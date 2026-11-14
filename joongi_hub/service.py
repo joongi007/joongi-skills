@@ -162,11 +162,15 @@ class Hub:
         )
         self.tasks = TaskStore(state_dir)
         self.tool_policy = ToolPolicy(state_dir)
+        self.auth.consent_reset = self.tool_policy.revoke_server
         from joongi_hub.agent_approval import AgentApprovals
         from joongi_hub.agent_login import AgentLogins
 
         self.agent_logins = AgentLogins(self)
         self.agent_approvals = AgentApprovals(self)
+        from joongi_hub.agent_panel import AgentPanels
+
+        self.agent_panels = root_hub.agent_panels if root_hub else AgentPanels(self)
         self.clients = {}
         self.health = {}
         self.lock = threading.RLock()
@@ -209,6 +213,8 @@ class Hub:
 
     def close(self):
         self.closing = True
+        if self.root_hub is self:
+            self.agent_panels.close()
         self.agent_logins.close()
         self.agent_approvals.close()
         for child in self.profile_hubs.values():
@@ -261,6 +267,8 @@ class Hub:
             config = next((s for s in self.registry.list() if s["id"] == server_id), None)
             if not config or not config["enabled"]:
                 raise RpcError(-32602, "Unknown or disabled server")
+            if server_id in self.clients and self.clients[server_id].config != config:
+                self.clients.pop(server_id).close()
             if server_id not in self.clients:
                 self.clients[server_id] = Upstream(config, auth=self.auth)
             return self.clients[server_id]
@@ -677,6 +685,30 @@ class Hub:
                     },
                 }
             )
+        tools.append(
+            {
+                "name": "hub_open_settings",
+                "description": "Open Hub settings in the local owner's browser. "
+                "Temporary by default: "
+                "closing the browser stops only the settings web listener, not stdio. "
+                "Use persistent only when the user explicitly wants an always-running panel. "
+                "Reuses an existing persistent panel. Requires a local stdio connection; "
+                "no management URL or token is returned to the agent.",
+                "execution": {"taskSupport": "forbidden"},
+                "annotations": {"readOnlyHint": False, "destructiveHint": False},
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "mode": {
+                            "type": "string",
+                            "enum": ["temporary", "persistent"],
+                            "default": "temporary",
+                        }
+                    },
+                    "additionalProperties": False,
+                },
+            }
+        )
         # Native discovery preserves each upstream's schema, Apps metadata and
         # task execution contract. Search/call remain optional convenience tools.
         for server_id, client in list(self.clients.items()):
@@ -727,6 +759,12 @@ class Hub:
     ):
         if not isinstance(name, str) or not isinstance(arguments, dict):
             raise RpcError(-32602, "Tool name and arguments must be a string and object")
+        if name == "hub_open_settings":
+            if not local_owner:
+                raise RpcError(-32043, "설정 창은 로컬 stdio 연결에서만 열 수 있습니다.")
+            if set(arguments) - {"mode"}:
+                raise RpcError(-32602, "설정 화면에는 mode만 지정하세요.")
+            return text_result(self.agent_panels.open(self.profile_id, **arguments))
         if name in {"hub_approval_request", "hub_approval_status"}:
             allowed = (
                 {"approval_id", "wait_seconds"} if name.endswith("status") else {"approval_id"}
@@ -812,12 +850,14 @@ class Hub:
         tool = next((tool for tool in client.tools if tool.get("name") == tool_name), None)
         if tool is None:
             raise RpcError(-32602, "Tool not found on the selected server")
+        consent_epoch = self.auth.consent_epoch(client.config)
         try:
             self.tool_policy.authorize(
                 client.config,
                 tool,
                 arguments,
                 {"inputResponses": input_responses, "requestState": request_state},
+                auth_epoch=consent_epoch,
             )
         except RpcError as exc:
             self.approval_error(exc, local_owner)
@@ -839,7 +879,8 @@ class Hub:
                 raise RpcError(-32021, "Upstream requires Tasks but did not advertise support")
             if supports_tasks:
                 params["task"] = {"ttl": 86400000}
-        result = client.request("tools/call", params)
+        with self.auth.guard_consent(client.config, consent_epoch):
+            result = client.request("tools/call", params)
         deadline = time.monotonic() + 3600
         while result.get("resultType") == "input_required":
             if not local_task_id:
@@ -871,7 +912,8 @@ class Hub:
                         raise RpcError(-32000, "Input retry deadline exceeded")
                     time.sleep(0.1)
                 self.tasks.update(local_task_id, status="working", inputRequests={})
-                result = client.request("tools/call", params)
+                with self.auth.guard_consent(client.config, consent_epoch):
+                    result = client.request("tools/call", params)
             finally:
                 self.input_calls.pop(local_task_id, None)
         remote = result if result.get("resultType") == "task" else result.get("task")
@@ -1159,7 +1201,8 @@ class Hub:
                     "capabilities": self.capabilities(False),
                     "instructions": "Search skills with hub_search and read selected "
                     "instructions with hub_read_skill. Connect registered servers with "
-                    "hub_connect; call discovered tools with hub_call.",
+                    "hub_connect; call discovered tools with hub_call. "
+                    "Open local owner settings with hub_open_settings when requested.",
                 }
             else:
                 modern = version == MODERN

@@ -110,10 +110,16 @@ class ApprovalHandler(CallbackHandler):
             if not 0 < size <= 1024 or self.headers.get("Transfer-Encoding"):
                 raise ValueError
             body = json.loads(self.rfile.read(size))
-            if not isinstance(body, dict) or set(body) != {"approval_id", "action"}:
+            if not isinstance(body, dict) or (
+                set(body) - {"approval_id", "action", "scope"}
+                or not {"approval_id", "action"} <= set(body)
+            ):
                 raise ValueError
             result = self.server.controller.decision(
-                body["approval_id"], self.headers.get("Authorization", ""), body["action"]
+                body["approval_id"],
+                self.headers.get("Authorization", ""),
+                body["action"],
+                body.get("scope", "once"),
             )
         except (ValueError, TypeError, RpcError):
             self.send(403, {"error": "요청이 만료되었거나 처리됐습니다. 에이전트에서 확인하세요."})
@@ -215,7 +221,11 @@ class AgentApprovals:
             "창이 열리지 않으면 로컬 터미널의 joongi-hub open으로 관리 화면을 여세요.",
         }
 
-    def decision(self, approval_id, authorization, action):
+    def decision(self, approval_id, authorization, action, scope="once"):
+        if (not isinstance(scope, str) or scope not in {"once", "hour", "always"}) or (
+            action != "approve" and scope != "once"
+        ):
+            raise RpcError(-32602, "승인 범위를 확인하세요.")
         with self.lock:
             flow = self.flows.get(approval_id) if isinstance(approval_id, str) else None
             if (
@@ -235,13 +245,14 @@ class AgentApprovals:
                 return {**row, "profile": self.hub.profile_id}
             if action not in {"approve", "deny"}:
                 raise RpcError(-32602, "허용하지 않는 작업입니다.")
-            self.hub.tool_policy.decide(approval_id, action == "approve")
+            self.hub.tool_policy.decide(approval_id, action == "approve", scope)
             # A short, read-only receipt lets a browser recover a lost response,
             # even when the agent already consumed the one-time grant. It grants
             # no further decisions and never asserts upstream execution success.
             flow["receipt"] = {
                 "approval_id": approval_id,
                 "status": "approved" if action == "approve" else "denied",
+                "scope": scope,
             }
             flow["expires"] = time.time() + 30
             self.changed.set()

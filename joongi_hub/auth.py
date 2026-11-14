@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import base64
+import contextlib
+import contextvars
 import hashlib
 import ipaddress
 import json
@@ -17,6 +19,7 @@ from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
 from joongi_hub.credential_lock import CredentialLock
 from joongi_hub.credential_store import CredentialStore, dpapi
 from joongi_hub.errors import RpcError
+from joongi_hub.storage import atomic_json
 
 AUTH_TYPES = {
     "none",
@@ -168,7 +171,43 @@ class AuthManager:
         self.pending = {}
         self.challenges = {}
         self.callback_url = None
+        self.consent_reset = lambda server: None
+        self.expected_consent = contextvars.ContextVar("consent_epoch", default=None)
         self.store = store or CredentialStore(self.path)
+
+    def consent_epoch(self, config, rotate=False):
+        with self.lock:
+            path = self.path.with_name("consent-epochs.json")
+            if path.is_symlink() or (path.exists() and path.stat().st_size > 65536):
+                raise RpcError(-32040, "인증 변경 기록을 확인하세요.")
+            try:
+                rows = json.loads(path.read_text(encoding="utf-8")) if path.exists() else {}
+                if (
+                    not isinstance(rows, dict)
+                    or len(rows) > 512
+                    or any(not isinstance(v, str) or len(v) != 32 for v in rows.values())
+                ):
+                    raise ValueError
+            except (ValueError, UnicodeError) as exc:
+                raise RpcError(-32040, "인증 변경 기록을 확인하세요.") from exc
+            if rotate or config["id"] not in rows:
+                if len(rows) >= 512 and config["id"] not in rows:
+                    raise RpcError(-32040, "인증 변경 기록의 서버 수 한계를 넘었습니다.")
+                rows[config["id"]] = secrets.token_hex(16)
+                atomic_json(path, rows)
+            return rows[config["id"]]
+
+    def reset_consent(self, config):
+        self.consent_epoch(config, rotate=True)
+        self.consent_reset(config["id"])
+
+    @contextlib.contextmanager
+    def guard_consent(self, config, epoch):
+        token = self.expected_consent.set((config["id"], epoch))
+        try:
+            yield
+        finally:
+            self.expected_consent.reset(token)
 
     def _read(self):
         if self.path.is_symlink() or self.path.parent.is_symlink():
@@ -274,6 +313,7 @@ class AuthManager:
             raise RpcError(-32602, "선택한 인증 방식에 필요한 값을 입력하세요.")
         with self.lock:
             self._save(config, {"manual": values})
+            self.reset_consent(config)
             self.challenges.pop(config["id"], None)
         return self.status(config)
 
@@ -640,6 +680,7 @@ class AuthManager:
                 },
             )
             self._save_token(pending["config"], row, token)
+            self.reset_consent(pending["config"])
             return {"authenticated": True, "server": pending["server"]}
 
     def poll(self, config, identity):
@@ -678,6 +719,7 @@ class AuthManager:
                 self.pending.pop(identity, None)
                 raise
             self._save_token(config, row, token)
+            self.reset_consent(config)
             self.pending.pop(identity, None)
             return {"status": "authenticated"}
 
@@ -687,6 +729,15 @@ class AuthManager:
         if kind in {"none", "external"}:
             return {}
         with self.lock:
+            expected = self.expected_consent.get()
+            if (
+                expected
+                and expected[0] == config["id"]
+                and expected[1] != self.consent_epoch(config)
+            ):
+                raise RpcError(
+                    -32043, "승인 후 로그인이 변경됐습니다. 원래 요청을 다시 확인하세요."
+                )
             row = self._record(config)
             manual = row.get("manual", {})
             if kind in {"bearer", "api_key"}:
@@ -803,6 +854,7 @@ class AuthManager:
             records = self._read()
             records.pop(config["id"], None)
             self._write(records)
+            self.reset_consent(config)
             self.pending = {k: v for k, v in self.pending.items() if v["server"] != config["id"]}
             self.challenges.pop(config["id"], None)
         return {"logged_out": True, "revoked": revoked}

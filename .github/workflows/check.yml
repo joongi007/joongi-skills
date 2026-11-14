@@ -169,6 +169,7 @@ jobs:
           node --check site/install.js
           node --check joongi_hub/static/approval.js
           node --check tests/browser_approval.cjs
+          node --check tests/browser_settings.cjs
           node --check joongi_hub/static/app.js
           node --check joongi_hub/static/app-relay.js
           node --check tests/sdk_interop.cjs

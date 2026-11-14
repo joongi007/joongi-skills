@@ -13,6 +13,8 @@ POSIX 파일 권한만으로는 인증 비밀의 저장 시 암호화가 되지 
 관리 API·범위별 HTTP MCP 자격증명을 분리하고 stdio HTTP bridge에도 동일하게 적용한다.
 OS DPAPI·Keychain·Secret Service를 사용하고 잠금·부재 시 평문 fallback 없이 실패한다.
 credentialed 연결에는 정확한 호출 한 번 승인 또는 명시한 도구 허용 목록을 사용한다.
+2026-11-15 보완: 사용자가 선택하는 1시간·항상 허용을 추가했다. 프로젝트·연결·확인된 도구 정의·인증 변경 식별자에 묶고 관리 화면에서 철회한다.
+세부 경계는 [추가 검수](../operations/11-consent-settings-review.md)를 따른다.
 Task 승인에는 동일한 작업의 검증한 입력 응답을 포함한다. 동기 continuation은 새 호출로 승인한다.
 알고 있는 비밀이 upstream 응답·오류에 반사되면 결과 전체를 거절한다.
 
