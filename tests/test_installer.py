@@ -70,6 +70,35 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.installer().manifest["wsl_backend"], backend)
         self.assertTrue((installer.runtime / "scripts/verify_release.py").is_file())
 
+    def test_delegated_mode_and_start_use_wsl_state_without_creating_native_state(self):
+        installer = self.installer()
+        backend = {"distribution": "Ubuntu", "launcher": "/home/example/.local/bin/joongi-hub"}
+        installer.manifest["wsl_backend"] = backend
+        installer.install(["codex"])
+        with patch("scripts.install_manager.run_wsl_hub") as forwarded:
+            self.assertEqual(
+                main(
+                    [
+                        "update",
+                        "--home",
+                        str(self.home),
+                        "--source",
+                        str(self.source),
+                        "--mode",
+                        "http",
+                        "--start",
+                        "--port",
+                        "0",
+                    ]
+                ),
+                0,
+            )
+        self.assertEqual(
+            forwarded.call_args_list[0].args, (backend, ["configure", "--mode", "http"])
+        )
+        self.assertEqual(forwarded.call_args_list[1].args, (backend, ["start", "--port", "0"]))
+        self.assertFalse((self.home / ".local/share/joongi-hub/connection.json").exists())
+
     def test_dry_run_writes_nothing(self):
         installer = self.installer(dry_run=True)
         installer.install(["claude", "codex"])

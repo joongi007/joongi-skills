@@ -306,6 +306,22 @@ def discover_wsl_backend(distribution):
         raise InstallError("Install Joongi Hub inside the selected WSL distribution first") from exc
 
 
+def run_wsl_hub(backend, arguments):
+    backend = validate_wsl_backend(backend)
+    try:
+        result = subprocess.run(
+            ["wsl.exe", "-d", backend["distribution"], "--exec", backend["launcher"], *arguments],
+            capture_output=True,
+            timeout=40,
+        )
+        if result.returncode:
+            raise InstallError(
+                "The selected WSL Hub command failed; check joongi-hub status inside WSL"
+            )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise InstallError("Could not reach the selected WSL Hub") from exc
+
+
 class Installer:
     def __init__(self, home: Path, source: Path, dry_run: bool = False):
         self.home = home.expanduser().resolve()
@@ -797,7 +813,12 @@ def main(argv: list[str] | None = None) -> int:
             from joongi_hub.connections import ConnectionSettings
 
             hub_state = installer.home / ".local/share/joongi-hub"
-            selected = ConnectionSettings(hub_state).get()
+            backend = installer.manifest.get("wsl_backend")
+            selected = (
+                {"mode": "stdio", "url": "http://127.0.0.1:8765", "fallback": "stdio"}
+                if backend
+                else ConnectionSettings(hub_state).get()
+            )
             for key in ("mode", "url", "fallback"):
                 if getattr(args, key) is not None:
                     selected[key] = getattr(args, key)
@@ -818,6 +839,13 @@ def main(argv: list[str] | None = None) -> int:
                     "command": str(launcher),
                     "args": ["stdio", "--mode", "hybrid", "--fallback", selected["fallback"]],
                 }
+            if backend:
+                installer.connection = {
+                    "command": str(
+                        installer.bin_dir / ("joongi-hub.cmd" if os.name == "nt" else "joongi-hub")
+                    ),
+                    "args": ["stdio"],
+                }
             if args.action == "status":
                 print(json.dumps(installer.status(), ensure_ascii=False, indent=2))
             elif args.action == "uninstall":
@@ -827,9 +855,22 @@ def main(argv: list[str] | None = None) -> int:
                 if not args.dry_run and any(
                     getattr(args, key) is not None for key in ("mode", "url", "fallback")
                 ):
-                    installer._check_path(hub_state / "connection.json")
-                    ConnectionSettings(hub_state).put(selected)
-                if args.start and not args.dry_run:
+                    if backend:
+                        forwarded = ["configure"]
+                        for key in ("mode", "url", "fallback"):
+                            if getattr(args, key) is not None:
+                                forwarded += ["--" + key, getattr(args, key)]
+                        run_wsl_hub(backend, forwarded)
+                    else:
+                        installer._check_path(hub_state / "connection.json")
+                        ConnectionSettings(hub_state).put(selected)
+                if args.start and not args.dry_run and backend:
+                    run_wsl_hub(
+                        backend,
+                        ["start", *(["--port", str(args.port)] if args.port is not None else [])],
+                    )
+                    installer.messages.append("Started the selected WSL Hub")
+                if args.start and not args.dry_run and not backend:
                     from joongi_hub.lifecycle import start
 
                     print(
