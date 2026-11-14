@@ -7,7 +7,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from joongi_hub.connections import configuration
 from joongi_hub.errors import RpcError
@@ -76,6 +76,14 @@ class SecurityBoundaries(unittest.TestCase):
         self.assertIn("authentication_limited", log)
         self.assertNotIn("fake-invalid-secret", log)
         self.assertNotIn(self.panel.token, log)
+
+    def test_network_session_response_cannot_invoke_the_owner_renewal_broker(self):
+        token = self.panel.token
+        with patch.object(HubServer, "token", new_callable=PropertyMock) as owner_broker:
+            owner_broker.side_effect = AssertionError("Network caller invoked the owner broker")
+            status, result = self.request("GET", "/api/v1/session", headers={"X-Hub-Token": token})
+        self.assertEqual(status, 200)
+        self.assertEqual(result["token"], token)
 
     def initialize(self):
         return {

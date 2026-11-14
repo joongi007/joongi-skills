@@ -337,7 +337,7 @@ class Handler(BaseHTTPRequestHandler):
                 if self.command != "HEAD":
                     self.wfile.write(body)
             elif path == "/api/v1/session":
-                self.send_data(200, {"token": self.server.token})
+                self.send_data(200, {"token": self.next_local_token})
             elif path == "/api/v1/state":
                 self.send_data(200, hub.state())
             elif path == "/api/v1/search":
