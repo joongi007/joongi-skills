@@ -18,7 +18,8 @@ WSL의 `/mnt/c`, `/mnt/d` 같은 Windows 경로는 Docker 격리를 선택한다
 일반 Linux 경로의 `auto`는 지원되면 Landlock, 지원되지 않으면 Docker-native를 사용한다. subprocess가 필요한 MCP는 `docker-native`를 지정한다.
 Docker의 기본 seccomp, 메모리·PID·CPU 제한이 꺼져 있으면 실행을 거절한다.
 공식 Docker seccomp 기본 정책을 고정해 사용하고 socket 생성·연결을 추가로 차단한다.
-공유 프로젝트 안의 Unix socket에도 연결할 수 없다.
+공유 프로젝트 안의 Unix socket에도 연결할 수 없다. 32비트 호환 `socketcall` 우회도 차단하며
+별도 32비트 ELF fixture로 검사한다. 이 프로필에서 legacy socketcall을 요구하는 프로그램은 지원하지 않는다.
 컨테이너는 non-root·read-only rootfs·capability 제거·no-new-privileges를 사용한다.
 
 ```bash
