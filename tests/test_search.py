@@ -23,6 +23,7 @@ class CatalogSearchTests(unittest.TestCase):
         self.addCleanup(self.hub.close)
         self.hub.register({"id": "docs", "transport": "stdio", "command": sys.executable})
         self.client = SimpleNamespace(
+            config=next(c for c in self.hub.registry.list() if c["id"] == "docs"),
             version="2025-11-25",
             skill_entries=[],
             tools=[

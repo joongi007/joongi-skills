@@ -99,16 +99,26 @@ def serve_stdio(hub, bridge=None, profile="global"):
                         )
                     else:
                         result = bridge.exchange(message)
-                    envelopes = [result] if isinstance(result, dict) else []
-                    if message.get("method") == "tasks/get" and isinstance(result, dict):
-                        if isinstance(result.get("result"), dict):
-                            envelopes.append(result["result"])
-                    for envelope in envelopes:
-                        error = envelope.get("error", {})
-                        if isinstance(error, dict) and error.get("code") == -32043:
-                            exc = RpcError(error["code"], error["message"], error.get("data"))
+                    if isinstance(result, dict) and isinstance(result.get("result"), dict):
+                        value = result["result"]
+                        meta_value = value.get("_meta", {})
+                        data = (
+                            meta_value.get("joongi-hub/approval")
+                            if isinstance(meta_value, dict)
+                            else None
+                        )
+                        if message.get("method") == "tools/call" and isinstance(data, dict):
+                            exc = RpcError(-32043, "사용자 승인 대기", data)
                             hub.approval_error(exc, True)
-                            envelope["error"] = exc.as_dict()
+                            result["result"] = hub.approval_result(
+                                exc.data, bridge.version == "2026-07-28"
+                            )
+                        if message.get("method") == "tasks/get" and isinstance(meta_value, dict):
+                            waiting = meta_value.get("joongi-hub/approval-wait")
+                            if isinstance(waiting, dict) and waiting.get("approval_id"):
+                                exc = RpcError(-32043, "사용자 승인 대기", waiting)
+                                hub.approval_error(exc, True)
+                                meta_value["joongi-hub/approval-wait"] = exc.data
                     if message.get("method") == "initialize" and result and "result" in result:
                         bridge.version = result["result"]["protocolVersion"]
                 except RpcError as exc:

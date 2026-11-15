@@ -8,3 +8,5 @@
 @media(max-width:700px){.approval-card{margin:var(--space-4);padding:var(--space-4)}.approval-card dl{grid-template-columns:90px minmax(0,1fr)}}
 
 .approval-choice{display:flex;align-items:center;gap:var(--space-2);font-weight:400}.approval-choice input{width:auto;min-height:0}
+
+.request-row{display:flex;gap:var(--space-3);align-items:center;margin-block:var(--space-2)}.request-row input{width:20px;min-height:20px;flex:none}.request-row button{overflow-wrap:anywhere;text-align:left;flex:1;min-width:0}.request-row button[aria-pressed=true]{border-color:var(--accent);background:var(--surface)}.batch-actions{display:flex;flex-wrap:wrap;gap:var(--space-2);margin-block:var(--space-3)}#requests section+section{margin-top:var(--space-5)}
