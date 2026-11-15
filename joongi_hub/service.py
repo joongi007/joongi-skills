@@ -13,6 +13,7 @@ from joongi_hub.agent_connections import AgentConnections
 from joongi_hub.apps import app_resource_uri, wrap_app_html
 from joongi_hub.auth import AuthManager, fingerprint
 from joongi_hub.connections import ConnectionSettings, configuration
+from joongi_hub.consent_schema import proxy_output
 from joongi_hub.errors import RpcError
 from joongi_hub.profiles import ProjectRegistry, Projects, ProjectSkills
 from joongi_hub.resources import resource_uri, unwrap_resource
@@ -715,8 +716,12 @@ class Hub:
             if client.version:
                 for tool in client.tools:
                     tools.append(
-                        rewrite_resources(
-                            {**tool, "name": server_id + "__" + tool["name"]}, server_id
+                        proxy_output(
+                            rewrite_resources(
+                                {**tool, "name": server_id + "__" + tool["name"]}, server_id
+                            ),
+                            client.config,
+                            tool["name"],
                         )
                     )
         # App SDK calls use their original server tool names. App-only aliases
@@ -729,11 +734,17 @@ class Hub:
                 matches = self.alias_matches(tool["name"])
                 namespaced = server_id + "__" + tool["name"]
                 if not any(candidate["name"] == namespaced for candidate in tools):
-                    scoped = rewrite_resources({**tool, "name": namespaced}, server_id)
+                    scoped = proxy_output(
+                        rewrite_resources({**tool, "name": namespaced}, server_id),
+                        client.config,
+                        tool["name"],
+                    )
                     scoped.setdefault("_meta", {}).setdefault("ui", {})["visibility"] = ["app"]
                     tools.append(scoped)
                 if len(matches) == 1 and not tool["name"].startswith("hub_"):
-                    alias = rewrite_resources(tool, server_id)
+                    alias = proxy_output(
+                        rewrite_resources(tool, server_id), client.config, tool["name"]
+                    )
                     alias.setdefault("_meta", {}).setdefault("ui", {})["visibility"] = ["app"]
                     tools.append(alias)
         return tools
@@ -881,6 +892,8 @@ class Hub:
                 params["task"] = {"ttl": 86400000}
         with self.auth.guard_consent(client.config, consent_epoch):
             result = client.request("tools/call", params)
+        if isinstance(result.get("_meta"), dict):
+            result["_meta"].pop("joongi-hub/approval", None)
         deadline = time.monotonic() + 3600
         while result.get("resultType") == "input_required":
             if not local_task_id:
@@ -969,6 +982,8 @@ class Hub:
                 if local_task_id:
                     self.remote_tasks.pop(local_task_id, None)
                     self.answered_inputs.pop(local_task_id, None)
+        if isinstance(result.get("_meta"), dict):
+            result["_meta"].pop("joongi-hub/approval", None)
         return rewrite_resources(result, server_id)
 
     def approval_error(self, exc, local_owner):
@@ -987,11 +1002,28 @@ class Hub:
         if data.get("browser_opened"):
             data["next_tool"] = "hub_approval_status"
             data["arguments"] = {"approval_id": exc.data["approval_id"], "wait_seconds": 20}
+        data["status"] = "approval_required"
+        data["execution"] = "not_started"
+        exc.consent_required = True
         exc.data = data
         exc.args = (
             "사용자가 로컬 브라우저에서 호출을 검토해야 합니다. "
             "hub_approval_status로 확인하고 approved일 때 원래 요청을 재시도하세요.",
         )
+
+    @staticmethod
+    def approval_result(data, modern=False):
+        payload = {**data, "status": "approval_required", "execution": "not_started"}
+        result = {
+            **text_result(payload),
+            "structuredContent": payload,
+            "isError": False,
+            "_meta": {"joongi-hub/approval": payload},
+        }
+        if modern:
+            result["resultType"] = "complete"
+            result["_meta"]["io.modelcontextprotocol/serverInfo"] = INFO
+        return result
 
     def start_task(self, name, arguments, owner, local_owner=False):
         if self.closing:
@@ -1008,10 +1040,44 @@ class Hub:
 
         def work():
             try:
-                result = self.invoke(
-                    name, arguments, event, task["taskId"], local_owner=local_owner
-                )
-                self.tasks.update(task["taskId"], status="completed", result=result)
+                while not event.is_set() and not self.closing:
+                    try:
+                        result = self.invoke(
+                            name, arguments, event, task["taskId"], local_owner=local_owner
+                        )
+                        self.tasks.update(task["taskId"], status="completed", result=result)
+                        return
+                    except RpcError as exc:
+                        if not getattr(exc, "consent_required", False):
+                            raise
+                        approval_id = exc.data["approval_id"]
+                        self.tasks.update(
+                            task["taskId"],
+                            status="input_required",
+                            statusMessage="사용자 승인 대기 · 승인함에서 요청을 검토하세요.",
+                            _meta={"joongi-hub/approval-wait": exc.data},
+                        )
+                        while not event.is_set() and not self.closing:
+                            state = self.agent_approvals.wait_status(approval_id, 0.25)
+                            if state["status"] != "pending":
+                                break
+                        if event.is_set() or self.closing:
+                            break
+                        if state["status"] != "approved":
+                            self.tasks.update(
+                                task["taskId"],
+                                status="cancelled",
+                                statusMessage="사용자가 거절했거나 승인 요청이 만료됐습니다.",
+                                _meta={},
+                            )
+                            return
+                        self.tasks.update(
+                            task["taskId"],
+                            status="working",
+                            _meta={},
+                            statusMessage="승인 확인 · 원래 요청 실행 중",
+                        )
+                self.tasks.update(task["taskId"], status="cancelled", _meta={})
             except Exception as exc:
                 error = (
                     exc.as_dict()
@@ -1202,7 +1268,11 @@ class Hub:
                     "instructions": "Search skills with hub_search and read selected "
                     "instructions with hub_read_skill. Connect registered servers with "
                     "hub_connect; call discovered tools with hub_call. "
-                    "Open local owner settings with hub_open_settings when requested.",
+                    "Open local owner settings with hub_open_settings when requested. "
+                    "approval_required is normal user-consent waiting, not a failed call. "
+                    "The upstream was not executed. Wait with hub_approval_status; "
+                    "retry only after approved. Independent calls may queue in the same inbox; "
+                    "dependent calls must wait for the actual upstream result.",
                 }
             else:
                 modern = version == MODERN
@@ -1430,6 +1500,18 @@ class Hub:
                     result.pop("resultType", None)
             return {"jsonrpc": "2.0", "id": request_id, "result": result}
         except RpcError as exc:
+            if getattr(exc, "consent_required", False) and message.get("method") == "tools/call":
+                modern = (
+                    message.get("params", {})
+                    .get("_meta", {})
+                    .get("io.modelcontextprotocol/protocolVersion")
+                    or context.get("version")
+                ) == MODERN
+                return {
+                    "jsonrpc": "2.0",
+                    "id": request_id,
+                    "result": self.approval_result(exc.data, modern),
+                }
             return {"jsonrpc": "2.0", "id": request_id, "error": exc.as_dict()}
         except (ValueError, TypeError, AttributeError, KeyError):
             return {

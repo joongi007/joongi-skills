@@ -170,9 +170,11 @@ jobs:
           node --check joongi_hub/static/approval.js
           node --check tests/browser_approval.cjs
           node --check tests/browser_settings.cjs
+          node --check tests/browser_inbox.cjs
           node --check joongi_hub/static/app.js
           node --check joongi_hub/static/app-relay.js
           node --check tests/sdk_interop.cjs
+          node --check tests/sdk_approval_inbox.cjs
           node --check tests/browser_management.cjs
           node --check tests/browser_ux.cjs
           node --check tests/browser_connections.cjs

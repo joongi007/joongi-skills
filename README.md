@@ -63,7 +63,7 @@ Windows에서는 `& "$HOME/.local/bin/joongi-hub.cmd" open` 형식입니다.
 인증 정보는 Windows·WSL의 DPAPI, macOS Keychain, Linux Secret Service로 보호합니다.
 Linux의 서비스 로그인에는 `secret-tool`·`gdbus`와 열린 로그인 키링이 필요합니다.
 이전 평문 인증이 있다면 `joongi-hub credentials --migrate`로 옮기세요.
-인증을 사용하는 MCP의 도구는 승인창에서 이번 호출·1시간·항상 허용 중 고릅니다.
+인증이 필요한 도구 요청은 공유 승인함에 MCP별로 모입니다. 개별·선택 일괄 승인과 이번 호출·1시간·항상 허용을 지원합니다.
 에이전트에 “Hub 설정 화면 열어줘”라고 요청하면 임시 웹이 열리고, 창을 닫으면 웹만 종료됩니다.
 관리 화면에서 신뢰한 도구의 허용 목록을 지정할 수도 있습니다.
 [인증 저장과 호출 승인](docs/operations/05-auth-project-skills.md).

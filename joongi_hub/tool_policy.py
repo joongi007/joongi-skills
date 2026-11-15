@@ -44,6 +44,10 @@ class ToolPolicy:
                 "(id TEXT PRIMARY KEY, server TEXT, tool TEXT, binding TEXT, scope TEXT, "
                 "expires REAL, created REAL, UNIQUE(server,tool,binding))"
             )
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS approval_window "
+                "(id INTEGER PRIMARY KEY CHECK(id=1), owner TEXT, expires REAL)"
+            )
         os.chmod(self.path, 0o600)
 
     @contextlib.contextmanager
@@ -310,3 +314,64 @@ class ToolPolicy:
             for request_id, encoded in db.execute("SELECT id,payload FROM approvals").fetchall():
                 if json.loads(encoded)["server"] == server:
                     db.execute("DELETE FROM approvals WHERE id=?", (request_id,))
+
+    def decide_many(self, identities, approve):
+        if (
+            type(approve) is not bool
+            or not isinstance(identities, list)
+            or not 1 <= len(identities) <= 32
+            or any(not isinstance(i, str) or len(i) != 40 for i in identities)
+            or len(set(identities)) != len(identities)
+        ):
+            raise RpcError(-32602, "선택한 승인 요청을 확인하세요.")
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            for identity in identities:
+                row = db.execute(
+                    "SELECT status,expires FROM approvals WHERE id=?", (identity,)
+                ).fetchone()
+                if not row or row[0] != "pending" or row[1] <= time.time():
+                    raise RpcError(-32043, "요청 상태가 바뀌었습니다. 새 목록을 확인하세요.")
+            for identity in identities:
+                db.execute(
+                    "UPDATE approvals SET status=? WHERE id=?",
+                    ("approved" if approve else "denied", identity),
+                )
+        return [
+            {"approval_id": i, "status": "approved" if approve else "denied", "scope": "once"}
+            for i in identities
+        ]
+
+    def window_claim(self, owner):
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT owner,expires FROM approval_window WHERE id=1").fetchone()
+            if row and row[1] > time.time():
+                return row[0] == owner
+            db.execute(
+                "INSERT OR REPLACE INTO approval_window VALUES (1,?,?)", (owner, time.time() + 120)
+            )
+        return True
+
+    def window_live(self, owner=None, renew=False):
+        with self.db() as db:
+            if renew:
+                db.execute("BEGIN IMMEDIATE")
+            row = db.execute("SELECT owner,expires FROM approval_window WHERE id=1").fetchone()
+            active = bool(row and row[1] > time.time() and (owner is None or row[0] == owner))
+            if active and renew:
+                db.execute("UPDATE approval_window SET expires=? WHERE id=1", (time.time() + 120,))
+            return active
+
+    def window_release(self, owner, only_if_empty=False):
+        with self.db() as db:
+            db.execute("BEGIN IMMEDIATE")
+            if (
+                only_if_empty
+                and db.execute(
+                    "SELECT id FROM approvals WHERE status='pending' AND expires>?", (time.time(),)
+                ).fetchone()
+            ):
+                return False
+            db.execute("DELETE FROM approval_window WHERE id=1 AND owner=?", (owner,))
+        return True

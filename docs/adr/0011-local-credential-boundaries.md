@@ -29,3 +29,7 @@ Hub 자체와 같은 사용자 악성 프로세스는 별도의 OS 격리 없이
 
 `tests/test_security_boundaries.py`, `tests/test_credential_store.py`, `tests/test_auth.py`,
 `tests/test_credential_lock.py`와 3개 OS의 native-vault CI를 사용한다.
+
+2026-11-15 공유 승인함 보완: 동일한 프로필의 여러 프로세스가 lease로 창 하나를 공유한다.
+승인 대기는 실패가 아니라 명시적 대기 결과이며 Tasks는 입력 대기 후 재개한다.
+네이티브 출력 스키마에는 승인 대기 대안을 추가하고 원래 structured 결과의 제약은 유지한다.

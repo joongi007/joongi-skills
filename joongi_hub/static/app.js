@@ -126,7 +126,7 @@ async function load({ quiet = false } = {}) {
     $('#hub-status').textContent = '로컬에서 실행 중';
     $('#hub-version').textContent = `v${state.version || '0.1.0'}`;
     $('#live-dot').style.background = 'var(--success)';
-    if (!quiet) { render(); page.dataset.profile = activeProfile; }
+    if (!quiet) { render(); page.dataset.profile = activeProfile; if (currentView === 'connections') run(refreshApprovalPanel); }
     else if (currentView === 'tasks' && !['TEXTAREA', 'INPUT', 'SELECT'].includes(document.activeElement?.tagName)) renderTasks();
   } catch (error) {
     if (id !== loadCounter) return;

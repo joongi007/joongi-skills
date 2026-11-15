@@ -34,9 +34,9 @@ async function main() {
   const popup = await created;
   await popup.locator('#scope').selectOption('hour');
   await popup.getByRole('button', {name:'이 도구 1시간 허용', exact:true}).click();
-  await popup.getByRole('heading', {name:'승인 완료', exact:true}).waitFor();
+  await popup.locator('#status').getByText('이 도구를 1시간 허용했습니다.', {exact:false}).waitFor();
   await popup.getByText('이 도구를 1시간 허용했습니다.', {exact:false}).waitFor();
-  await popup.waitForEvent('close', {timeout:6000});
+  assert.equal(popup.isClosed(), false, 'Inbox stays open while another request is pending');
   await page.getByRole('button', {name:'MCP 연결', exact:true}).click();
   const section = page.getByRole('region', {name:'도구 호출 승인'});
   await section.getByText('1시간 허용 ·', {exact:false}).waitFor();
@@ -44,6 +44,11 @@ async function main() {
   await pending.getByLabel('notion-fixture notion-search 허용 범위').selectOption('always');
   await pending.getByRole('button', {name:'이 도구 항상 허용', exact:true}).click();
   await section.getByText('항상 허용 · 직접 취소할 때까지', {exact:true}).waitFor();
+  await popup.waitForFunction(()=>document.querySelectorAll('#requests .request-row').length===0);
+  await popup.clock.install();
+  const closed=popup.waitForEvent('close',{timeout:6000});
+  await popup.clock.fastForward(31000);
+  await closed;
   const grant = section.locator('div.form-panel').filter({has:page.locator('strong').filter({hasText:'notion-fixture · notion-fetch'})});
   await grant.getByRole('button', {name:'허용 취소', exact:true}).click();
   await page.getByText('반복 허용을 취소했습니다.', {exact:false}).waitFor();
