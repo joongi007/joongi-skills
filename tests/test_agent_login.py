@@ -13,6 +13,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
+from joongi_hub.errors import RpcError
 from joongi_hub.service import Hub
 from tests.fixtures.credential_store import test_store
 from tests.fixtures.oauth_server import OAuthProvider
@@ -157,8 +158,27 @@ class AgentLogin(unittest.TestCase):
         other = self.hub.auth.begin(self.config, redirect=callback)
         self.assertEqual(self.authorize(other)[0], 400)
         self.assertIn(other["login_id"], self.hub.auth.pending)
+        # Keep housekeeping from retiring the listener first so this assertion
+        # specifically exercises complete()'s registration-fingerprint rejection.
+        with patch.object(self.hub.agent_logins, "prune"):
+            with self.hub.agent_logins.lock:
+                self.hub.register(
+                    {**self.config, "auth": {**self.config["auth"], "scopes": ["read"]}}
+                )
+            self.assertEqual(self.authorize(flow)[0], 400)
+        self.assertFalse(self.hub.auth.status(self.hub.registry.list()[0])["configured"])
+
+    def test_changed_registration_retires_callback_and_cannot_authenticate(self):
+        flow = self.call("hub_auth_start", {"server": "protected"})
+        listener = self.hub.agent_logins.server
+        thread = self.hub.agent_logins.thread
         self.hub.register({**self.config, "auth": {**self.config["auth"], "scopes": ["read"]}})
-        self.assertEqual(self.authorize(flow)[0], 400)
+        thread.join(timeout=3)
+        self.assertFalse(thread.is_alive(), "Invalidated callback listener must retire")
+        self.assertIsNone(self.hub.agent_logins.server)
+        self.assertNotIn(flow["login_id"], self.hub.auth.pending)
+        with self.assertRaises(RpcError):
+            self.hub.agent_logins.complete("state=" + flow["login_id"] + "&code=unused", listener)
         self.assertFalse(self.hub.auth.status(self.hub.registry.list()[0])["configured"])
 
     def test_project_login_cannot_complete_through_the_global_callback(self):
