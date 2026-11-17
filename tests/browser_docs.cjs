@@ -53,6 +53,18 @@ async function main() {
     }
   }
   await page.goto('https://pages.example/joongi-skills/');
+  await page.getByRole('heading', { name: /요청에서 결과까지/ }).waitFor();
+  const examples = page.locator('#examples');
+  await examples.getByText('에이전트의 도구 사용 예시', { exact: true }).click();
+  await examples.getByText('앱 안에서 승인하려면?', { exact: true }).click();
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(await page.locator('html').evaluate(el => el.scrollWidth > innerWidth), false, 'Examples overflow at ' + width);
+  }
+  assert((await examples.textContent()).includes('실행하거나 개인 데이터에 접근하지 않습니다'));
+  await examples.getByRole('link', { name: '작업 절차와 검사 범위 보기 →' }).click();
+  await page.getByRole('heading', { name: '3D 작업과 GUI 호스트 승인 사용 예시', exact: true }).waitFor();
+  await page.goto('https://pages.example/joongi-skills/');
   await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('link', { name: '문서', exact: true }).click();
   await page.getByRole('heading', { name: '문서 안내', exact: true }).waitFor();
   console.log('Static documentation: no-JS navigation, Korean anchors, mobile menu, widths 320–1440 and installation-page entry passed.');

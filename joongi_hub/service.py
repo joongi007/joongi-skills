@@ -17,6 +17,8 @@ from joongi_hub.consent_schema import proxy_output
 from joongi_hub.errors import RpcError
 from joongi_hub.profiles import ProjectRegistry, Projects, ProjectSkills
 from joongi_hub.resources import resource_uri, unwrap_resource
+from joongi_hub.sculpt_review import TOOL as SCULPT_TOOL
+from joongi_hub.sculpt_review import validate as validate_sculpt
 from joongi_hub.search import Document, parameter_text, rank
 from joongi_hub.skill_management import SkillManager
 from joongi_hub.skills import Skills
@@ -710,6 +712,7 @@ class Hub:
                 },
             }
         )
+        tools.append(SCULPT_TOOL)
         # Native discovery preserves each upstream's schema, Apps metadata and
         # task execution contract. Search/call remain optional convenience tools.
         for server_id, client in list(self.clients.items()):
@@ -814,6 +817,10 @@ class Hub:
                 if not configs:
                     raise RpcError(-32602, "등록되지 않은 서버입니다.")
             return text_result([{"server": c["id"], **self.auth.status(c)} for c in configs])
+        if name == "hub_3d_review":
+            if set(arguments) != {"target_stage", "report"}:
+                raise RpcError(-32602, "target_stage와 report만 지정하세요.")
+            return text_result(validate_sculpt(**arguments))
         if name == "hub_search":
             if set(arguments) - {"query", "mode", "match", "limit", "detail", "kind", "server"}:
                 raise RpcError(-32602, "Unknown search options")
@@ -1382,12 +1389,19 @@ class Hub:
                         if modern:
                             result["resultType"] = "task"
                     else:
+                        owner_name = arguments.get("name") if name == "hub_call" else name
+                        owner_action = owner_name in (
+                            "hub_approval_request",
+                            "hub_approval_status",
+                            "hub_open_settings",
+                        )
                         result = self.invoke(
                             name,
                             arguments,
                             input_responses=params.get("inputResponses"),
                             request_state=params.get("requestState"),
-                            local_owner=context.get("local_owner", False),
+                            local_owner=context.get("local_owner", False)
+                            and (not context.get("consent_in_host", False) or owner_action),
                         )
                         if not modern and result.get("resultType") == "input_required":
                             raise RpcError(-32021, "Run as a task to provide interactive input")

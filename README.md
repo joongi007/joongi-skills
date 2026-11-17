@@ -9,7 +9,7 @@
 
 - **기본은 stdio**입니다. 에이전트가 필요할 때 Hub를 실행하므로 웹 서버를 미리 켤 필요가 없습니다.
 - 설치기는 Claude, Codex, Cursor, Copilot, Gemini, OpenCode의 기존 설정 디렉터리를 감지합니다.
-  발견한 에이전트에 공용 스킬 3개와 Hub MCP 연결을 등록합니다.
+  발견한 에이전트에 스킬 4개와 Hub MCP 연결을 등록합니다. 3D 지침은 이미지 기반 Three.js 작업에서 사용합니다.
 - 외부 MCP는 사용자가 별도로 등록합니다. 설치만으로 외부 서비스가 자동 연결되지는 않습니다.
 - 개인 컴퓨터에서 사용하는 도구입니다. 런타임에 별도 패키지 설치·프론트엔드 빌드·DB 서버가 필요하지 않습니다.
 
@@ -18,6 +18,10 @@
 [보안 경계·플랫폼 준비](docs/operations/10-security-boundaries.md).
 
 ## 설치
+
+이미지 기반 3D 작업은 `building-procedural-3d`를 읽고 `hub_3d_review`로 단계별 기록을 검사합니다.
+지원하는 GUI 호스트에서는 호출 승인을 앱 안의 입력 폼으로 선택하고, 그 외에는 브라우저 승인함을 씁니다.
+[3D 작업·호스트 승인 예시와 한계](docs/operations/12-3d-and-host-consent.md).
 
 클론 없이 설치하려면 [설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서
 사용하는 OS의 명령을 복사해 터미널에서 실행하세요.

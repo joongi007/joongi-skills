@@ -11,6 +11,7 @@ from joongi_hub.connections import ConnectionSettings, running, select_bridge
 from joongi_hub.errors import RpcError
 from joongi_hub.lifecycle import manage
 from joongi_hub.local_auth import LocalAuth
+from joongi_hub.native_consent import StdioChannel, review, supports_form
 from joongi_hub.server import HubServer
 from joongi_hub.service import Hub
 from joongi_hub.state_store import (
@@ -28,8 +29,13 @@ def serve_stdio(hub, bridge=None, profile="global"):
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", newline="\n")
     context = {"owner": "stdio-" + str(os.getpid()), "profile": profile, "local_owner": True}
+
+    def send(value):
+        print(json.dumps(value, ensure_ascii=False), flush=True)
+
+    channel = StdioChannel(sys.stdin.buffer, send, MAX_MESSAGE)
     while True:
-        line = sys.stdin.buffer.readline(MAX_MESSAGE + 1)
+        line = channel.next()
         if not line:
             break
         if len(line) > MAX_MESSAGE:
@@ -53,6 +59,13 @@ def serve_stdio(hub, bridge=None, profile="global"):
                 "error": {"code": -32700, "message": "Invalid JSON"},
             }
         else:
+            # Host responses (including late elicitation replies) are not MCP requests.
+            if (
+                isinstance(message, dict)
+                and "method" not in message
+                and ("result" in message or "error" in message)
+            ):
+                continue
             if not isinstance(message, dict):
                 result = {
                     "jsonrpc": "2.0",
@@ -109,7 +122,7 @@ def serve_stdio(hub, bridge=None, profile="global"):
                         )
                         if message.get("method") == "tools/call" and isinstance(data, dict):
                             exc = RpcError(-32043, "사용자 승인 대기", data)
-                            hub.approval_error(exc, True)
+                            hub.approval_error(exc, not supports_form(context, message))
                             result["result"] = hub.approval_result(
                                 exc.data, bridge.version == "2026-07-28"
                             )
@@ -121,12 +134,41 @@ def serve_stdio(hub, bridge=None, profile="global"):
                                 meta_value["joongi-hub/approval-wait"] = exc.data
                     if message.get("method") == "initialize" and result and "result" in result:
                         bridge.version = result["result"]["protocolVersion"]
+                        context.update(
+                            version=bridge.version,
+                            capabilities=message.get("params", {}).get("capabilities", {}),
+                        )
                 except RpcError as exc:
                     result = {"jsonrpc": "2.0", "id": message.get("id"), "error": exc.as_dict()}
             else:
+                context["consent_in_host"] = supports_form(context, message)
                 result = hub.rpc(message, context)
+            if supports_form(context, message) and isinstance(result, dict):
+                value = result.get("result", {})
+                meta = value.get("_meta", {}) if isinstance(value, dict) else {}
+                pending = meta.get("joongi-hub/approval") if isinstance(meta, dict) else None
+                if message.get("method") == "tools/call" and isinstance(pending, dict):
+                    scoped = hub if profile == hub.profile_id else hub.scoped(profile)
+                    accepted, outcome = review(
+                        scoped, pending["approval_id"], channel, parent_id=message.get("id")
+                    )
+                    if accepted:
+                        # Retry only this exact original wire request after its one-time grant.
+                        channel.deferred.appendleft(line)
+                        continue
+                    data = {**pending, "host_consent": outcome}
+                    data["instructions"] = (
+                        "호스트 승인 폼의 결과를 확인하세요. 호출은 실행되지 않았습니다. "
+                        "decline/cancel이면 중단하세요. 그 외에는 사용자 요청 시 "
+                        "hub_approval_request로 브라우저 승인함을 열 수 있습니다."
+                    )
+                    result["result"] = hub.approval_result(data, False)
         if result is not None:
-            print(json.dumps(result, ensure_ascii=False), flush=True)
+            send(result)
+        # Do not keep the preceding request/result alive while idle on stdin.
+        # Dropping references reduces lifetime; immutable Python data is not zeroized.
+        message = result = line = value = meta = pending = None
+        params = call = tool_args = data = None
 
 
 def main(argv=None):
