@@ -27,11 +27,21 @@ Bundled files:
 - `skills/applying-design-systems/references/product-ux.md`
 - `skills/applying-design-systems/references/token-contract.md`
 
+### building-procedural-3d
+
+`skills/building-procedural-3d/SKILL.md`
+
+참조 이미지로 Three.js 절차형 3D 오브젝트를 만들거나 재구성할 때 사용한다. 구성요소·식별 특징을 먼저 기록하고 blockout부터 최적화까지 렌더 증거를 비교하며 진행한다. 일반 웹 UI·백엔드·다른 게임 엔진 작업에는 적용하지 않는다.
+
+Bundled files:
+
+- `skills/building-procedural-3d/references/workflow.md`
+
 ### engineering-playbook
 
 `skills/engineering-playbook/SKILL.md`
 
-개인 프로젝트의 구현·리뷰·설계·인프라·테스트·운영에 기본 적용하는 엔지니어링 규칙이다. Python/FastAPI/SQLAlchemy, React/TypeScript, JWT, Docker, 웹 보안·ReDoS, Valkey/Redis/Sentinel, TCP·Java 타임아웃, PostgreSQL 복구, Kubernetes/Helm, 설계 패턴·문서 정합성·뮤테이션 테스트·병렬 작업을 다룬다. inject_autocommit Repository, jtt JWT claim, DB URL의 quote_plus, Ruff 등 개인 관례를 우선한다. 언어별 예시는 해당 스택에만 적용하며 시각 디자인은 applying-design-systems를 함께 참고한다.
+개인 프로젝트의 구현·리뷰·설계·인프라·테스트·운영에 기본 적용하는 엔지니어링 규칙이다. Python/FastAPI/SQLAlchemy, React/TypeScript, JWT, Docker, 웹 보안·ReDoS, Actuator·메모리 비밀·요청 컨텍스트, Valkey/Redis/Sentinel, TCP·Java 타임아웃, PostgreSQL 복구, Kubernetes/Helm, 설계 패턴·문서 정합성·뮤테이션 테스트·병렬 작업을 다룬다. inject_autocommit Repository, jtt JWT claim, DB URL의 quote_plus, Ruff 등 개인 관례를 우선한다. 언어별 예시는 해당 스택에만 적용하며 시각 디자인은 applying-design-systems를 함께 참고한다.
 
 Bundled files:
 
@@ -47,9 +57,11 @@ Bundled files:
 - `skills/engineering-playbook/references/documentation-testing.md`
 - `skills/engineering-playbook/references/frontend.md`
 - `skills/engineering-playbook/references/infrastructure-ha.md`
+- `skills/engineering-playbook/references/java-actuator.md`
 - `skills/engineering-playbook/references/kubernetes-helm.md`
 - `skills/engineering-playbook/references/lint-naming.md`
 - `skills/engineering-playbook/references/logging.md`
+- `skills/engineering-playbook/references/memory-secrets.md`
 - `skills/engineering-playbook/references/network-failure.md`
 - `skills/engineering-playbook/references/patterns-scale.md`
 - `skills/engineering-playbook/references/python-api.md`

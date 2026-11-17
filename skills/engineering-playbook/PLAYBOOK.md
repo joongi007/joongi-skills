@@ -35,6 +35,7 @@
 - §25 인프라·고가용성·장애 복구
 - §26 문서 정합성·테스트 품질·병렬 작업
 - §27 규모와 디자인 패턴
+- §28 Actuator·메모리 비밀과 컨텍스트 수명
 - §17 추가 메모 (다른 프로젝트에서 옮겨 적기)
 
 ---
@@ -1449,6 +1450,14 @@ Adapter·Registry·Bulkhead·Circuit breaker·Outbox·Cache-aside는 필요한 �
 
 ---
 
+## 28. Actuator·메모리 비밀과 컨텍스트 수명
+
+관리 endpoint는 명시적 허용 목록·인증·네트워크 격리를 함께 적용한다. custom SecurityFilterChain을
+정의하면 Actuator 자동 보안 설정도 다시 검토한다. HTTP·JMX·JVM attach·OS core·JVM heap dump는
+서로 다른 유출 경로다. 요청·작업 종료 시 소유한 ThreadLocal·async context·buffer·참조를 정리한다.
+GC·String 참조 제거를 즉시 삭제나 root 공격 방어로 설명하지 않는다.
+실제 설정·검사·한계는 `references/java-actuator.md`, `references/memory-secrets.md`를 따른다.
+
 ## 17. 추가 메모 (다른 프로젝트에서 옮겨 적기)
 
 아래에 **날짜 · 프로젝트(코드명 가능) · 한 줄 요약**으로 계속 추가한다.
@@ -1464,6 +1473,7 @@ Adapter·Registry·Bulkhead·Circuit breaker·Outbox·Cache-aside는 필요한 �
 - 2026-09-05 · (공통) · §24 웹 백엔드 보안 체크리스트 추가. 코드 레벨은 `references/web-security.md`, 설정·운영은 `references/security-ops.md`. 리뷰 시 보안 발견을 스타일보다 먼저 보고한다.
 
 - 2026-11-05 · joongi-skills · §25 인프라·HA·장애 복구, §26 문서 정합성·mutation testing·병렬 작업, §27 규모·패턴 사례 추가. 언어 공통 원칙과 스택별 예시를 구분한다.
+- 2026-11-18 · joongi-skills · §28 Actuator·덤프 경로·요청 컨텍스트와 비밀의 메모리 수명 지침 추가. 특권 공격자와 GC 삭제 보장의 한계를 명시한다.
 
 ---
 

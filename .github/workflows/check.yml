@@ -175,6 +175,7 @@ jobs:
           node --check joongi_hub/static/app-relay.js
           node --check tests/sdk_interop.cjs
           node --check tests/sdk_approval_inbox.cjs
+          node --check tests/sdk_native_consent.cjs
           node --check tests/browser_management.cjs
           node --check tests/browser_ux.cjs
           node --check tests/browser_connections.cjs

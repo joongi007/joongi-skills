@@ -58,7 +58,9 @@ Tasks는 2025 `tasks/get`·`tasks/result`·취소와 2026 `tasks/get` 결과 포
 `input_required`·`requestState`·`inputResponses` 재요청으로 전달하며,
 로컬 UI에서는 같은 흐름을 백그라운드 task로 감싸서 입력·재개한다. 2025 upstream에는
 2026 input response 계약을 임의 적용하지 않는다.
-독립적인 sampling·elicitation·subscriptions와 legacy HTTP+SSE 전송은 제공하지 않는다.
+외부 서버의 독립적인 sampling·elicitation·subscriptions와 legacy HTTP+SSE 전송은 제공하지 않는다.
+Hub 자체 호출 승인에는 2025-11-25 stdio의 form elicitation을 선택적으로 사용한다.
+호스트 capability·일회 선택·브라우저 fallback 범위는 [호스트 승인](../operations/12-3d-and-host-consent.md)을 따른다.
 작업 실행 PID가 살아 있으면 다른 Hub 프로세스 시작만으로 실패 처리하지 않는다.
 실행 PID가 종료된 미완료 작업은 다음 시작 때 실패로 정리하며 실행 재개를 보장하지 않는다. 취소는 이미 수행한 외부 부작용을 되돌리지 않는다.
 최대 8개 로컬 작업, upstream task polling 최대 1시간은 현재 구현 한도다.

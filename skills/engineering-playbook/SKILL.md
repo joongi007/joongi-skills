@@ -1,6 +1,6 @@
 ---
 name: engineering-playbook
-description: 개인 프로젝트의 구현·리뷰·설계·인프라·테스트·운영에 기본 적용하는 엔지니어링 규칙이다. Python/FastAPI/SQLAlchemy, React/TypeScript, JWT, Docker, 웹 보안·ReDoS, Valkey/Redis/Sentinel, TCP·Java 타임아웃, PostgreSQL 복구, Kubernetes/Helm, 설계 패턴·문서 정합성·뮤테이션 테스트·병렬 작업을 다룬다. inject_autocommit Repository, jtt JWT claim, DB URL의 quote_plus, Ruff 등 개인 관례를 우선한다. 언어별 예시는 해당 스택에만 적용하며 시각 디자인은 applying-design-systems를 함께 참고한다.
+description: 개인 프로젝트의 구현·리뷰·설계·인프라·테스트·운영에 기본 적용하는 엔지니어링 규칙이다. Python/FastAPI/SQLAlchemy, React/TypeScript, JWT, Docker, 웹 보안·ReDoS, Actuator·메모리 비밀·요청 컨텍스트, Valkey/Redis/Sentinel, TCP·Java 타임아웃, PostgreSQL 복구, Kubernetes/Helm, 설계 패턴·문서 정합성·뮤테이션 테스트·병렬 작업을 다룬다. inject_autocommit Repository, jtt JWT claim, DB URL의 quote_plus, Ruff 등 개인 관례를 우선한다. 언어별 예시는 해당 스택에만 적용하며 시각 디자인은 applying-design-systems를 함께 참고한다.
 ---
 
 # 엔지니어링 플레이북
@@ -37,6 +37,8 @@ description: 개인 프로젝트의 구현·리뷰·설계·인프라·테스트
 | uv·Python·Vite 프로젝트 구성, UI–API 계약, /api/v1, 역방향 프록시 단일 진입점 | `references/scaffolding.md` |
 | 인가·IDOR, 인증, injection·ReDoS, 업로드·경로 이탈, SSRF·CORS·CSRF, DoS, 경쟁 상태, XSS | `references/web-security.md` |
 | 보안 헤더·CSP, 개인정보·암호화, 비밀 유출, 공급망, 컨테이너·외부 연결·백업 | `references/security-ops.md` |
+| Java·Spring Boot Actuator, heapdump·관리 endpoint·JMX 노출 | `references/java-actuator.md` |
+| 요청 컨텍스트 정리, ThreadLocal·async 전파, 메모리 비밀·core/heap dump | `references/memory-secrets.md` |
 | 가용성 목표, Redis·Valkey 라이선스, Sentinel quorum·majority·장애 도메인 | `references/infrastructure-ha.md` |
 | TCP 연결 장애, Java·JDBC·클라이언트 타임아웃, keepalive·재연결·재시도 | `references/network-failure.md` |
 | PostgreSQL 복제·지연·fencing·failover, 백업·RPO·RTO | `references/database-recovery.md` |

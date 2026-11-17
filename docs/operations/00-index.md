@@ -113,3 +113,5 @@ manifest의 digest·size는 최종 읽은 바이트와 대조한다. 파일은 1
 실행 격리·서명 검증·토큰 만료는 [보안 경계 운영](10-security-boundaries.md)을 따른다.
 
 반복 허용과 임시 설정 화면의 추가 보안 검수는 [승인·설정 보안 검수](11-consent-settings-review.md)를 본다.
+
+3D 작업 지침·검사와 GUI 입력 승인은 [사용 예시](12-3d-and-host-consent.md)를 본다.
