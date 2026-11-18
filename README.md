@@ -19,6 +19,13 @@
 
 ## 설치
 
+관리 화면의 공통 **통합 검색**에서 스킬·등록된 MCP·연결된 도구를 함께 찾습니다.
+에이전트의 `hub_search`도 기본 `kind: all`이며 종류별 필터를 선택할 수 있습니다.
+미연결 MCP는 서버 정보만 표시하고 검색 때문에 실행하지 않습니다. [검색 범위](docs/operations/08-catalog-search.md).
+
+엔지니어링 플레이북은 판단 순서 중심의 가이드이며, 선택한 스택의 예제만 참조합니다.
+예방과 함께 [탐지·차단·복구](skills/engineering-playbook/references/incident-response.md)를 준비합니다.
+
 이미지 기반 3D 작업은 `building-procedural-3d`를 읽고 `hub_3d_review`로 단계별 기록을 검사합니다.
 지원하는 GUI 호스트에서는 호출 승인을 앱 안의 입력 폼으로 선택하고, 그 외에는 브라우저 승인함을 씁니다.
 [3D 작업·호스트 승인 예시와 한계](docs/operations/12-3d-and-host-consent.md).

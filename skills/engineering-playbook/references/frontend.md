@@ -1,5 +1,7 @@
 # 프론트엔드 (React + TypeScript) · PLAYBOOK §9.1, §11, §20
 
+React·Zustand·Axios를 선택한 프로젝트의 예시다. 기존 스택·인증 계약을 우선하며 새 의존성이나 버전을 강제하지 않는다.
+
 ## 목차
 
 - 폴더 골격 (§20.1)
@@ -62,7 +64,7 @@ const http = axios.create({ baseURL: import.meta.env.VITE_API_BASE_URL ?? '' });
 
 // Request: Authorization: Bearer <access>
 http.interceptors.request.use((config) => {
-  const token = getAccessToken();  // sessionStorage
+  const token = getAccessToken();  // 선택한 인증 설계의 메모리 저장소 등
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
@@ -75,8 +77,9 @@ http.interceptors.response.use(undefined, async (error) => {
 ```
 
 **중요한 디테일:**
-- **Access token → `sessionStorage`** (탭 닫으면 사라짐).
-- **Refresh token → `localStorage`** (탭 간 공유, 장기 유지).
+- 브라우저 인증은 BFF 또는 `HttpOnly`·`Secure`·적절한 `SameSite` 쿠키와 CSRF 방어를 먼저 검토한다.
+- `localStorage`·`sessionStorage`에 인증·갱신 토큰을 저장하는 것을 기본 권장하지 않는다. 같은 origin의 JavaScript가 접근하므로 XSS에 노출된다.
+- JavaScript가 토큰을 다뤄야 하는 계약은 메모리 수명·재로그인·갱신·CSP와 사용 SDK의 보안 모델을 검토한다. 메모리 저장만으로 XSS가 해결되지는 않는다.
 - **동시 다발 401 시 refresh 큐(promise) 하나만 실행**, 나머지는 대기 후 일괄 재시도. (그렇지 않으면 refresh가 동시에 여러 번 발사돼 서로 무효화함.)
 - **Refresh 호출 자체는 인터셉터를 거치지 않게** — 별도 axios 인스턴스나 raw `axios.post`로. 안 그러면 refresh 응답이 401일 때 다시 refresh를 부르며 무한 루프.
 
@@ -155,3 +158,5 @@ export const wsClient = new WsClient();
 
 - 먼저 브라우저 한 탭으로 "진입 URL에서 UI가 뜨는지", `/healthz`·대표 API 한두 개가 기대대로 오는지.
 - 그 다음에만 추가 도메인·TLS 종단·이중 프록시·헤더 트릭으로 넓힌다. **처음부터 복잡한 솔루션으로 가지 않는다.**
+
+브라우저 인증 저장 근거: [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html).

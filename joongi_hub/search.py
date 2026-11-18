@@ -68,8 +68,8 @@ def validate(query, mode, match, limit, detail, kind, server):
         raise RpcError(-32602, "Use keyword/literal/regex mode and any/all keyword matching")
     if type(limit) is not int or not 1 <= limit <= 100:
         raise RpcError(-32602, "Search limit must be an integer from 1 to 100")
-    if detail not in ("summary", "full") or kind not in ("all", "skill", "tool"):
-        raise RpcError(-32602, "Use summary/full detail and all/skill/tool kind")
+    if detail not in ("summary", "full") or kind not in ("all", "skill", "tool", "server"):
+        raise RpcError(-32602, "Use summary/full detail and all/skill/tool/server kind")
     if server is not None and (not isinstance(server, str) or len(server) > 48):
         raise RpcError(-32602, "Server filter must be a server ID")
 
@@ -206,7 +206,18 @@ def rank(
                 value = {
                     key: item
                     for key, item in value.items()
-                    if key in {"kind", "name", "description", "server", "uri", "score"}
+                    if key
+                    in {
+                        "kind",
+                        "name",
+                        "description",
+                        "server",
+                        "uri",
+                        "score",
+                        "status",
+                        "enabled",
+                        "next_tool",
+                    }
                 }
                 description = value.get("description", "")
                 if len(description) > 300:

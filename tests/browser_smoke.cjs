@@ -35,7 +35,7 @@ async function main() {
   await page.getByRole('button', { name: /engineering-playbook/ }).click();
   await page.locator('.skill-button').filter({ hasText: 'engineering-playbook' }).getByText('개발·인프라·보안·테스트 규칙', { exact: true }).waitFor();
   if (await page.locator('.document-meta').evaluate(node => node.open)) throw new Error('Skill metadata should start collapsed');
-  await page.locator('#skill-content .markdown-body').getByText('엔지니어링 플레이북', { exact: false }).waitFor();
+  await page.locator('#skill-content .markdown-body').getByRole('heading', { name: '엔지니어링 가이드', exact: true }).waitFor();
   await page.getByLabel('참조 문서 선택').selectOption('references/frontend.md');
   await page.locator('#skill-content .markdown-body').getByText('프론트엔드 (React + TypeScript)', { exact: false }).waitFor();
   await page.getByRole('button', { name: 'MCP 연결', exact: true }).click();
@@ -95,7 +95,7 @@ async function main() {
   });
   if (!parentBlocked) throw new Error('MCP App accessed host DOM');
   await page.getByRole('button', { name: '작업 공간', exact: true }).click();
-  await page.getByRole('searchbox', { name: '스킬과 도구 통합 검색', exact: true }).fill('remote-review');
+  await page.getByRole('searchbox', { name: '스킬·MCP·도구 통합 검색', exact: true }).fill('remote-review');
   await page.getByRole('button', { name: '검색', exact: true }).click();
   await page.locator('.hub-search .item-row').filter({ hasText: 'browser-check__remote-review' }).getByRole('button', { name: '읽기 →', exact: true }).click();
   await page.locator('#skill-content .markdown-body').getByText('Review carefully.', { exact: false }).waitFor();

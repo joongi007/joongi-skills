@@ -41,7 +41,7 @@ Bundled files:
 
 `skills/engineering-playbook/SKILL.md`
 
-개인 프로젝트의 구현·리뷰·설계·인프라·테스트·운영에 기본 적용하는 엔지니어링 규칙이다. Python/FastAPI/SQLAlchemy, React/TypeScript, JWT, Docker, 웹 보안·ReDoS, Actuator·메모리 비밀·요청 컨텍스트, Valkey/Redis/Sentinel, TCP·Java 타임아웃, PostgreSQL 복구, Kubernetes/Helm, 설계 패턴·문서 정합성·뮤테이션 테스트·병렬 작업을 다룬다. inject_autocommit Repository, jtt JWT claim, DB URL의 quote_plus, Ruff 등 개인 관례를 우선한다. 언어별 예시는 해당 스택에만 적용하며 시각 디자인은 applying-design-systems를 함께 참고한다.
+구현·설계·리뷰·테스트·운영의 판단 가이드다. 보안 예방·탐지·차단·복구, ReDoS, 문서·테스트 품질, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 
 Bundled files:
 
@@ -56,6 +56,7 @@ Bundled files:
 - `skills/engineering-playbook/references/docker.md`
 - `skills/engineering-playbook/references/documentation-testing.md`
 - `skills/engineering-playbook/references/frontend.md`
+- `skills/engineering-playbook/references/incident-response.md`
 - `skills/engineering-playbook/references/infrastructure-ha.md`
 - `skills/engineering-playbook/references/java-actuator.md`
 - `skills/engineering-playbook/references/kubernetes-helm.md`

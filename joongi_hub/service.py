@@ -388,6 +388,30 @@ class Hub:
             )
         for config in self.registry.list():
             client = self.clients.get(config["id"])
+            status = self.health.get(config["id"], {}).get("status", "disconnected")
+            value = {
+                "kind": "server",
+                "name": config["id"],
+                "server": config["id"],
+                "description": config["name"] + " · " + config["transport"],
+                "status": status,
+                "enabled": config["enabled"],
+                "next_tool": "hub_connect" if config["enabled"] else None,
+            }
+            # Registration metadata only: do not expose env/headers/auth/URL
+            # secrets, initialize a server, or discover its tools during search.
+            documents.append(
+                Document(
+                    value,
+                    {
+                        "name": config["id"],
+                        "aliases": config["name"],
+                        "description": value["description"],
+                        "server": config["id"],
+                        "parameters": "",
+                    },
+                )
+            )
             if not config["enabled"] or not client:
                 continue
             for entry in client.skill_entries:
@@ -450,7 +474,9 @@ class Hub:
                 "name": "hub_search",
                 "annotations": {"readOnlyHint": True},
                 "description": (
-                    "Search skill and connected MCP tool names, descriptions and arguments. "
+                    "Unified search for skills, registered MCP servers and connected tools. "
+                    "Server results include disconnected registrations; connect explicitly with "
+                    "hub_connect before tool discovery. Search never starts a server. "
                     "Lexical, not semantic or filesystem search. Use short keywords/identifiers. "
                     "Try limit=5, detail=summary; get detail=full by exact name before calling. "
                     "mode=literal uses fixed strings; mode=regex uses ripgrep (rg required), "
@@ -476,7 +502,7 @@ class Hub:
                         },
                         "kind": {
                             "type": "string",
-                            "enum": ["all", "skill", "tool"],
+                            "enum": ["all", "skill", "tool", "server"],
                             "default": "all",
                         },
                         "server": {"type": "string", "maxLength": 48},
@@ -1272,8 +1298,9 @@ class Hub:
                     "protocolVersion": version,
                     "serverInfo": INFO,
                     "capabilities": self.capabilities(False),
-                    "instructions": "Search skills with hub_search and read selected "
-                    "instructions with hub_read_skill. Connect registered servers with "
+                    "instructions": "Use hub_search(kind=all) for skills, registered MCP servers "
+                    "and connected tools. Read selected skills with hub_read_skill. "
+                    "Server results may be disconnected; connect explicitly with "
                     "hub_connect; call discovered tools with hub_call. "
                     "Open local owner settings with hub_open_settings when requested. "
                     "approval_required is normal user-consent waiting, not a failed call. "
