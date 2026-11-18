@@ -73,6 +73,45 @@ class CatalogSearchTests(unittest.TestCase):
         self.assertEqual(result[0]["name"], "docs__convert_to_markdown")
         self.assertEqual(result[0]["kind"], "tool")
 
+    def test_default_search_combines_skills_registered_servers_and_connected_tools(self):
+        result = self.hub.search("")
+        self.assertEqual({row["kind"] for row in result}, {"skill", "server", "tool"})
+        self.assertTrue(any(row["name"] == "docs" and row["kind"] == "server" for row in result))
+
+    def test_disconnected_and_disabled_registration_search_never_starts_servers_or_indexes_secrets(
+        self,
+    ):
+        self.hub.register(
+            {
+                "id": "offline",
+                "name": "Offline reference",
+                "transport": "stdio",
+                "command": sys.executable,
+                "args": ["DO_NOT_INDEX_ARGUMENT"],
+                "env": {"KEY": "DO_NOT_INDEX_ENV"},
+                "enabled": False,
+            }
+        )
+        with patch.object(
+            self.hub, "client", side_effect=AssertionError("search must not connect")
+        ):
+            result = self.hub.search("offline", kind="server", detail="summary")
+            self.assertEqual(len(result), 1)
+            self.assertFalse(result[0]["enabled"])
+            self.assertIsNone(result[0]["next_tool"])
+            self.assertEqual(self.hub.search("DO_NOT_INDEX_ENV", mode="literal"), [])
+            self.assertEqual(self.hub.search("DO_NOT_INDEX_ARGUMENT", mode="literal"), [])
+            self.assertNotIn("env", result[0])
+            self.assertNotIn("args", result[0])
+
+    def test_registered_server_search_respects_project_selection(self):
+        self.hub.register({"id": "private", "transport": "stdio", "command": sys.executable})
+        project_root = Path(self.temp.name) / "project"
+        project_root.mkdir()
+        self.hub.projects.put({"id": "p", "root": str(project_root), "common_servers": ["docs"]})
+        project = self.hub.scoped("p")
+        self.assertEqual([row["name"] for row in project.search("", kind="server")], ["docs"])
+
     def test_argument_names_are_searchable_and_camel_case_is_split(self):
         self.assertEqual(self.hub.search("repo_root")[0]["name"], "docs__list_graph_stats_tool")
         self.assertEqual(self.hub.search("get version", match="all")[0]["name"], "docs__getVersion")
@@ -122,7 +161,8 @@ class CatalogSearchTests(unittest.TestCase):
     def test_filters_validation_and_no_automatic_connections(self):
         self.hub.register({"id": "pending", "transport": "stdio", "command": "missing-command"})
         self.assertTrue(self.hub.search("engineering", kind="skill"))
-        self.assertEqual(self.hub.search("", server="pending"), [])
+        self.assertEqual(self.hub.search("", kind="tool", server="pending"), [])
+        self.assertEqual(self.hub.search("", server="pending")[0]["kind"], "server")
         self.assertNotIn("pending", self.hub.clients)
         for kwargs in [
             {"limit": True},

@@ -1,5 +1,8 @@
 # 인증과 JWT (PLAYBOOK §19)
 
+기존 Python/JWT 계약을 구현·유지할 때 쓰는 예시다. 세션·OIDC·관리형 인증에 자체 JWT 구현을 강제하지 않는다.
+`jtt`·`rjti`·`fjti`는 이 예시의 사용자 정의 claim이며 표준 필수 필드가 아니다.
+
 ## 목차
 
 - JWT 구조 — RS256 (§19.1)
@@ -197,8 +200,8 @@ app.add_middleware(
 
 ## 프론트엔드 토큰 저장 (관련 §20.2)
 
-- **Access token → `sessionStorage`** (탭 닫으면 사라짐).
-- **Refresh token → `localStorage`** (탭 간 공유, 장기 유지).
+- 브라우저 토큰 저장은 `frontend.md`의 HttpOnly 쿠키/BFF·XSS·CSRF 기준을 따른다.
+- `localStorage`·`sessionStorage`에 인증·갱신 토큰을 저장하는 것을 공통 기본값으로 삼지 않는다.
 - 동시 다발 401 시 refresh 큐(promise) 하나만 실행, 나머지는 대기 후 일괄 재시도.
 
 자세한 인터셉터 코드는 `frontend.md` 참고.

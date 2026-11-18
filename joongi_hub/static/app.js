@@ -34,6 +34,9 @@ try {
 let activeCall = null;
 let appView = null;
 let searchTimer;
+let catalogSearch = null;
+let catalogProfile = '';
+let catalogGeneration = 0;
 let loadCounter = 0;
 let permissionGeneration = 0;
 let skillCounter = 0;
@@ -124,6 +127,7 @@ async function load({ quiet = false } = {}) {
     state.skills = Array.isArray(state.skills) ? state.skills : [];
     state.servers = Array.isArray(state.servers) ? state.servers : [];
     state.tasks = Array.isArray(state.tasks) ? state.tasks : [];
+    if (!quiet) catalogSearch?.reset();
     $('#hub-status').textContent = '로컬에서 실행 중';
     $('#hub-version').textContent = `v${state.version || '0.1.0'}`;
     $('#live-dot').style.background = 'var(--success)';
@@ -160,6 +164,14 @@ function rememberDrafts() {
 }
 function render() {
   rememberDrafts();
+  if (!catalogSearch || catalogProfile !== activeProfile) {
+    ++catalogGeneration;
+    const replacement = hubSearch();
+    if (catalogSearch) catalogSearch.replaceWith(replacement);
+    else page.before(replacement);
+    catalogSearch = replacement; catalogProfile = activeProfile;
+  }
+  catalogSearch.hidden = workspaceStatus !== 'ready';
   if (workspaceStatus !== 'ready') {
     renderedView = '';
     page.removeAttribute('data-profile');
@@ -213,7 +225,6 @@ function renderOverview() {
   const serverRows = state.servers.slice(0, 4).map(server => el('div', { class: 'item-row' }, el('div', {}, el('strong', {}, server.name || server.id), el('p', {}, server.transport === 'stdio' ? '로컬 프로세스 · stdio' : server.url)), statusBadge(server)));
   replacePage(
     title('나의 도구를 연결하는 곳', '연결 상태를 확인하고 필요한 스킬과 도구를 찾으세요.'),
-    hubSearch(),
     state.tasks.some(t => ['working', 'input_required'].includes(t.status)) ? el('section', { class: 'attention-line' }, el('strong', {}, '진행 중인 작업이 있습니다'), button('작업 확인', () => navigate('tasks'))) : null,
     state.servers.some(server => server.error || server.auth_status?.login_required) ? el('section', { class: 'attention-line' }, el('strong', {}, '연결 또는 로그인이 필요한 MCP가 있습니다'), button('연결 확인', () => navigate('connections'))) : null,
     !state.servers.length ? el('section', { class: 'intro-panel', 'aria-label': 'Hub 사용 흐름' },
@@ -225,15 +236,37 @@ function renderOverview() {
       el('section', { class: 'section' }, el('div', { class: 'section-header' }, el('h2', {}, 'MCP 연결'), button('관리 →', () => navigate('connections'), 'quiet small')), serverRows.length ? serverRows : empty('첫 연결을 기다리고 있어요', '사용하는 MCP 서버를 등록하고 도구를 확인하세요.', button('MCP 등록', () => { navigate('connections'); openConnectionForm(); })))));
 }
 function hubSearch() {
-  const input = el('input', { type: 'search', placeholder: '스킬·도구 검색', 'aria-label': '스킬과 도구 통합 검색', maxlength: '1000' });
+  const input = el('input', { type: 'search', placeholder: '스킬·MCP·도구 검색', 'aria-label': '스킬·MCP·도구 통합 검색', maxlength: '1000' });
+  const kind = el('select', { 'aria-label': '통합 검색 종류' }, ...[['all', '전체'], ['skill', '스킬'], ['server', 'MCP 서버'], ['tool', '도구']].map(([value, name]) => el('option', { value }, name)));
   const results = el('div', { 'aria-live': 'polite' });
+  const hint = el('p', { class: 'catalog-search-hint' }, '현재 작업 범위의 스킬·등록된 MCP·연결된 도구를 함께 찾습니다. 검색만으로 서버를 실행하지 않습니다.');
   const submit = el('button', { type: 'submit' }, '검색');
-  return el('section', { class: 'hub-search', 'aria-label': '통합 검색' }, el('form', { class: 'hub-search-form', onSubmit: event => {
+  let generation = 0;
+  input.addEventListener('input', () => { ++generation; results.replaceChildren(); hint.textContent = '검색 버튼이나 Enter로 스킬·MCP·도구를 함께 찾으세요.'; });
+  kind.addEventListener('change', () => { ++generation; results.replaceChildren(); hint.textContent = '선택한 종류에서 검색하려면 검색 버튼을 누르세요.'; });
+  const clear = button('검색 지우기', () => { section.reset(); input.value = ''; input.focus(); }, 'quiet small');
+  const section = el('section', { class: 'hub-search', 'aria-label': '통합 검색' }, el('h2', { class: 'catalog-search-label' }, '통합 검색'), el('form', { class: 'hub-search-form', onSubmit: event => {
+    const request = ++generation, scope = activeProfile, catalog = catalogGeneration;
     event.preventDefault(); run(async () => {
-      const data = await api(`/api/v1/search?q=${encodeURIComponent(input.value)}`);
+      hint.textContent = '스킬·MCP·도구를 검색하고 있습니다…';
+      let data;
+      try { data = await api(`/api/v1/search?q=${encodeURIComponent(input.value)}&kind=${kind.value}&detail=summary&limit=20`); }
+      catch (error) {
+        if (request !== generation || scope !== activeProfile || catalog !== catalogGeneration) return;
+        results.replaceChildren(); hint.textContent = '검색하지 못했습니다. 검색 버튼으로 다시 시도하세요.';
+        throw error;
+      }
+      if (request !== generation || scope !== activeProfile || catalog !== catalogGeneration || workspaceStatus !== 'ready') return;
       const rows = Array.isArray(data) ? data : data.results || [];
-      results.replaceChildren(...(rows.length ? rows.map(item => el('div', { class: 'item-row' }, el('div', {}, el('div', { class: 'item-title' }, el('strong', {}, item.name), badge(item.kind === 'skill' ? '스킬' : 'MCP 도구')), el('p', { class: 'description-preview' }, shortDescription(item.description))), button(item.kind === 'skill' ? '읽기 →' : '실행 →', () => {
+      hint.textContent = `검색 결과 ${rows.length}개${rows.length === 20 ? ' · 상위 20개, 검색어나 종류로 좁힐 수 있습니다' : ''} · 미연결 MCP는 서버 정보만 표시합니다.`;
+      results.replaceChildren(...(rows.length ? rows.map(item => el('div', { class: 'item-row' }, el('div', {}, el('div', { class: 'item-title' }, el('strong', {}, item.name), badge({skill: '스킬', server: 'MCP 서버', tool: 'MCP 도구'}[item.kind])), el('p', { class: 'description-preview' }, shortDescription(item.description)), item.kind === 'server' ? el('small', {}, item.enabled === false ? '비활성 · 연결 설정에서 변경' : item.status === 'connected' ? '연결됨' : '연결 확인 전 · 도구 발견은 연결 후') : null), button(item.kind === 'skill' ? '읽기 →' : item.kind === 'server' ? '연결 관리 →' : '실행 →', () => {
+        results.replaceChildren(); hint.textContent = '선택한 항목을 열었습니다. 다른 항목은 다시 검색하세요.';
         if (item.kind === 'skill') { remoteSkill = item.server ? item : null; selectedSkill = item.name; selectedPath = 'SKILL.md'; navigate('skills'); }
+        else if (item.kind === 'server') {
+          navigate('connections');
+          const target = [...page.querySelectorAll('[data-connection]')].find(node => node.dataset.connection === item.server);
+          if (target) { target.scrollIntoView({ block: 'center' }); target.focus(); }
+        }
         else {
           const server = state.servers.find(s => s.id === item.server || item.name.startsWith(`${s.id}__`));
           const short = server ? item.name.slice(server.id.length + 2) : item.name;
@@ -241,9 +274,11 @@ function hubSearch() {
           if (server && tool) { navigate('connections'); renderCallPanel({ server, tool }); }
           else showNotice('연결 상태를 새로고침한 뒤 다시 검색하세요.', true);
         }
-      }, 'small'))) : [empty('검색 결과가 없습니다', '다른 검색어를 사용하거나 MCP 연결에서 도구를 먼저 확인하세요.')]));
+      }, 'small'))) : [empty('검색 결과가 없습니다', '다른 검색어를 사용하세요. 도구를 찾으려면 해당 MCP 연결을 먼저 확인하세요.')]));
     }, submit);
-  } }, input, submit), results);
+  } }, input, kind, submit, clear), hint, results);
+  section.reset = () => { ++generation; results.replaceChildren(); hint.textContent = '현재 작업 범위의 스킬·등록된 MCP·연결된 도구를 함께 찾습니다. 검색만으로 서버를 실행하지 않습니다.'; };
+  return section;
 }
 function matchingSkills() {
   const query = searchQuery.trim().toLowerCase();
@@ -396,7 +431,7 @@ function connection(server) {
     await api('/api/v1/servers', { method: 'POST', body: JSON.stringify(payload) }); discardDraft(policyIdentity); await load(); showNotice('도구 정책을 저장했습니다.');
   }), 'small');
   settings.append(el('p', {}, '인증을 쓰는 연결은 목록에 없는 도구 호출마다 승인이 필요합니다. 정책을 저장하면 인증 없는 연결에도 적용합니다. 읽기 표시만으로 자동 허용하지 않습니다. *는 모든 도구를 뜻하므로 신뢰 범위를 확인하세요.'), el('label', {}, '항상 허용할 도구', allowed), el('label', {}, '차단할 도구', denied), savePolicy);
-  return el('section', { class: 'connection' }, el('div', { class: 'connection-head' },
+  return el('section', { class: 'connection', 'data-connection': server.id, tabindex: '-1' }, el('div', { class: 'connection-head' },
     el('div', {}, el('div', { class: 'item-title' }, el('h3', {}, server.name || server.id), statusBadge(server), badge(server.transport || 'stdio'))),
     el('div', { class: 'connection-actions' }, probe, remove)),
     server.error ? el('p', { class: 'connection-error' }, typeof server.error === 'string' ? server.error : JSON.stringify(server.error)) : null,

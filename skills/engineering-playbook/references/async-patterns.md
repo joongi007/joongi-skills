@@ -51,7 +51,7 @@ await asyncio.gather(*encode_tasks, return_exceptions=True)
 **규칙:**
 - **장기 태스크**: `session.livekit_task` 등 **필드에 저장** → `on_stop()`에서 `await`.
 - **단기 태스크**: **집합(`set`)으로 추적**, `add_done_callback(set.discard)` 패턴.
-- **타임아웃이 있는 대기**: `asyncio.wait_for(asyncio.shield(task), timeout=N)` — `shield`로 원본 태스크 취소 방지.
+- **timeout 후에도 계속 실행해야 하는 작업의 대기만**: `asyncio.wait_for(asyncio.shield(task), timeout=N)` — `shield`로 원본 태스크 취소 방지.
 
 ## 타임스탬프 단위 변환 (§23.3)
 

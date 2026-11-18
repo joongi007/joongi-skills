@@ -350,6 +350,19 @@ class HubTest(unittest.TestCase):
 
 
 class HttpHubTest(unittest.TestCase):
+    def test_search_filters_and_invalid_limits_return_json_errors(self):
+        self.hub.register({"id": "unstarted", "transport": "stdio", "command": sys.executable})
+        status, _, body = self.request(
+            path="/api/v1/search?q=unstarted&kind=server&detail=summary&limit=5"
+        )
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)[0]["kind"], "server")
+        self.assertNotIn("unstarted", self.hub.clients)
+        for query in ("limit=nope", "limit=1000", "limit=0", "kind=file", "detail=secret"):
+            status, _, body = self.request(path="/api/v1/search?" + query)
+            self.assertEqual(status, 400)
+            self.assertEqual(json.loads(body)["code"], -32602)
+
     def setUp(self):
         HubTest.setUp(self)
         self.server = HubServer(("127.0.0.1", 0), self.hub)

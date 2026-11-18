@@ -367,7 +367,22 @@ class Handler(BaseHTTPRequestHandler):
             elif path == "/api/v1/state":
                 self.send_data(200, hub.state())
             elif path == "/api/v1/search":
-                self.send_data(200, hub.search(query.get("q", [""])[0]))
+                raw_limit = query.get("limit", ["100"])[0]
+                if (
+                    not 1 <= len(raw_limit) <= 3
+                    or not raw_limit.isascii()
+                    or not raw_limit.isdecimal()
+                ):
+                    raise RpcError(-32602, "Search limit must be an integer from 1 to 100")
+                self.send_data(
+                    200,
+                    hub.search(
+                        query.get("q", [""])[0],
+                        kind=query.get("kind", ["all"])[0],
+                        detail=query.get("detail", ["full"])[0],
+                        limit=int(raw_limit),
+                    ),
+                )
             elif path.startswith("/api/v1/skills/"):
                 name = path.removeprefix("/api/v1/skills/")
                 self.send_data(200, hub.skills.read(name, query.get("path", ["SKILL.md"])[0]))
