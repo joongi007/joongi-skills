@@ -388,33 +388,53 @@ class MaxBodySizeMiddleware:
 
 ### §4.2 이미지 압축 폭탄 / 메타데이터
 
-3KB짜리 PNG가 디코딩되면 50000×50000 = 100억 픽셀 → RAM 수십 GB.
+작은 압축 파일도 디코딩하면 거대한 픽셀 버퍼가 된다. 50,000×50,000은 **25억 픽셀**이고,
+RGBA 8-bit 버퍼 하나만 약 10GB다. 변환·리사이즈의 중간 복사본은 별도다.
+한 요청으로도 DoS가 가능하며 여러 출발지에서 반복하면 DDoS로 이어질 수 있다.
+
+- 업로드 바이트뿐 아니라 디코더가 읽은 폭·높이·총 픽셀을 **load/convert/resize 전** 제한한다.
+  클라이언트가 제출한 치수, 확장자, Content-Type, 매직바이트만으로 안전을 판단하지 않는다.
+- 애니메이션·다중 페이지는 프레임 수·프레임별 크기·누적 디코딩 픽셀·처리 시간을 함께 제한한다.
+  첫 프레임만 쓸 서비스는 다중 프레임을 거절하는 등 지원 정책을 명시한다.
+- 출력 크기·배율·동시 처리·큐·임시 디스크도 제한한다. 작은 thumbnail 출력만으로 입력 decode가 저렴해지지 않는다.
+- 헤더 parser에도 비용과 취약점이 있다. 최신 디코더를 최소 권한의 격리 worker에서 실행하고
+  OS/container 메모리·CPU 상한과 실행 시간 초과 시 worker 종료를 둔다. async timeout만으로 CPU 디코딩을 멈출 수 없다.
+
+Pillow를 쓴다면 다음은 **단일 프레임 PNG/JPEG용 사전 검사 예시**다. 정책 수치는 서비스에 맞춰 조정한다.
+바디 제한·worker 격리·정상 재인코딩을 대체하는 완성형 업로드 API가 아니다.
 
 ```python
+# ❌ 바이트 크기나 출력 thumbnail만 제한한 뒤 바로 convert()한다.
+# ✅ 제한된 입력 스트림을 worker에 전달하고 디코딩 전 치수를 검사한다.
 import warnings
 from PIL import Image
 
-Image.MAX_IMAGE_PIXELS = 50_000_000
+Image.MAX_IMAGE_PIXELS = 20_000_000  # 전용 worker 시작 시 한 번 설정
 warnings.simplefilter("error", Image.DecompressionBombWarning)
 
-def safe_open(fp):
-    img = Image.open(fp)          # 헤더만 읽음 (lazy)
-    w, h = img.size               # load() 전에 크기부터 검사
-    if w * h > 50_000_000 or w > 20000 or h > 20000:
-        raise ValueError("bomb suspected")
-    img.load()                    # 여기서 실제 디코딩
-    return img
+def inspect_and_decode(fp):
+    with Image.open(fp, formats=("PNG", "JPEG")) as image:
+        width, height = image.size
+        if not (0 < width <= 10_000 and 0 < height <= 10_000):
+            raise ValueError("image dimensions exceed policy")
+        if width * height > 20_000_000 or getattr(image, "n_frames", 1) != 1:
+            raise ValueError("pixel or frame budget exceeded")
+        image.load()  # 여기도 worker 메모리·시간 상한 안에서 실행
+        # 여기서 필요 픽셀을 새 이미지로 복사해 허용 형식으로 재인코딩한다.
+        # 원본 info/EXIF/ICC/XMP를 출력에 자동 복사하지 않는다.
 ```
 
-**핵심: `Image.open()`은 lazy다. `.load()`/`.convert()` 전에 `.size`를 먼저 검사하면
-디코딩 없이 폭탄을 거를 수 있다.**
+Pillow의 경고·오류 제한을 해제하지 않는다. `verify()`나 헤더 검사만으로 전체 decode 안전을 보장하지 않는다.
+EXIF·ICC·XMP 등 메타데이터도 바이트 상한을 두며 GPS 같은 불필요 정보는 출력에서 제거한다.
+`getdata()` 자체가 메타데이터를 삭제하는 것은 아니다. EXIF 회전·색상 변환도 제한된 worker에서 수행한다.
+SVG는 래스터 픽셀 검사와 별개로 script·외부 참조·filter 복잡도·출력 canvas 상한을 검사한다.
 
-- 확장자·`Content-Type`을 믿지 않는다. `python-magic` / `filetype`으로 매직바이트 검증.
-- EXIF 폭탄(수십 MB 메타데이터)은 `img.getdata()`로 픽셀만 재인코딩해
-  메타데이터를 통째로 제거하는 것이 가장 깔끔하다.
-  (동시에 사진의 GPS 좌표 유출도 막힌다.)
-- `/tmp`를 별도 볼륨으로 분리하거나 quota를 건다.
-  디스크가 차면 DB도 로그도 전부 죽는다.
+검증은 작은 테스트 한도를 사용해 경계 치수·작은 파일/큰 치수·다중 프레임·손상 파일·timeout·
+worker 강제 종료 후 복구·동시성 제한을 확인한다. 실제 수십 GB 이미지를 운영 환경에서 디코딩하지 않는다.
+거절 횟수·decode 시간·worker OOM·큐 포화를 관측하고 `incident-response.md`의 제한·알림에 연결한다.
+
+근거: [Pillow Image의 lazy loading·decompression bomb](https://pillow.readthedocs.io/en/stable/reference/Image.html),
+[OWASP 파일 업로드](https://cheatsheetseries.owasp.org/cheatsheets/File_Upload_Cheat_Sheet.html).
 
 ### §4.3 저장 / 서빙
 

@@ -4,10 +4,11 @@
 다른 프로젝트의 파일은 변경하지 않는다.
 
 ```bash
-python3 scripts/collect_local_integrations.py --root /mnt/d/Project
+python3 scripts/collect_local_integrations.py --root /path/to/projects
 ```
 
-기본 출력은 `.local/integrations/catalog.md`와 `catalog.json`이다.
+`/path/to/projects`는 조사할 프로젝트 상위 폴더로 바꾼다. WSL에서는 `/mnt/d/Project` 같은 경로를 쓸 수 있다.
+저장소 루트에서 명령을 실행한다. 기본 출력은 `.local/integrations/catalog.md`와 `catalog.json`이다.
 `.local/`은 git 추적 대상과 Pages 소스 번들에서 제외한다. 개인 경로·프로젝트 이름을
 공개 문서에 복사하지 않는다. `--out`으로 출력 폴더를 지정할 수 있지만,
 개인 목록은 공개 배포 경로 밖에 둔다.

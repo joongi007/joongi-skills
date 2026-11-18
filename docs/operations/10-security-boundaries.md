@@ -61,9 +61,10 @@ Hub 자신의 명령을 만든다. 설치 경로·interpreter가 바뀌어도 �
 먼저 [공식 GitHub CLI](https://cli.github.com/)를 설치한다. 검증기를 찾지 못하거나
 서명·인증서·출처가 맞지 않으면 압축 해제와 실행을 하지 않는다. checksum-only 우회는 없다.
 
-1. 사이트의 명령은 임시 디렉터리에 bootstrap과 attestation을 받는다.
-2. 설치된 `gh attestation verify`가 bootstrap을 검증한 뒤에만 실행한다.
-3. 검증된 bootstrap은 archive도 검증한 뒤 압축을 푼다.
+1. 간편 명령은 HTTPS로 받은 최초 bootstrap을 바로 실행한다. bootstrap 자체의 실행 전 서명 검증은 하지 않는다.
+2. [보안 설치](../installation/04-verified-install.md)는 bootstrap과 attestation을 임시 폴더에 받고,
+   `gh attestation verify`가 최초 bootstrap을 검증한 뒤에만 실행한다.
+3. 두 방식 모두 bootstrap이 archive를 검증한 뒤 압축을 푼다.
 4. 업데이트에는 설치된 신뢰 정책·검증기를 사용한다. 다운로드한 코드가 자기 신뢰 정책을 결정하지 않는다.
 
 검증 대상은 archive digest, GitHub OIDC issuer, 정확한 Pages workflow·main ref·source commit,

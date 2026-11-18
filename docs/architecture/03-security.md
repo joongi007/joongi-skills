@@ -48,7 +48,9 @@ view token은 만료 시간이 있으며 원래 MCP 서버와 도구에 묶인�
 ## 배포
 
 GitHub Pages는 공개 정적 파일만 제공한다. 개인 config·state·토큰은 산출물에서 제외한다.
-터미널 다운로드에는 브라우저 CORS가 적용되지 않는다. bootstrap과 archive를 실행하기 전에 GitHub CLI로 Sigstore provenance를 검증한다.
+터미널 다운로드에는 브라우저 CORS가 적용되지 않는다. 원격 archive는 실행 전에 GitHub CLI로 Sigstore provenance를 검증한다.
+간편 설치는 최초 bootstrap을 HTTPS 출처에 의존해 바로 실행하며, 보안 설치는 bootstrap도 실행 전에 검증한다.
+[설치 방식별 신뢰 차이](../installation/04-verified-install.md)를 구분한다.
 신뢰한 workflow·main commit·저장소와 소유자 ID·digest가 다르면 설치를 거절한다.
 서명 job은 외부 빌드 의존성을 실행하지 않으며 문서 build job과 권한을 분리한다.
 

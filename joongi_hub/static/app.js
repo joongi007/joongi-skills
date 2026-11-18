@@ -46,6 +46,7 @@ const skillPresentation = {
   'engineering-playbook': { label: '엔지니어링', summary: '개발·인프라·보안·테스트 규칙' },
   'applying-design-systems': { label: '디자인·UX', summary: '디자인 시스템과 제품 UX 원칙' },
   'usual-korean': { label: '자연스러운 한국어', summary: '문장 교정과 기술 용어 선택' },
+  'creating-diagrams': { label: '다이어그램·아이콘', summary: 'Mermaid·Excalidraw·SVG 선택과 실제 렌더 검토' },
   'building-procedural-3d': { label: '이미지 기반 3D', summary: 'Three.js 단계별 구현·렌더 비교·품질 기록 검사' }
 };
 function shortDescription(text = '', limit = 100) {

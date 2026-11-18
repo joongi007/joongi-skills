@@ -23,8 +23,10 @@ foreach ($candidate in $candidates) {
     }
 }
 if (-not $python) { throw "Python 3.10+ is required. Set JOONGI_PYTHON to its executable." }
-$manager = Join-Path $PSScriptRoot "scripts/install_manager.py"
-if (Test-Path $manager) {
+# Inline scriptblocks have no script file. Do not trust an inherited PSScriptRoot/cwd.
+$scriptFile = $MyInvocation.MyCommand.Path
+$manager = if ($scriptFile) { Join-Path (Split-Path -Parent $scriptFile) "scripts/install_manager.py" } else { $null }
+if ($manager -and (Test-Path $manager)) {
     & $python @pythonArgs -I -B $manager $Action @InstallArgs
     exit $LASTEXITCODE
 }
@@ -83,5 +85,10 @@ raise SystemExit(subprocess.call([sys.executable, '-I', '-B', str(manager), *sys
     $result = $LASTEXITCODE
 } finally {
     Remove-Item -LiteralPath $temporary -Recurse -Force
+}
+# An inline install must return to the user's existing PowerShell session.
+if (-not $scriptFile) {
+    if ($result -ne 0) { throw "Installation failed with exit code $result" }
+    return
 }
 exit $result

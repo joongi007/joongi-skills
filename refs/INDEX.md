@@ -16,6 +16,7 @@
 
 | 날짜 | 문서 | 주제 |
 |------|------|------|
+| 2026-11-18 | [research/2026-11-18-visual-workflows-and-image-bombs.md](research/2026-11-18-visual-workflows-and-image-bombs.md) | 이미지 압축 폭탄·디자인 정책·Excalidraw·diagram-design·anatomy·snapdom 선택과 등록 비용 |
 | 2026-11-07 | [research/2026-11-07-gtmux-ux-and-skill-language.md](research/2026-11-07-gtmux-ux-and-skill-language.md) | GTMUX에서 추출한 공통 UX 원칙과 스킬 작성 언어의 선택 기준 |
 | 2026-11-06 | [research/2026-11-06-usual-korean.md](research/2026-11-06-usual-korean.md) | fluent-korean·im-not-ai·GeekNews를 참고한 자연스러운 한국어와 기술 용어 선택 지침 |
 | 2026-11-05 | [research/2026-11-05-infrastructure-quality.md](research/2026-11-05-infrastructure-quality.md) | Valkey·Sentinel·TCP·DB 복구·Kubernetes·Helm·mutation testing과 MCP 규격의 공식 근거 |

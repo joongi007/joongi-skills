@@ -1,18 +1,18 @@
 ---
 name: applying-design-systems
-description: 디자인 시스템의 토큰과 공통 제품 UX 원칙을 선택·적용한다. UI 제작·개선, 색상·글꼴·레이아웃·컨트롤·정보 밀도를 다룰 때 사용한다. 기존 프로젝트의 토큰을 우선하고, 없으면 open-design 패키지 하나를 선택한다. 단계적 정보 공개와 GTMUX에서 추출한 공통 UX 원칙을 포함한다.
+description: 디자인 시스템의 토큰과 공통 제품 UX 원칙을 선택·적용한다. UI 제작·개선, 색상·글꼴·레이아웃·컨트롤·정보 밀도를 다룰 때 사용한다. 기존 프로젝트의 토큰을 우선하고, 없으면 open-design·DESIGN.md 등의 후보를 비교해 하나를 선택한다. 단계적 정보 공개와 GTMUX에서 추출한 공통 UX 원칙을 포함한다.
 ---
 
 # 디자인 시스템과 UX
 
-기존 디자인 시스템을 먼저 사용한다. 없다면 `github.com/nexu-io/open-design`의
-패키지 하나를 선택한다. 라이선스는 Apache-2.0이다. 시각 토큰과 제품의 상호작용을 함께 설계한다.
+기존 디자인 시스템을 먼저 사용한다. 없다면 open-design의 토큰 패키지를 기본 후보로 삼고,
+다른 DESIGN.md 명세도 목적에 맞춰 비교한다. 한 프로젝트의 기준은 하나로 정하고 시각 토큰과 상호작용을 함께 설계한다.
 
 ## 작업 순서
 
 1. 프로젝트 문맥에서 제품·사용자·주요 행동을 파악한다.
 2. 기존 토큰과 컴포넌트를 재사용한다. 없다면 카탈로그에서 패키지 하나를 고르고 브랜드를 섞지 않는다.
-3. 선택한 패키지의 `tokens.css`만 가져온다. 해결되지 않은 문제가 있을 때만 전체 설계 문서를 읽는다.
+3. 토큰 패키지는 `tokens.css`부터, DESIGN.md는 필요한 영역부터 읽는다. 선택한 출처·버전·라이선스·로컬 토큰 매핑을 남긴다.
 4. 의미에 맞는 토큰을 사용하고, 상태 색상과 강조 색상을 구분한다.
 5. 키보드·좁은 화면·긴 내용·실패 상태에서 실제 동작을 확인한다.
 
@@ -24,6 +24,7 @@ https://raw.githubusercontent.com/nexu-io/open-design/main/design-systems/<slug>
 
 | 작업 | 참조 |
 |---|---|
+| 여러 디자인 정책·DESIGN.md 비교와 채택 | `references/design-policies.md` |
 | 브랜드·시각적 방향 선택 | `references/catalog.md` |
 | 토큰 이름·역할·예시·테마 보완 | `references/token-contract.md` |
 | React·Tailwind·MUI·독립 HTML에 적용 | `references/integration.md` |

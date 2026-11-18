@@ -12,6 +12,7 @@ from urllib.parse import quote, unquote, urlsplit, urlunsplit
 
 SOURCE_URL = "https://github.com/joongi007/joongi-skills/blob/main/"
 GROUPS = {
+    "getting-started": "첫 사용",
     "installation": "설치와 업데이트",
     "operations": "사용과 문제 해결",
     "architecture": "구조와 지원 범위",

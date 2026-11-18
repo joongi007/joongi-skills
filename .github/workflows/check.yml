@@ -181,6 +181,7 @@ jobs:
           node --check tests/browser_ux.cjs
           node --check tests/browser_connections.cjs
           node --check tests/browser_docs.cjs
+          node --check tests/browser_install.cjs
           node --check joongi_hub/static/markdown.js
       - name: Validate skill bundles
         if: runner.os == 'Linux'

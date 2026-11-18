@@ -2,7 +2,11 @@
 # Joongi Skills bootstrap. Download, inspect, then run with bash install.sh install.
 set -euo pipefail
 
-SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+# A piped bootstrap has no source path. Never resolve its installer from the caller's cwd.
+SCRIPT_DIR=""
+if [[ -n "${BASH_SOURCE[0]:-}" ]]; then
+  SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+fi
 PYTHON="${JOONGI_PYTHON:-python3}"
 DOWNLOAD_BASE="${JOONGI_DOWNLOAD_BASE:-@DOWNLOAD_BASE@}"
 
@@ -14,7 +18,7 @@ if ! "$PYTHON" -I -c 'import sys; raise SystemExit(sys.version_info < (3, 10))';
   printf '%s\n' 'Python 3.10+ is required. Set JOONGI_PYTHON to a supported executable.' >&2
   exit 1
 fi
-if [[ -f "$SCRIPT_DIR/scripts/install_manager.py" ]]; then
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/scripts/install_manager.py" ]]; then
   exec "$PYTHON" -I -B "$SCRIPT_DIR/scripts/install_manager.py" "$@"
 fi
 if [[ "$DOWNLOAD_BASE" == @* || -z "$DOWNLOAD_BASE" ]]; then

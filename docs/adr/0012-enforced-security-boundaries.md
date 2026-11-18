@@ -2,6 +2,9 @@
 
 상태: accepted · 2026-11-14
 
+2026-11-19 보완: 최초 bootstrap을 실행하는 설치 UX는 [ADR-0014](0014-installation-trust-and-onboarding.md)가
+간편·실행 전 서명 확인 경로로 구분한다. archive의 필수 서명 검증과 실행 격리는 유지한다.
+
 ## 맥락
 
 환경변수 최소화와 OS 키링만으로 외부 MCP의 파일 접근을 제한할 수 없다.

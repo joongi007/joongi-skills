@@ -1,6 +1,6 @@
 ---
 name: engineering-playbook
-description: 구현·설계·리뷰·테스트·운영의 판단 가이드다. 보안 예방·탐지·차단·복구, ReDoS, 문서·테스트 품질, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+description: 구현·설계·리뷰·테스트·운영의 판단 가이드다. 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 ---
 
 # 엔지니어링 가이드
@@ -30,7 +30,7 @@ description: 구현·설계·리뷰·테스트·운영의 판단 가이드다. �
 | asyncio.to_thread, 이벤트 루프·worker 스레드, Task 수명, 타임스탬프 변환 | `references/async-patterns.md` |
 | DB·Redis 비밀번호의 quote_plus, pydantic-settings·cached_property | `references/config-secrets.md` |
 | uv·Python·Vite 프로젝트 구성, UI–API 계약, /api/v1, 역방향 프록시 단일 진입점 | `references/scaffolding.md` |
-| 인가·IDOR, 인증, injection·ReDoS, 업로드·경로 이탈, SSRF·CORS·CSRF, DoS, 경쟁 상태, XSS | `references/web-security.md` |
+| 인가·IDOR, 인증, injection·ReDoS, 업로드·이미지 압축 폭탄·디코딩 자원 제한·경로 이탈, SSRF·CORS·CSRF, DoS, 경쟁 상태, XSS | `references/web-security.md` |
 | 보안 헤더·CSP, 개인정보·암호화, 비밀 유출, 공급망, 컨테이너·외부 연결·백업 | `references/security-ops.md` |
 | 침해 탐지·알림·자동 차단·격리·키 폐기·복구·훈련 | `references/incident-response.md` |
 | Java·Spring Boot Actuator, heapdump·관리 endpoint·JMX 노출 | `references/java-actuator.md` |

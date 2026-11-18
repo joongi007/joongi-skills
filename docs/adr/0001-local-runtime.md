@@ -12,7 +12,7 @@
 
 이 제품은 Python 3.10 이상 표준 라이브러리로 시작한다. loopback HTTP UI/API와 MCP
 stdio를 제공한다. registry는 JSON, task 상태는 SQLite에 저장한다.
-이 결정은 이 제품의 로컬 runtime 예외이며 다른 프로젝트의 FastAPI 기본을 변경하지 않는다.
+이 결정은 이 제품의 로컬 runtime 선택이다. 당시 비교한 FastAPI 예시는 다른 프로젝트의 필수 기본값이 아니다.
 
 YAML·Apps 확장 구현은 [ADR-0004](0004-bundled-extensions.md)가 보완한다. vendored 파서와
 번들 SDK를 포함하며, 설치 시 외부 패키지를 요구하지 않는 목표는 유지한다.

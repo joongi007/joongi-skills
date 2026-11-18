@@ -105,7 +105,19 @@ def main():
             ]
         else:
             command = ["bash", bootstrap]
-        run([*command, "install", "--home", home, "--agent", "codex"])
+        # Exercise the published short-command entrypoint with the exact downloaded bytes.
+        # Run only in an isolated home; never mutate the actual user's agent settings.
+        if os.name == "nt":
+            home_literal = str(home).replace("'", "''")
+            inline = (
+                "& ([scriptblock]::Create([Console]::In.ReadToEnd())) "
+                f"install --home '{home_literal}' --agent codex"
+            )
+            run([ps, "-NoProfile", "-NonInteractive", "-Command", inline], input=script)
+        else:
+            run(["bash", "-s", "--", "install", "--home", home, "--agent", "codex"], input=script)
+        # Keep the separately downloaded, preverified file execution path covered too.
+        run([*command, "install", "--home", home, "--agent", "codex", "--dry-run"])
         launcher = home / ".local/bin" / ("joongi-hub.cmd" if os.name == "nt" else "joongi-hub")
         manager = (
             home / ".local/bin" / ("joongi-skills.cmd" if os.name == "nt" else "joongi-skills")
@@ -176,6 +188,8 @@ def main():
             "url": BASE,
             "bootstrap_sha256": hashlib.sha256(script).hexdigest(),
             "install": True,
+            "inline_bootstrap": True,
+            "verified_file_dry_run": True,
             "stdio_search": True,
             "http_running": False,
             "remote_update_new_agent": True,

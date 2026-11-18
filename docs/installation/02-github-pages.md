@@ -1,5 +1,8 @@
 # GitHub Pages 배포와 원격 설치
 
+이 문서는 사이트를 배포하는 저장소 관리자를 위한 안내입니다. 설치만 하려면
+[일반 설치](00-index.md) 또는 [보안 설치](04-verified-install.md)를 사용하세요.
+
 GitHub Pages는 정적 안내 페이지, HTML 문서, 설치 스크립트, 소스 번들을 배포한다.
 로컬 Hub나 MCP 서버 프로세스를 호스팅하지 않는다. 브라우저로 페이지를 여는 것만으로
 컴퓨터에 설치하지 않으며, 사용자가 내려받은 스크립트를 터미널에서 실행한다.
@@ -25,13 +28,12 @@ fork는 이 신뢰 정책과 배포 주소를 검토해 변경해야 한다.
 ## 사용자가 실행하는 명령
 
 먼저 [공식 GitHub CLI](https://cli.github.com/)와 Python 3.10 이상을 준비한다.
-[설치 안내 사이트](https://joongi007.github.io/joongi-skills/)의 OS별 명령은 bootstrap·attestation을
-임시 디렉터리에 받고 `gh attestation verify`가 성공한 뒤에만 bootstrap을 실행한다.
-처음 복사하는 명령은 공식 저장소의 `site/install.js`와 대조한다.
-
-검증하지 않은 다운로드 파일을 바로 실행하는 예전 설치 명령은 사용하지 않는다.
-PowerShell 명령은 자식 프로세스에만 실행 정책 예외를 적용하며 전역 정책을 바꾸지 않는다.
-로컬 checkout을 신뢰하고 설치하는 방법은 [클론에서 설치](00-index.md#클론에서-설치)를 따른다.
+[설치 안내 사이트](https://joongi007.github.io/joongi-skills/)는 간편 명령을 먼저 보여줍니다.
+간편 명령은 HTTPS로 받은 bootstrap을 바로 실행하고 설치 archive의 서명·출처를 검사합니다.
+펼침 메뉴의 보안 설치는 bootstrap·attestation을 임시 폴더에 받고 최초 bootstrap까지 실행 전에 검증합니다.
+[보안 설치 전체 명령](04-verified-install.md)과 `site/install.js`가 이 흐름을 제공합니다.
+두 방식 모두 archive 검증 실패 시 설치하지 않습니다. 보안 검증 생략 옵션은 없습니다.
+로컬 소스를 신뢰하고 설치하는 방법은 [클론에서 설치](00-index.md#클론에서-설치)를 따릅니다.
 
 ## CORS와 다운로드 검증
 
