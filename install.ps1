@@ -86,4 +86,9 @@ raise SystemExit(subprocess.call([sys.executable, '-I', '-B', str(manager), *sys
 } finally {
     Remove-Item -LiteralPath $temporary -Recurse -Force
 }
+# An inline install must return to the user's existing PowerShell session.
+if (-not $scriptFile) {
+    if ($result -ne 0) { throw "Installation failed with exit code $result" }
+    return
+}
 exit $result

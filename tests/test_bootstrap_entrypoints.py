@@ -92,15 +92,22 @@ class PowerShellBootstrapEntrypoints(unittest.TestCase):
                 " $payload=$input | Out-String\n"
                 " @{ arguments=@($args); payload=$payload } | ConvertTo-Json -Depth 4 |\n"
                 " Set-Content -LiteralPath $env:CAPTURE -Encoding UTF8\n"
-                " $global:LASTEXITCODE=0\n"
+                " $global:LASTEXITCODE=if ($env:SIMULATE_INSTALL_FAILURE) { 17 } else { 0 }\n"
                 "}\n"
                 "$env:JOONGI_PYTHON='Capture-Python'\n"
                 "$source=Get-Content -Raw -LiteralPath $env:BOOTSTRAP_SCRIPT\n"
                 "& ([scriptblock]::Create($source)) install --dry-run\n"
+                "Set-Content -LiteralPath $env:RETURNED -Value continued\n"
                 "exit $LASTEXITCODE\n",
                 encoding="utf-8",
             )
-            env = dict(os.environ, CAPTURE=str(capture), BOOTSTRAP_SCRIPT=str(script))
+            returned = folder / "returned.txt"
+            env = dict(
+                os.environ,
+                CAPTURE=str(capture),
+                BOOTSTRAP_SCRIPT=str(script),
+                RETURNED=str(returned),
+            )
             env.pop("JOONGI_DOWNLOAD_BASE", None)
             result = subprocess.run(
                 [
@@ -118,7 +125,27 @@ class PowerShellBootstrapEntrypoints(unittest.TestCase):
                 timeout=30,
             )
             self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+            self.assertTrue(returned.exists(), "Inline installation exited the caller PowerShell")
             invocation = json.loads(capture.read_text(encoding="utf-8-sig"))
             self.assertEqual(invocation["arguments"][:4], ["-I", "-B", "-", BASE])
             self.assertEqual(invocation["arguments"][-2:], ["install", "--dry-run"])
             self.assertIn("verified = verify_download(data, attestation)", invocation["payload"])
+            returned.unlink()
+            env["SIMULATE_INSTALL_FAILURE"] = "1"
+            failed = subprocess.run(
+                [
+                    powershell,
+                    "-NoProfile",
+                    "-NonInteractive",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(runner),
+                ],
+                cwd=folder,
+                env=env,
+                capture_output=True,
+                timeout=30,
+            )
+            self.assertNotEqual(failed.returncode, 0)
+            self.assertFalse(returned.exists(), "Failed inline installation continued as success")
