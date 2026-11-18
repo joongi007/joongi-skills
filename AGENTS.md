@@ -18,11 +18,12 @@ matching work without waiting to be asked for it by name.
 
 `skills/applying-design-systems/SKILL.md`
 
-디자인 시스템의 토큰과 공통 제품 UX 원칙을 선택·적용한다. UI 제작·개선, 색상·글꼴·레이아웃·컨트롤·정보 밀도를 다룰 때 사용한다. 기존 프로젝트의 토큰을 우선하고, 없으면 open-design 패키지 하나를 선택한다. 단계적 정보 공개와 GTMUX에서 추출한 공통 UX 원칙을 포함한다.
+디자인 시스템의 토큰과 공통 제품 UX 원칙을 선택·적용한다. UI 제작·개선, 색상·글꼴·레이아웃·컨트롤·정보 밀도를 다룰 때 사용한다. 기존 프로젝트의 토큰을 우선하고, 없으면 open-design·DESIGN.md 등의 후보를 비교해 하나를 선택한다. 단계적 정보 공개와 GTMUX에서 추출한 공통 UX 원칙을 포함한다.
 
 Bundled files:
 
 - `skills/applying-design-systems/references/catalog.md`
+- `skills/applying-design-systems/references/design-policies.md`
 - `skills/applying-design-systems/references/integration.md`
 - `skills/applying-design-systems/references/product-ux.md`
 - `skills/applying-design-systems/references/token-contract.md`
@@ -37,11 +38,23 @@ Bundled files:
 
 - `skills/building-procedural-3d/references/workflow.md`
 
+### creating-diagrams
+
+`skills/creating-diagrams/SKILL.md`
+
+요구에 맞춰 Mermaid·Excalidraw·SVG/HTML 다이어그램, 등각투영 기술 삽화, 앱·웹 아이콘을 만들고 실제 렌더를 확인한다. 편집 가능한 원본과 이미지 산출물을 함께 제공한다. DOM 캡처는 snapdom 등 기존 도구를 선택하며 사진 생성이나 Three.js 모델링에는 적용하지 않는다.
+
+Bundled files:
+
+- `skills/creating-diagrams/references/capture.md`
+- `skills/creating-diagrams/references/diagrams.md`
+- `skills/creating-diagrams/references/illustrations-icons.md`
+
 ### engineering-playbook
 
 `skills/engineering-playbook/SKILL.md`
 
-구현·설계·리뷰·테스트·운영의 판단 가이드다. 보안 예방·탐지·차단·복구, ReDoS, 문서·테스트 품질, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+구현·설계·리뷰·테스트·운영의 판단 가이드다. 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 
 Bundled files:
 

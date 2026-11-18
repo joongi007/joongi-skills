@@ -23,8 +23,10 @@ foreach ($candidate in $candidates) {
     }
 }
 if (-not $python) { throw "Python 3.10+ is required. Set JOONGI_PYTHON to its executable." }
-$manager = Join-Path $PSScriptRoot "scripts/install_manager.py"
-if (Test-Path $manager) {
+# Inline scriptblocks have no script file. Do not trust an inherited PSScriptRoot/cwd.
+$scriptFile = $MyInvocation.MyCommand.Path
+$manager = if ($scriptFile) { Join-Path (Split-Path -Parent $scriptFile) "scripts/install_manager.py" } else { $null }
+if ($manager -and (Test-Path $manager)) {
     & $python @pythonArgs -I -B $manager $Action @InstallArgs
     exit $LASTEXITCODE
 }

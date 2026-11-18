@@ -1,151 +1,111 @@
 # Joongi Skills & Hub
 
-여러 AI 에이전트에서 같은 개발 지침을 사용하고, MCP 서버를 한 곳에서 연결·검색하는 로컬 도구입니다.
-**0.1.0 · 초기 릴리스**이며, Python 3.10 이상이 필요합니다.
+AI 에이전트에 공통 작업 지침을 설치하고, 여러 MCP 서버를 한 곳에서 연결·검색하는 로컬 도구입니다.
+**0.1.0 · 초기 릴리스**입니다. 개인 컴퓨터에서 사용하는 단일 사용자 도구이며, 인터넷 공개 서버로 제공하지 않습니다.
 
-[설치 안내 사이트](https://joongi007.github.io/joongi-skills/) · [사이트에서 문서 읽기](https://joongi007.github.io/joongi-skills/read/docs/00-index.html) · [문서 원본](docs/00-index.md) · [지원 범위](docs/architecture/02-compatibility.md)
+[설치 사이트](https://joongi007.github.io/joongi-skills/) · [처음 사용하기](docs/getting-started/00-index.md) · [전체 문서](docs/00-index.md) · [지원 범위](docs/architecture/02-compatibility.md)
 
-## 먼저 알아두기
-
-- **기본은 stdio**입니다. 에이전트가 필요할 때 Hub를 실행하므로 웹 서버를 미리 켤 필요가 없습니다.
-- 설치기는 Claude, Codex, Cursor, Copilot, Gemini, OpenCode의 기존 설정 디렉터리를 감지합니다.
-  발견한 에이전트에 스킬 4개와 Hub MCP 연결을 등록합니다. 3D 지침은 이미지 기반 Three.js 작업에서 사용합니다.
-- 외부 MCP는 사용자가 별도로 등록합니다. 설치만으로 외부 서비스가 자동 연결되지는 않습니다.
-- 개인 컴퓨터에서 사용하는 도구입니다. 런타임에 별도 패키지 설치·프론트엔드 빌드·DB 서버가 필요하지 않습니다.
-
-원격 설치·업데이트에는 [GitHub CLI](https://cli.github.com/)의 서명 검증 기능이 필요합니다.
-외부 stdio MCP에는 Linux/WSL 격리 또는 Docker가 필요하며, 준비되지 않으면 연결을 거절합니다.
-[보안 경계·플랫폼 준비](docs/operations/10-security-boundaries.md).
+- **스킬**은 에이전트가 필요한 작업에서 읽는 Markdown 지침입니다.
+- **MCP**는 에이전트와 외부 도구를 연결하는 프로토콜입니다. **Hub**가 연결·검색·호출을 중계합니다.
+- 기본 **stdio** 방식은 에이전트가 Hub 프로세스를 실행합니다. 웹 서버를 미리 켤 필요가 없습니다.
 
 ## 설치
 
-관리 화면의 공통 **통합 검색**에서 스킬·등록된 MCP·연결된 도구를 함께 찾습니다.
-에이전트의 `hub_search`도 기본 `kind: all`이며 종류별 필터를 선택할 수 있습니다.
-미연결 MCP는 서버 정보만 표시하고 검색 때문에 실행하지 않습니다. [검색 범위](docs/operations/08-catalog-search.md).
-
-엔지니어링 플레이북은 판단 순서 중심의 가이드이며, 선택한 스택의 예제만 참조합니다.
-예방과 함께 [탐지·차단·복구](skills/engineering-playbook/references/incident-response.md)를 준비합니다.
-
-이미지 기반 3D 작업은 `building-procedural-3d`를 읽고 `hub_3d_review`로 단계별 기록을 검사합니다.
-지원하는 GUI 호스트에서는 호출 승인을 앱 안의 입력 폼으로 선택하고, 그 외에는 브라우저 승인함을 씁니다.
-[3D 작업·호스트 승인 예시와 한계](docs/operations/12-3d-and-host-consent.md).
-
-클론 없이 설치하려면 [설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서
-사용하는 OS의 명령을 복사해 터미널에서 실행하세요.
-
-소스를 직접 관리하려면 다음과 같이 설치합니다.
+Python 3.10 이상과 [GitHub CLI](https://cli.github.com/)를 먼저 준비하세요.
+관리자 권한은 필요하지 않습니다. 설치기는 기존 에이전트 설정 폴더를 감지해 스킬 5개와
+`joongi-hub` MCP 연결을 등록합니다. 에이전트 앱 자체와 외부 MCP 서버는 설치하지 않습니다.
 
 ### macOS · Linux · WSL
 
+Bash 터미널에서 실행하세요.
+
 ```bash
-git clone https://github.com/joongi007/joongi-skills.git
-cd joongi-skills
-bash install.sh install --dry-run
-bash install.sh install
-~/.local/bin/joongi-skills status
+curl -fsSL 'https://joongi007.github.io/joongi-skills/install.sh' | bash -s -- install
 ```
 
 ### Windows PowerShell
 
 ```powershell
-git clone https://github.com/joongi007/joongi-skills.git
-cd joongi-skills
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 install --dry-run
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 install
-& "$HOME/.local/bin/joongi-skills.cmd" status
+& ([scriptblock]::Create((Invoke-RestMethod 'https://joongi007.github.io/joongi-skills/install.ps1'))) install
 ```
 
-`--dry-run`은 실제로 설치하지 않고 변경할 경로를 보여줍니다.
-특정 에이전트만 선택하려면 설치 명령에 `--agent codex`처럼 덧붙이세요.
-기존 설정과 직접 수정한 파일은 보호하며, 충돌하면 덮어쓰지 않고 중단합니다.
-[설치 경로·충돌 복구·WSL 설정](docs/installation/00-index.md).
+위 간편 명령은 HTTPS로 받은 설치 스크립트를 바로 실행합니다. 스크립트가 설치 번들의
+서명·출처·현재 main 커밋을 검증한 뒤 설치합니다. **최초 스크립트까지 실행 전에 검증하려면
+[보안 설치](docs/installation/04-verified-install.md)를 사용하세요.** 검증을 생략하는 옵션은 없습니다.
+
+소스를 직접 관리하려면 [클론 설치](docs/installation/00-index.md#클론에서-설치)를 선택하세요.
+변경 경로를 확인하는 `--dry-run`, 에이전트를 지정하는 `--agent codex`, 설치 경로와 충돌 복구는
+[설치 상세](docs/installation/00-index.md)에 있습니다.
 
 ## 설치 후 첫 사용
 
-1. 사용하는 에이전트의 MCP 연결을 다시 열거나 새 세션을 시작합니다.
-2. “Hub에서 usual-korean 스킬을 찾아 읽어줘”라고 요청해 연결을 확인합니다.
-3. 외부 MCP를 추가하려면 `joongi-hub open`으로 관리 화면을 열고, 서버를 등록한 뒤 **연결 확인**을 누릅니다.
-4. 관리 화면이 필요 없으면 `joongi-hub stop`으로 웹 서버를 끕니다. 기본 stdio 연결은 계속 사용할 수 있습니다.
+1. 에이전트에서 `joongi-hub` MCP 연결을 다시 엽니다. MCP만 재연결할 수 없다면 새 세션을 엽니다.
+2. “Hub에서 usual-korean 스킬을 찾아 읽어줘”라고 요청해 검색·읽기가 되는지 확인합니다.
+3. 외부 도구가 필요하면 “Hub 설정 화면 열어줘”라고 요청해 MCP 서버를 등록합니다.
+4. 서버의 **연결 확인**을 누르고 필요한 서비스에 로그인합니다. 등록·연결·로그인은 서로 다른 단계입니다.
 
-`joongi-hub`와 `joongi-skills`는 `~/.local/bin`에 설치됩니다.
-PATH에 없다면 `~/.local/bin/joongi-hub open`처럼 전체 경로를 쓰세요.
-Windows에서는 `& "$HOME/.local/bin/joongi-hub.cmd" open` 형식입니다.
+**처음 설치한 Hub의 외부 MCP 목록은 비어 있습니다.** 개발자의 MCP 등록·인증은 배포하지 않습니다.
+Notion 등의 서비스는 사용할 사람이 자신의 연결과 권한을 설정해야 합니다.
+[첫 사용 안내](docs/getting-started/00-index.md) · [인증과 호출 승인](docs/operations/05-auth-project-skills.md).
 
-인증 정보는 Windows·WSL의 DPAPI, macOS Keychain, Linux Secret Service로 보호합니다.
-Linux의 서비스 로그인에는 `secret-tool`·`gdbus`와 열린 로그인 키링이 필요합니다.
-이전 평문 인증이 있다면 `joongi-hub credentials --migrate`로 옮기세요.
-인증이 필요한 도구 요청은 공유 승인함에 MCP별로 모입니다. 개별·선택 일괄 승인과 이번 호출·1시간·항상 허용을 지원합니다.
-에이전트에 “Hub 설정 화면 열어줘”라고 요청하면 임시 웹이 열리고, 창을 닫으면 웹만 종료됩니다.
-관리 화면에서 신뢰한 도구의 허용 목록을 지정할 수도 있습니다.
-[인증 저장과 호출 승인](docs/operations/05-auth-project-skills.md).
-OAuth 연결은 에이전트에게 “Notion 로그인을 시작해줘”라고 요청해도 됩니다.
-로그인 링크에서 직접 승인하면 에이전트가 상태를 확인하고 다시 연결합니다. 웹을 미리 켤 필요는 없습니다.
+## 함께 설치되는 스킬
 
-stdio·stdio + HTTP·HTTP 중 선택하는 방법은 [연결 방식과 웹 실행](docs/operations/06-connection-modes.md)에 있습니다.
+| 스킬 | 사용할 때 |
+|---|---|
+| [engineering-playbook](skills/engineering-playbook/SKILL.md) | 구현·설계·보안·테스트·운영의 판단 기준 |
+| [usual-korean](skills/usual-korean/SKILL.md) | 자연스러운 한국어와 기술 용어 선택 |
+| [applying-design-systems](skills/applying-design-systems/SKILL.md) | 기존 토큰 활용·디자인 명세 선택·UX 검토 |
+| [creating-diagrams](skills/creating-diagrams/SKILL.md) | Mermaid·Excalidraw·SVG 다이어그램, 아이콘·캡처 선택 |
+| [building-procedural-3d](skills/building-procedural-3d/SKILL.md) | 이미지 기반 Three.js 제작과 단계별 렌더 비교 |
 
-## 업데이트와 제거
+스킬은 제작·검토 지침입니다. Excalidraw·snapdom·img2threejs 같은 외부 엔진 전체를 설치하는 것은 아닙니다.
+자동 선택과 같은 이름의 스킬 우선순위는 에이전트마다 다릅니다. [시각 자료 제작 예시](docs/operations/13-visual-workflows.md).
+
+## 관리·업데이트·제거
+
+macOS·Linux·WSL에서는 다음 전체 경로 명령을 사용합니다. `~/.local/bin`이 PATH에 있다면 경로를 생략해도 됩니다.
 
 ```bash
-~/.local/bin/joongi-skills update
+~/.local/bin/joongi-hub open
 ~/.local/bin/joongi-skills status
+~/.local/bin/joongi-skills update
+~/.local/bin/joongi-hub stop
 ~/.local/bin/joongi-skills uninstall --dry-run
 ~/.local/bin/joongi-skills uninstall
 ```
 
-Windows에서는 `& "$HOME/.local/bin/joongi-skills.cmd" update`처럼 실행합니다.
+Windows에서는 다음 형식입니다. [OS별 전체 명령](docs/installation/00-index.md#windows).
 
-| 설치 방식 | 최신 버전으로 갱신 |
-|---|---|
-| 설치 안내 사이트에서 설치 | `joongi-skills update`가 원래 다운로드 주소에서 최신 배포본을 받습니다. |
-| Git 클론에서 설치 | 저장소에서 `git pull --ff-only` 후 `joongi-skills update`를 실행합니다. |
-
-업데이트할 때 새로 발견한 에이전트도 등록합니다. 제거할 때는 이 도구가 관리하는 변경만 되돌리고,
-다른 설정·수정한 파일·Hub의 서버 등록과 작업·인증 정보는 남깁니다.
-[업데이트·제거·복구 상세](docs/installation/00-index.md).
-
-## 무엇을 할 수 있나요?
-
-| 기능 | 내용 |
-|---|---|
-| 공용 스킬 | 한국어 표현(`usual-korean`), 개발·테스트·운영 규칙(`engineering-playbook`), 디자인·UX 원칙(`applying-design-systems`) |
-| MCP 연결 | stdio·Streamable HTTP 서버 등록, 도구·리소스·프롬프트 검색과 호출 |
-| 코드 분석 | 내장 Python 코드 그래프, 선택 설치하는 Code Review Graph 연동과 프로젝트별 DB 분리 |
-| 인증·프로젝트 | API key·Bearer·Basic·OAuth, 프로젝트별 MCP·스킬·인증 범위 관리 |
-| Apps·Tasks | 로컬 UI의 MCP App 실행, 백그라운드 작업·결과·취소·입력 대기 처리 |
-| 관리 화면 | 스킬 읽기, MCP 등록·연결 확인, 도구 실행과 결과·지원 범위 확인 |
-
-클라이언트와 연결할 MCP 서버의 버전·기능은 각각 협상합니다.
-`2025-06-18`, `2025-11-25`, `2026-07-28`을 다루며, 기능별 제한은
-[호환성 표](docs/architecture/02-compatibility.md)에 정리했습니다.
-외부 에이전트에서 Apps를 사용하려면 해당 에이전트도 Apps를 지원해야 합니다.
-구형 HTTP+SSE, 독립적인 sampling/elicitation callback, subscriptions 등은 지원하지 않습니다.
-
-Hub 검색과 함께 연결된 도구의 직접 노출도 제공합니다. 에이전트가 모든 도구 설명을 읽는지,
-검색한 도구만 읽는지는 클라이언트 동작에 따라 다릅니다.
-[검색 방식과 범위](docs/operations/08-catalog-search.md) · [실제 검증 범위](docs/development/03-verification.md).
-
-## 문서와 개발
-
-| 하고 싶은 일 | 읽을 문서 |
-|---|---|
-| 설치·업데이트·제거 | [설치 안내](docs/installation/00-index.md) |
-| 웹 켜기·끄기, 연결 문제 해결 | [로컬 운영](docs/operations/00-index.md) |
-| 인증·프로젝트별 스킬 관리 | [인증과 스킬 관리](docs/operations/05-auth-project-skills.md) |
-| 구조와 설계 결정 이해 | [아키텍처](docs/architecture/00-index.md) · [ADR](docs/adr/00-index.md) |
-| 개발·테스트 작업 나누기 | [개발 절차](docs/development/00-index.md) |
-| 스킬 작성·패키징 | [작성 규칙](docs/skill-authoring.md) · [패키징 도구](docs/development/04-skill-packaging.md) |
-| Pages를 직접 배포하기 | [배포 안내](docs/installation/02-github-pages.md) |
-
-개발 검증의 시작점은 다음과 같습니다. SDK·브라우저·뮤테이션 검증에 필요한 환경과 명령은
-[테스트 안내](docs/development/02-quality.md)를 따릅니다.
-
-```bash
-python3 -m pip install --require-hashes --only-binary=:all: -r requirements-docs.txt
-python3 -B -m unittest discover -s tests -v
-python3 -B scripts/check_docs.py
-bash build.sh --check
+```powershell
+& "$HOME/.local/bin/joongi-hub.cmd" open
+& "$HOME/.local/bin/joongi-skills.cmd" update
 ```
 
-개인 설정·인증 정보·로컬 수집 결과는 공개 파일에 포함하지 않습니다.
-공개 검사 범위는 [배포 점검](docs/installation/03-publication.md)을 확인하세요.
-프로젝트는 [MIT License](LICENSE)를 따르며, 서드파티 파일의 기존 라이선스와 NOTICE를 유지합니다.
+원격 설치는 같은 배포 주소에서 갱신하고, 클론 설치는 저장소에서 `git pull --ff-only` 후 업데이트합니다.
+업데이트할 때 새로 발견한 에이전트도 등록합니다. 제거는 관리 중인 설치 파일을 대상으로 하며
+사용자 수정본·다른 설정·Hub의 서버 등록·작업·인증은 보존합니다.
+임시 설정 화면은 창을 닫으면 정리되고, `open`으로 연 관리 웹은 `stop`으로 중지합니다.
+[stdio·HTTP와 웹 실행](docs/operations/06-connection-modes.md).
+
+## 지원 범위와 준비 사항
+
+Claude Code·Codex·Cursor·Copilot CLI·Gemini CLI·OpenCode를 지원합니다.
+Hub는 클라이언트와 외부 서버의 MCP 버전을 각각 협상합니다. Apps·Tasks 등은
+[기능별 호환성 표](docs/architecture/02-compatibility.md)에서 확인하세요.
+
+외부 stdio MCP에는 Linux/WSL 격리 또는 Docker 등 [실행 환경 준비](docs/operations/10-security-boundaries.md)가 필요합니다.
+격리할 수 없으면 연결을 거절합니다. 서비스 토큰은 OS 보안 저장소로 보호하며,
+Linux에서 토큰을 저장하려면 Secret Service와 열린 로그인 키링이 필요합니다.
+[환경별 인증 준비](docs/operations/05-auth-project-skills.md).
+
+검색은 스킬·등록된 MCP·연결된 도구를 함께 제공합니다. 연결된 도구는 native 목록에도 노출하므로
+실제 컨텍스트 사용량은 에이전트에 따라 달라집니다. [검색 범위](docs/operations/08-catalog-search.md).
+
+## 기여와 배포
+
+[개발 절차](docs/development/00-index.md) · [테스트 준비와 검증](docs/development/02-quality.md) ·
+[스킬 작성](docs/skill-authoring.md) · [Pages 배포](docs/installation/02-github-pages.md).
+
+현재 CI 결과는 [GitHub Actions](https://github.com/joongi007/joongi-skills/actions)에서 확인합니다.
+[검증 기록](docs/development/03-verification.md)은 날짜별 실행 이력이며, 과거의 테스트 수는 최신 상태를 뜻하지 않습니다.
+프로젝트는 [MIT License](LICENSE)를 따릅니다. 서드파티 라이선스와 NOTICE는 각각 유지합니다.

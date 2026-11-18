@@ -17,7 +17,6 @@
 | WP-08 | Pages·배포 산출물 | WP-07 | 정적 build·상대 경로·설치 스크립트·비밀 미포함 |
 | WP-09 | 플레이북·출처·문서 | 없음 | routing·§번호·경로·정확한 조건·source 조회일 |
 | WP-10 | 통합·보안·완료 증거 | WP-01~09 | 버전 교차 조합·실제 사용자 흐름·회귀 검증 |
-
 | WP-11 | upstream 인증·discovery·토큰 보관 (`auth.py`, fixture) | WP-02/03 계약 | PKCE·issuer·resource·갱신·철회·device polling·비밀 미노출 |
 | WP-12 | 프로젝트 카탈로그·상태 경계 (`profiles.py`) | WP-01/02 계약 | 선택·override·URI·경로·stdio 세션 범위 고정 |
 | WP-13 | 스킬 계획·고정 (`skill_management.py`) | WP-07/12 계약 | 스냅샷·수정 보호·lockfile·재사용 거절·복구 |

@@ -1,32 +1,40 @@
 # 문서 안내
 
-처음 사용한다면 아래에서 목적에 맞는 경로를 고르세요. 전체 문서를 순서대로 읽을 필요는 없습니다.
+Joongi Skills & Hub는 AI 에이전트에 공통 지침을 설치하고 여러 MCP 연결을 관리하는 로컬 도구입니다.
+처음 방문했다면 **[처음 사용하기](getting-started/00-index.md)**에서 준비·설치·연결 확인 순서로 시작하세요.
+개발자의 대화 기록이나 개인 MCP 설정은 필요하지 않습니다.
 
-| 지금 필요한 일 | 시작점 |
+## 사용자를 위한 안내
+
+| 필요한 일 | 읽을 문서 |
 |---|---|
-| 내 에이전트에 설치 | [설치·업데이트·제거](installation/00-index.md) |
-| 설치 후 첫 사용 | [README의 첫 사용 안내](../README.md#설치-후-첫-사용) |
-| 웹을 켜고 끄거나 연결 문제 해결 | [연결 방식](operations/06-connection-modes.md) · [장애 확인](operations/00-index.md) |
-| 지원 여부 확인 | [기능별 호환성](architecture/02-compatibility.md) · [검증 기록](development/03-verification.md) |
-| 스킬을 직접 수정 | [작성 규칙](skill-authoring.md) · [패키징](development/04-skill-packaging.md) |
+| 간편 설치·업데이트·제거 | [설치 안내](installation/00-index.md) |
+| 최초 스크립트도 실행 전에 검증 | [보안 설치](installation/04-verified-install.md) |
+| 어떤 스킬이 설치되는지 확인 | [README의 스킬 목록](../README.md#함께-설치되는-스킬) |
+| 관리 화면 열기·끄기·stdio/HTTP 선택 | [연결 방식과 웹 UI](operations/06-connection-modes.md) |
+| MCP 등록·연결·로그인·호출 승인 | [첫 연결 순서](getting-started/00-index.md#4-외부-mcp-등록연결로그인하기) · [인증 상세](operations/05-auth-project-skills.md) |
+| 스킬·등록 MCP·연결 도구 검색 | [통합 검색](operations/08-catalog-search.md) |
+| 다이어그램·아이콘·3D 제작 | [시각 자료 제작](operations/13-visual-workflows.md) · [3D와 호스트 승인](operations/12-3d-and-host-consent.md) |
+| 연결이 안 되거나 목록이 다름 | [장애 확인](operations/00-index.md#장애-확인) · [상태 저장소](operations/07-state-consistency.md) |
+| 지원 기능과 보안 한계 확인 | [호환성](architecture/02-compatibility.md) · [보안 경계](operations/10-security-boundaries.md) |
 
-기여자: [제품 방향](01-vision.md) → [범위·수용 조건](02-scope.md) →
-[구조](architecture/00-index.md) → [개발 절차](development/00-index.md).
+설치된다는 것과 외부 서비스에 연결·로그인된다는 것은 다릅니다. 최초 설치의 외부 MCP 목록은 비어 있습니다.
+이 프로젝트의 스킬 5개는 작업 지침이며 외부 편집기·엔진 전체를 자동 설치하지 않습니다.
 
-| 문서 | 답하는 질문 |
+## 기여자와 운영자를 위한 안내
+
+| 목적 | 읽을 문서 |
 |---|---|
-| [vision](01-vision.md) | 누구의 어떤 문제를 해결하는가 |
-| [scope](02-scope.md) | 무엇을 제공하고 무엇을 검증해야 하는가 |
-| [architecture](architecture/00-index.md) | 경계·상태·버전 호환성·보안은 어떻게 동작하는가 |
-| [ADRs](adr/00-index.md) | 왜 이 구조를 선택했는가 |
-| [development](development/00-index.md) | 사람·에이전트가 어떤 단위로 나눠 검증하는가 |
-| [operations](operations/00-index.md) | 실행·장애 확인·복구를 어떻게 하는가 |
-| [installation](installation/00-index.md) | 배포·설치·업데이트·제거를 어떻게 하는가 |
-| [skill-authoring](skill-authoring.md) | 스킬과 참조 자료를 어떻게 작성하는가 |
-| [local-inventory](operations/03-local-inventory.md) | 로컬 프로젝트의 MCP·스킬 출처를 어떻게 모으는가 |
+| 제품 목적·요구사항 | [제품 방향](01-vision.md) · [범위와 수용 조건](02-scope.md) |
+| 구조·프로토콜 계약·설계 이유 | [아키텍처](architecture/00-index.md) · [설계 결정](adr/00-index.md) |
+| 코드 변경·작업 분할·검증 | [개발 절차](development/00-index.md) · [테스트 준비](development/02-quality.md) |
+| 스킬 수정·패키징 | [작성 규칙](skill-authoring.md) · [패키징](development/04-skill-packaging.md) |
+| 직접 Pages 배포·공개 점검 | [배포 절차](installation/02-github-pages.md) · [공개 전 점검](installation/03-publication.md) |
+| 과거 시험과 검수 결과 | [날짜별 검증 기록](development/03-verification.md) · [보안 검수](operations/09-security-audit.md) |
+| 제안과 미구현 기능 | [백로그](development/05-backlog.md) |
 
-숫자는 해당 폴더의 읽는 순서다. 독립 주제가 되면 하위 폴더와 `00-index.md`를 만든다.
-문서 ID·요구사항 ID·ADR ID는 경로 변경에도 유지한다. 현재 계약은 코드·테스트와 함께
-갱신하고, 제안은 확정된 동작과 구분해 적는다.
-
-보안 설정: [실행 격리·배포 검증·로컬 토큰 수명](operations/10-security-boundaries.md).
+문서의 명령은 별도 표시가 없으면 저장소 루트 또는 설치한 사용자의 터미널에서 실행합니다.
+`/path/to/...`, `/절대/...`는 사용자의 실제 경로로 바꿔야 하는 예시입니다.
+날짜가 있는 검증·조사 기록은 그 시점의 증거이며 현재 실행 상태나 테스트 수를 뜻하지 않습니다.
+최신 원격 결과는 [GitHub Actions](https://github.com/joongi007/joongi-skills/actions)에서 확인하세요.
+폴더의 숫자는 읽는 순서이고, 하위 주제는 각 폴더의 `00-index.md`에서 안내합니다.

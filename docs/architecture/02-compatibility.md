@@ -18,6 +18,12 @@ V1/V2는 제품 내 별칭일 뿐이다. 지원 범위는 `2025-11-25`, `2026-07
 | Tasks | 실험적 task 계약 | `io.modelcontextprotocol/tasks` 확장 | 버전별 method/result/state 변환 |
 | Skills | resources/tools 기반 조회 | skills/list·skills/get + SHA-256 manifest·directoryRead | 안전한 YAML·text/binary 파일과 디렉터리 조회 |
 
+## 두 연결의 버전을 따로 협상합니다
+
+에이전트가 Hub에 붙는 연결을 downstream, Hub가 외부 MCP 서버에 붙는 연결을 upstream이라고 부릅니다.
+예를 들어 에이전트가 2025 규격이어도 Hub는 외부 서버와 2026 규격으로 별도 연결할 수 있습니다.
+버전 날짜를 수락하는 것과 모든 확장 기능을 변환할 수 있는 것은 다릅니다. 아래 표의 기능별 제한도 함께 확인하세요.
+
 ## 구현한 기능 범위
 
 로컬 스킬은 `hub_search`, `hub_read_skill` 도구와 `skill://` resources로 조회한다.

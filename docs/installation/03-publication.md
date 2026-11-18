@@ -66,7 +66,7 @@ Pages는 전체 Check를 재사용하며 성공 후 정적 페이지와 설치 �
 디자인 토큰과 SDK 번들의 표시는 `joongi_hub/static/NOTICE*`, vendored YAML은
 `joongi_hub/_vendor/yaml/LICENSE`와 `PROVENANCE.json`에서 확인한다.
 
-MIT 선택은 2026-11-11 사용자 요청에 따라 반영했다. GitHub 저장소는
+프로젝트의 기본 라이선스는 MIT다. 공식 GitHub 저장소는
 `https://github.com/joongi007/joongi-skills`를 사용한다. 원격 CI·Pages 상태는 해당 저장소의
 Actions 실행 결과와 Pages 설정에서 확인한다.
 

@@ -1,21 +1,45 @@
 # 설치·업데이트·제거
 
-Python 3.10 이상이면 추가 패키지 없이 실행한다. 개발 기준은 Python 3.14이며,
-설치 가능한 환경을 넓히려고 런타임의 최소 버전은 3.10으로 둔다.
-설치에는 관리자 권한이 필요 없다. 기본 연결은 순수 stdio이며, 설치와 함께
-`--mode hybrid --start`로 공유 서버를 켤 수도 있다.
-세부 사용은 [연결 방식과 웹 실행](../operations/06-connection-modes.md)을 본다. 실제 설치 전 `--dry-run`으로 경로를 확인할 수 있다.
+AI 에이전트용 스킬과 `joongi-hub` MCP 연결을 사용자 홈에 설치합니다.
+관리자 권한은 필요하지 않습니다. 에이전트 앱과 외부 MCP 서버는 별도로 준비합니다.
+처음 사용하는 분은 [설치 후 첫 사용](../getting-started/00-index.md)도 함께 읽으세요.
 
-원격 설치·업데이트에는 [GitHub CLI](https://cli.github.com/)의 서명 검증 기능이 필요합니다.
-외부 stdio MCP에는 Linux/WSL 격리 또는 Docker가 필요하며, 준비되지 않으면 연결을 거절합니다.
-[보안 경계·플랫폼 준비](../operations/10-security-boundaries.md).
+## 준비 사항
+
+| 항목 | 필요한 경우 |
+|---|---|
+| Python 3.10 이상 | 모든 설치와 Hub 실행. Windows는 `py -3`, POSIX는 `python3` 확인 |
+| GitHub CLI (`gh attestation verify`) | 다운로드 설치와 원격 업데이트의 서명 검증 |
+| Bash·curl 또는 PowerShell | 해당 OS의 다운로드 명령 |
+| 에이전트 설정 폴더 | 자동 등록 대상 감지. 없으면 Hub만 설치 |
+| OS 보안 저장소 | 서비스 인증 저장. Linux는 Secret Service·열린 키링과 `secret-tool`·`gdbus` 필요 |
+| Linux/WSL 격리 또는 Docker | 외부 stdio MCP 실행. 단순 스킬 검색·원격 HTTPS MCP와는 구분 |
+
+[환경별 보안 준비](../operations/10-security-boundaries.md) · [인증 저장소](../operations/05-auth-project-skills.md).
+기본은 순수 stdio로, 에이전트가 필요할 때 Hub를 실행합니다. 관리 웹을 미리 켤 필요는 없습니다.
 
 ## 클론 없이 설치
 
-[설치 안내 사이트](https://joongi007.github.io/joongi-skills/)에서 OS별 명령을 복사해 터미널에서 실행한다.
-사이트는 설치 파일을 제공하고, Hub는 사용자의 컴퓨터에서 실행된다.
-설치 후에는 에이전트의 MCP 연결을 다시 열고 스킬 검색을 확인한다.
-[설치 후 첫 사용 순서](../../README.md#설치-후-첫-사용).
+macOS·Linux·WSL의 Bash에서 실행합니다.
+
+```bash
+curl -fsSL 'https://joongi007.github.io/joongi-skills/install.sh' | bash -s -- install
+```
+
+Windows는 아래 [Windows](#windows)의 PowerShell 명령을 사용합니다.
+이 간편 방식은 HTTPS로 받은 설치 스크립트를 바로 실행합니다. 스크립트 내부의 설치 번들
+서명·출처 검증은 필수입니다. 최초 스크립트도 실행 전에 검증하려면 [보안 설치](04-verified-install.md)를 선택하세요.
+
+설치 계획만 확인하거나 특정 에이전트를 선택할 수 있습니다. 다음 예시는 Bash입니다.
+
+```bash
+curl -fsSL 'https://joongi007.github.io/joongi-skills/install.sh' | bash -s -- install --dry-run
+curl -fsSL 'https://joongi007.github.io/joongi-skills/install.sh' | bash -s -- install --agent codex
+```
+
+`--dry-run`은 변경 계획만 출력하며 설치하지 않습니다. 계획을 확인했다면 `--dry-run` 없이 다시 실행하세요.
+설치 후 에이전트에서 `joongi-hub` 연결을 다시 열고 “Hub에서 usual-korean 스킬을 찾아 읽어줘”라고 요청합니다.
+외부 MCP 목록이 비어 있는 것은 정상입니다. 사용할 서비스는 [직접 등록·로그인](../getting-started/00-index.md#4-외부-mcp-등록연결로그인하기)합니다.
 
 ## 클론에서 설치
 
@@ -58,7 +82,7 @@ bash install.sh update
 
 ```bash
 ~/.local/bin/joongi-skills update --source /path/to/joongi-skills
-~/.local/bin/joongi-skills update --download-base https://OWNER.github.io/REPOSITORY
+~/.local/bin/joongi-skills update --download-base https://joongi007.github.io/joongi-skills
 ~/.local/bin/joongi-skills update    # 원래 설치 출처에서 갱신하고 새 에이전트 재탐지
 ```
 
@@ -98,7 +122,16 @@ Pages 설치는 다운로드 주소를 기억하므로 이후 `joongi-skills upd
 
 ## Windows
 
-클론에서 PowerShell로 실행한다.
+PowerShell에서 간편 설치합니다. 전역 실행 정책은 바꾸지 않습니다.
+
+```powershell
+& ([scriptblock]::Create((Invoke-RestMethod 'https://joongi007.github.io/joongi-skills/install.ps1'))) install
+```
+
+계획만 확인하려면 같은 명령 끝에 `--dry-run`을 추가하고, 설치할 때는 제거합니다.
+실행 전 최초 스크립트 서명까지 확인하려면 [보안 설치](04-verified-install.md#windows-powershell)를 사용합니다.
+
+클론에서 설치하는 경우에는 저장소 루트에서 다음을 실행합니다.
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 install --dry-run
@@ -121,6 +154,28 @@ PATH의 `python.exe`가 오래된 버전이어도 지원 버전이 `py`에 등�
 
 Windows PowerShell 설치와 실제 공개 URL의 설치·업데이트·제거는 CI와 로컬 Windows에서 검증했다.
 사용한 환경·명령·제한은 [검증 기록](../development/03-verification.md)을 본다.
+
+## WSL에서 사용하기
+
+WSL 안에서 실행하는 에이전트는 WSL 터미널에서 설치합니다. Windows 앱은 Windows PowerShell에서 설치합니다.
+두 환경은 홈과 MCP 등록·인증 상태가 기본적으로 다르므로, 같은 PC라고 자동 공유하지는 않습니다.
+
+Windows 에이전트도 이미 설치된 WSL Hub 하나를 사용하려면 Windows 설치 명령에
+`--wsl-distribution 배포판이름`을 명시합니다. 설치된 배포판 이름은 `wsl.exe --list --quiet`로 확인합니다.
+또는 WSL 관리 화면의 **Windows용 WSL 연결 생성**을 사용해 검토한 설정을 Windows 에이전트에 복사합니다.
+[상태 경로와 공유](../operations/07-state-consistency.md) · [연결 설정](../operations/06-connection-modes.md).
+
+## 설치가 안 될 때
+
+| 증상 | 다음 행동 |
+|---|---|
+| Python 또는 gh를 찾을 수 없음 | 필요한 도구를 설치하고 터미널을 다시 엽니다. Python은 `JOONGI_PYTHON`으로 지정 가능 |
+| 서명·main 커밋 불일치 | 설치하지 않습니다. GitHub Actions의 최신 배포가 완료됐는지 확인하고 다시 받습니다 |
+| 같은 이름의 스킬·MCP 충돌 | 표시된 경로의 소유권을 확인합니다. 수정 내용을 보관하고 출처를 정리한 뒤 다시 실행합니다 |
+| 에이전트가 감지되지 않음 | 에이전트를 한 번 실행해 설정 폴더를 만들거나 `--agent codex`처럼 명시합니다 |
+| 설치 후 명령을 찾을 수 없음 | 이 문서의 전체 경로 명령을 쓰거나 `~/.local/bin`을 PATH에 추가합니다 |
+| 설치 후 Hub가 보이지 않음 | 에이전트의 MCP 연결을 다시 엽니다. 새 스킬 목록은 새 세션이 필요할 수 있습니다 |
+| 원격 설치를 오프라인에서 실행 | 다운로드·검증은 네트워크가 필요합니다. 신뢰한 로컬 클론의 설치는 원격 설치와 구분합니다 |
 
 ## 테스트용 경로
 
