@@ -50,6 +50,10 @@ async function main() {
     await page.setViewportSize({ width, height: 1000 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false, 'Installation overflow at ' + width);
     assert(await verified.evaluate(node => node.scrollWidth >= node.clientWidth));
+    assert(await page.locator('.steps .step-num').evaluateAll(nodes => nodes.every(node => {
+      const range = document.createRange(); range.selectNodeContents(node);
+      return range.getClientRects().length === 1;
+    })), 'Step labels wrap at ' + width);
     assert(await page.getByRole('button', { name: 'Bash 간편 설치 명령 복사', exact: true }).evaluate(node => node.getBoundingClientRect().height >= 44));
   }
   // Clipboard failure gives a selected command and a useful live instruction.

@@ -14,3 +14,5 @@
 /* Final visual review: keep Korean words intact and flatten sequential examples. */
 body{word-break:keep-all;overflow-wrap:anywhere}.eyebrow,.example-brief .step-num{font-family:inherit}.example-flow ol{counter-reset:flow;gap:var(--space-3)}.example-flow li{counter-increment:flow;position:relative;border:0;border-bottom:1px solid var(--border-soft);border-radius:0;padding:var(--space-3) 0 var(--space-4) var(--space-8)}.example-flow li::before{content:counter(flow);position:absolute;left:0;top:var(--space-3);font-family:var(--font-mono);font-size:var(--text-sm);color:var(--muted)}
 @media(max-width:720px){.hero h1{font-size:2rem;letter-spacing:-.045em}.connection-map{flex-wrap:nowrap;gap:var(--space-2)}.connection-map>div{flex:1 1 0}.connection-map strong{font-size:12px}.connection-map div>span{font-size:11px}.connection-map .map-arrow{transform:none;margin-left:0}}
+
+.steps .step-num{flex:0 0 2ch;white-space:nowrap;overflow-wrap:normal}
