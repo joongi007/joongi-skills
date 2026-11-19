@@ -420,3 +420,14 @@ Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/
 - **Codex Security 실제 스캔은 미실행**이다. 위 검사와 별도 에이전트의 소스 리뷰를 해당 제품의 검수로 대신하지 않는다.
   변경은 보안 전용 검수 전 draft PR로 유지하며 병합·배포 완료로 표시하지 않는다.
   공식 기능과 추가 어댑터 수용 조건은 [통합 검토](../operations/15-codex-security.md)에 기록했다.
+
+
+### 2026-11-20: Codex Security 발견 사항 수정·재검수
+
+- 대상 코드 커밋 `d7e0b8f30db6`: 프로젝트 스킬/MCP 소유권을 checkout 밖 profile 저장소로 분리하고 MCP 상태 응답에서 절대 경로를 제거했다.
+- 공식 `@openai/codex-security@0.10.1 validate` 소스 재검수에서 두 발견 사항 모두 `fixed`, 신뢰도 높음으로 판정됐다.
+  분리 사본과 원본의 tree hash 일치를 확인했다. 공격·PoC·애플리케이션·테스트 실행은 해당 검수에 포함하지 않았다.
+- 별도 회귀 검사: 전체 Python 378개 실행, 플랫폼 전용 4개 제외·실패 없음.
+  관련 Linux 테스트 92개 통과. native Windows도 같은 92개 실행, 플랫폼 전용 4개 제외·실패 없음.
+- 실제 브라우저의 스킬 설치·프로젝트 분리·연결 등록·모바일 검사 통과. Ruff·문서 실행 계약 검사 통과.
+- 이 후속 기록은 앞 절의 초기 Codex Security 미실행 상태를 갱신한다. 전체 discovery scan이나 런타임 침투 검증 결과는 아니다.

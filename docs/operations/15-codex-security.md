@@ -50,10 +50,12 @@ Daybreak의 고급 접근 권한을 사용한다면 승인된 내부 사용자/�
 
 ## 현재 검수 상태
 
-이번 환경에는 Codex Security CLI와 연결된 보안 스캔 도구가 확인되지 않았다.
-플러그인 검색에서도 연결 가능한 Codex Security/Daybreak Defense Factory 항목을 찾지 못했다.
-따라서 이 변경을 **Codex Security 검수 완료**로 표시하지 않는다. 저장소의 회귀 검사·독립 리뷰는 별도 검증이다.
-CLI가 없거나 인증되지 않았다는 사실은 소스가 안전하다는 근거도, 접근 승인이 영구 불가능하다는 의미도 아니다.
+초기 작성 시에는 연결된 스캔 도구와 CLI가 없어 검수를 미실행으로 기록했다.
+2026-11-20에는 공식 CLI 0.10.1의 `validate`를 기존 ChatGPT 인증으로 실행했다.
+이는 후보 위험에 대한 소스 전용 평가이며, 전체 discovery scan이나 공격 재현을 수행했다는 뜻이 아니다.
+발견한 프로젝트 설치 소유권·상태 경로 노출 두 항목은 수정 커밋 `d7e0b8f30db6`에서 다시 평가해 모두 `fixed` 판정을 받았다.
+공개 소스만 분리한 사본과 원본의 Git tree hash가 같음을 확인했다.
+실제 Hub 상태·OAuth 정보·외부 MCP에는 접근하지 않았고, 기존 허브에 scanner 실행 도구를 추가하지도 않았다.
 
 실행 절차와 필수 검수 미충족 시 기록은
 [에이전트 보안 검수 가이드](../../skills/engineering-playbook/references/agent-security-review.md)를 따른다.
