@@ -126,6 +126,7 @@ def _grant(path, write=False, state=None):
                 "tasks.sqlite3",
                 "security-events.jsonl",
                 "security-events.previous.jsonl",
+                "managed-installations",
             )
         ]
     if write:

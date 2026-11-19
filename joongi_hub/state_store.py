@@ -30,7 +30,7 @@ def temporary(directory):
     return any(path == root or path.is_relative_to(root) for root in roots)
 
 
-def describe(directory, server_count=None):
+def describe(directory, server_count=None, *, include_paths=True):
     directory = Path(directory).resolve()
     registry = Registry(directory)
     warnings = []
@@ -44,11 +44,19 @@ def describe(directory, server_count=None):
     if count == 0:
         warnings.append("이 저장소에 등록된 MCP가 없습니다. 이전에 사용한 저장 경로를 확인하세요.")
     return {
-        "state_dir": str(directory),
-        "default_state_dir": str(default_directory()),
+        **(
+            {"state_dir": str(directory), "default_state_dir": str(default_directory())}
+            if include_paths
+            else {}
+        ),
         "temporary": temporary(directory),
         "server_count": count,
-        "registry_backup": str(registry.backup) if registry.backup.is_file() else None,
+        "backup_available": registry.backup.is_file(),
+        **(
+            {"registry_backup": str(registry.backup) if registry.backup.is_file() else None}
+            if include_paths
+            else {}
+        ),
         "warnings": warnings,
     }
 

@@ -323,10 +323,22 @@ def run_wsl_hub(backend, arguments):
 
 
 class Installer:
-    def __init__(self, home: Path, source: Path, dry_run: bool = False):
+    def __init__(
+        self, home: Path, source: Path, dry_run: bool = False, *, state_dir: Path | None = None
+    ):
         self.home = home.expanduser().resolve()
         self.source = source.resolve()
-        self.state = self.home / ".local/share/joongi-skills"
+        self.external_state = state_dir is not None
+        self.state = (
+            Path(state_dir).expanduser().absolute()
+            if state_dir is not None
+            else self.home / ".local/share/joongi-skills"
+        )
+        if self.external_state and (
+            self.state.resolve().is_relative_to(self.home)
+            or self.home.is_relative_to(self.state.resolve())
+        ):
+            raise InstallError("Project ownership state must be outside the project checkout")
         self.manifest_path = self.state / "installation.json"
         self.runtime = self.state / "runtime"
         self.bin_dir = self.home / ".local/bin"
@@ -334,16 +346,29 @@ class Installer:
         self.messages: list[str] = []
         self.operations: list[tuple[Path, bytes | Path | None, dict | None]] = []
         self.config_baselines: dict[Path, bytes | None] = {}
-        self._check_path(self.manifest_path)
+        self._check_state_path(self.manifest_path)
         self.original_manifest = (
             self.manifest_path.read_bytes() if self.manifest_path.exists() else None
         )
         self.manifest = self._read_manifest()
 
+    def _check_state_path(self, path: Path) -> None:
+        # State is a separate trusted boundary; destination writes stay confined
+        # to self.home through _check_path. No CLI option accepts this override.
+        if not self.external_state:
+            self._check_path(path)
+            return
+        if not path.is_relative_to(self.state) or not path.resolve().is_relative_to(
+            self.state.resolve()
+        ):
+            raise InstallError("Installation state path escapes its trusted directory")
+        if any(current.is_symlink() for current in (path, *path.parents)):
+            raise InstallError("Installation state traverses a symlink")
+
     def _read_manifest(self) -> dict:
         if not self.manifest_path.exists():
             return {"schema": 1, "entries": {}, "agents": []}
-        self._check_path(self.manifest_path)
+        self._check_state_path(self.manifest_path)
         data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         if data.get("schema") != 1 or not isinstance(data.get("entries"), dict):
             raise InstallError("Unsupported installation manifest")
@@ -713,8 +738,8 @@ class Installer:
     def _apply(self) -> None:
         if self.dry_run:
             return
-        self._check_path(self.state)
-        self.state.mkdir(parents=True, exist_ok=True)
+        self._check_state_path(self.state)
+        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
         lock = self.state / "install.lock"
         try:
             descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -723,6 +748,7 @@ class Installer:
         os.close(descriptor)
         applied: list[tuple[Path, Path | None]] = []
         try:
+            self._check_state_path(self.manifest_path)
             current_manifest = (
                 self.manifest_path.read_bytes() if self.manifest_path.exists() else None
             )
@@ -754,6 +780,7 @@ class Installer:
             self.manifest["source"] = str(self.source)
             content = json.dumps(self.manifest, ensure_ascii=False, indent=2) + "\n"
             staged = self.state / "installation.json.tmp"
+            self._check_state_path(staged)
             staged.write_text(content, encoding="utf-8")
             staged.chmod(0o600)
             staged.replace(self.manifest_path)

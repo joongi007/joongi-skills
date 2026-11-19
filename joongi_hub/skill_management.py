@@ -10,7 +10,6 @@ import time
 from pathlib import Path
 
 from joongi_hub.errors import RpcError
-from joongi_hub.profiles import confined
 from joongi_hub.skills import NAME_PATTERN, Skills
 from joongi_hub.storage import atomic_json
 from scripts.install_manager import AGENTS, Installer, InstallError, copy_tree, tree_files
@@ -38,15 +37,13 @@ class SkillManager:
 
     def _installer(self, source=None):
         root = Path(self.hub.project["root"]) if self.hub.project else self.home
-        installer = Installer(root, source or self.hub.common_skills.directory.parent)
-        if self.hub.project:
-            installer.state = confined(root, ".joongi/private")
-            installer.manifest_path = installer.state / "installation.json"
-            installer._check_path(installer.manifest_path)
-            installer.original_manifest = (
-                installer.manifest_path.read_bytes() if installer.manifest_path.exists() else None
-            )
-            installer.manifest = installer._read_manifest()
+        installer = Installer(
+            root,
+            source or self.hub.common_skills.directory.parent,
+            state_dir=self.hub.state_dir / "managed-installations/skills"
+            if self.hub.project
+            else None,
+        )
         return installer
 
     def _destinations(self, installer):
@@ -79,7 +76,7 @@ class SkillManager:
             raise RpcError(-32602, "등록된 스킬 출처를 찾을 수 없습니다.")
         return source
 
-    def status(self):
+    def status(self, *, include_paths=True):
         try:
             installer = self._installer()
             destinations = self._destinations(installer)
@@ -99,11 +96,14 @@ class SkillManager:
                                 "version": installer.manifest.get("skill_versions", {}).get(key),
                             }
                         )
+            if not include_paths:
+                for item in result:
+                    item.pop("path", None)
             return {
                 "scope": self.hub.profile_id,
                 "installed": result,
                 "available": sorted(self._available()),
-                "source": str(self._source(installer)),
+                **({"source": str(self._source(installer))} if include_paths else {}),
                 "agents": list(destinations),
             }
         except (InstallError, OSError, ValueError) as exc:
@@ -293,9 +293,6 @@ class SkillManager:
                 # _apply owns the existing installer lock, backup and rollback.
                 # Remember the trusted origin rather than the temporary snapshot.
                 installer.source = Path(plan["source"])
-                if self.hub.project:
-                    installer.state.mkdir(parents=True, exist_ok=True)
-                    (installer.state / ".gitignore").write_text("*\n", encoding="utf-8")
                 if self.hub.project:
                     keys = {
                         key

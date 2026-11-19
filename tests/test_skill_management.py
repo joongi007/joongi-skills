@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from joongi_hub.errors import RpcError
 from joongi_hub.service import Hub
-from scripts.install_manager import Installer, InstallError
+from scripts.install_manager import Installer, InstallError, tree_files
 from tests.test_projects import skill
 
 
@@ -129,6 +129,89 @@ class SkillManagement(unittest.TestCase):
         self.assertEqual(
             (self.project_root / "joongi-skills.lock.json").read_text(), "user-owned lock"
         )
+
+    def test_project_manifest_cannot_claim_company_skill_ownership(self):
+        target = self.project_root / ".agents/skills/demo"
+        skill(target.parent, "demo", "company-owned")
+        legacy = self.project_root / ".joongi/private/installation.json"
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "entries": {
+                        ".agents/skills/demo": {"kind": "tree", "files": tree_files(target)}
+                    },
+                }
+            )
+        )
+        # Even a malformed user-installer manifest inside the checkout must not
+        # be loaded before the separate project ownership store is selected.
+        decoy = self.project_root / ".local/share/joongi-skills/installation.json"
+        decoy.parent.mkdir(parents=True)
+        decoy.write_text("untrusted checkout metadata")
+        before = tree_files(target)
+        manager = self.project.skill_manager
+        for operation in ("install", "update", "remove"):
+            plan = manager.plan(operation, ["demo"], ["codex"])
+            self.assertEqual(plan["actions"][0]["action"], "blocked")
+            with self.assertRaises(RpcError):
+                manager.apply(plan["id"])
+            self.assertEqual(tree_files(target), before)
+        self.assertFalse(manager._installer().state.is_relative_to(self.project_root))
+        self.assertFalse(manager._installer().manifest["entries"])
+
+    def test_trusted_project_ownership_survives_restart_and_ignores_checkout_metadata(self):
+        manager = self.project.skill_manager
+        self.install(manager)
+        manifest = manager._installer().manifest_path
+        self.assertTrue(manifest.is_relative_to(self.project.state_dir))
+        self.assertFalse((self.project_root / ".joongi/private").exists())
+        legacy = self.project_root / ".joongi/private/installation.json"
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text("not a trusted ownership record")
+        from joongi_hub.skill_management import SkillManager
+
+        restored = SkillManager(self.project, self.home)
+        self.assertEqual(restored.status()["installed"][0]["name"], "demo")
+        plan = restored.plan("remove", ["demo"], ["codex"])
+        restored.apply(plan["id"])
+        self.assertFalse((self.project_root / ".agents/skills/demo").exists())
+        self.assertEqual(legacy.read_text(), "not a trusted ownership record")
+
+    def test_upstream_cannot_be_granted_write_access_to_project_ownership(self):
+        from joongi_hub.sandbox import _grant
+
+        state = self.project.skill_manager._installer().state
+        state.mkdir(parents=True)
+        with self.assertRaises(RpcError):
+            _grant(str(state), write=True, state=self.project.state_dir)
+
+    def test_external_state_cannot_be_redirected_into_checkout_or_outside_state(self):
+        with self.assertRaises(InstallError):
+            Installer(self.project_root, self.source, state_dir=self.project_root / "private")
+        installer = self.project.skill_manager._installer()
+        with self.assertRaises(InstallError):
+            installer._check_state_path(installer.state.parent / "foreign.json")
+        with self.assertRaises(InstallError):
+            installer._stage(self.root / "outside-project", b"no", "file")
+
+    def test_mcp_skill_status_omits_paths_but_local_management_preserves_them(self):
+        manager = self.project.skill_manager
+        self.install(manager)
+        for owner in (False, True):
+            for name, args in (
+                ("hub_skills_status", {}),
+                ("hub_call", {"name": "hub_skills_status", "arguments": {}}),
+            ):
+                response = self.project.invoke(name, args, local_owner=owner)
+                data = json.loads(response["content"][0]["text"])
+                self.assertNotIn("source", data)
+                self.assertNotIn("path", data["installed"][0])
+                self.assertNotIn(str(self.root), json.dumps(data))
+                self.assertEqual(data["installed"][0]["name"], "demo")
+        self.assertIn("path", manager.status()["installed"][0])
+        self.assertIn("source", manager.status())
 
     def test_scope_cannot_apply_other_project_plan(self):
         plan = self.project.skill_manager.plan("install", ["demo"], ["codex"])

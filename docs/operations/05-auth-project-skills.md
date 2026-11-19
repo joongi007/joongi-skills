@@ -139,6 +139,8 @@ python3 -m joongi_hub stdio --state-dir /path/to/hub-state --profile project-id
 스킬 라이브러리의 **설치 관리**에서 작업·스킬·에이전트를 고르고 **변경 계획 보기**를 누른다.
 대상 경로와 보호할 파일을 확인한 다음 **이 계획 적용**을 누른다. MCP에서도
 `hub_skills_status`, `hub_skills_plan`, `hub_skills_apply`로 같은 기능을 사용한다.
+MCP의 상태 조회는 절대 경로를 반환하지 않는다. 실제 출처·대상 경로는 로컬 관리 화면에서 확인한다.
+파일을 변경하는 계획은 적용 대상을 검토할 수 있도록 경로를 표시한다.
 `hub_auth_status`는 비밀 값 없이 현재 범위의 인증 상태를 반환한다. OAuth 로그인은 위의 에이전트 시작 흐름도 지원하며, 수동 비밀 입력은 로컬 UI에서 한다.
 
 공용 범위는 사용자 스킬 폴더에, 프로젝트 범위는 프로젝트 스킬 폴더에 복사한다.
@@ -151,7 +153,12 @@ Claude·Codex·Cursor·Copilot·Gemini·OpenCode 중 대상을 고를 수 있다
 계획은 15분간 유효하고 원본 스냅샷·대상 파일·manifest가 바뀌면 재계획해야 한다.
 다른 도구가 설치했거나 직접 수정한 파일을 덮어쓰지 않는다. 적용 실패 시 installer가 복구한다.
 프로젝트 복사본은 기본 버전 고정이며, 업데이트하려면 **고정 해제**를 먼저 적용한다.
-`joongi-skills.lock.json`은 버전·digest·고정을 기록하고, 기기별 관리 정보는 `.joongi/private/`에 둔다.
+`joongi-skills.lock.json`은 버전·digest·고정을 공유하는 비권위적 기록이다.
+실제 소유권은 프로젝트 밖의 해당 Hub profile 저장소 `managed-installations/skills/installation.json`에 둔다.
+기존 `.joongi/private/installation.json`이나 프로젝트 안의 installer 기록을 자동으로 신뢰하거나 가져오지 않는다.
+이전 기록만 있는 파일은 미관리 파일로 보존하므로 자동 업데이트·제거가 차단될 수 있다.
+필요하면 기존 파일을 별도로 보관한 뒤 대상 충돌을 검토하고 새 설치 계획을 만든다.
+Hub 상태 저장소도 프로젝트 checkout 밖에 두어야 한다.
 프로젝트의 자체 스킬을 공용으로 복사하거나 설치 출처의 스킬을 자동 수정하지 않는다.
 
 업데이트의 **등록된 배포 출처 갱신**은 설치 때 기록한 다운로드 주소가 있을 때 사용한다.

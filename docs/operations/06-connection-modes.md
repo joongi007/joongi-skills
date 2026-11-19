@@ -49,7 +49,7 @@ Hub가 실행한 MCP 프로세스도 정리한다. Windows의 강제 TerminatePr
 별도 방식으로 바꿀 수 있다. 방식 변경은 연결 설정만 바꾸며 스킬·인증·Tasks 저장소를 이동하지 않는다.
 독립 stdio 프로세스들의 자격증명 갱신은 재진입 가능한 OS 파일 잠금으로 직렬화한다.
 
-CLI에서도 같은 설정을 쓴다. `joongi-hub state` 또는 MCP의 `hub_status`에서 현재
+CLI에서도 같은 설정을 쓴다. `joongi-hub state`에서 실제 경로를, MCP의 `hub_status`에서는 경로를 제외한 현재
 저장 경로·등록 수·백업 위치를 확인한다. [저장소 일관성과 복구](07-state-consistency.md)를 참고한다.
 
 ```bash
@@ -87,8 +87,10 @@ localhost 입력은 127.0.0.1로 정규화한다. HTTP 전용 bridge는 지정�
 현재 에이전트의 MCP 연결·세션은 다시 열어야 한다. 신뢰할 프로젝트의 설정을 로드하는 절차는
 각 에이전트의 기능이며 Hub가 대신 승인하지 않는다.
 
-공용 등록은 기존 installer manifest를 재사용하고, 프로젝트 등록은 `.joongi/private/mcp-installation.json`에
-소유권을 기록한다. 프로젝트 연결 파일 경로는 다음과 같다.
+공용 등록은 기존 installer manifest를 재사용하고, 프로젝트 등록은 프로젝트 밖의 해당 Hub profile 저장소
+`managed-installations/connections/installation.json`에 소유권을 기록한다.
+프로젝트 안의 이전 `.joongi/private/mcp-installation.json`은 신뢰하거나 자동 이전하지 않는다.
+이전 기록만 있으면 기존 등록을 미관리 설정으로 보호해 변경이 차단될 수 있다. 프로젝트 연결 파일 경로는 다음과 같다.
 
 | 에이전트 | 프로젝트 설정 파일 |
 |---|---|

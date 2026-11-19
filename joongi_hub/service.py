@@ -702,7 +702,8 @@ class Hub:
             },
             {
                 "name": "hub_status",
-                "description": "현재 저장 경로·등록 수·임시 저장소 경고·백업 위치를 확인합니다.",
+                "description": "등록 수·임시 저장소 경고·백업 유무를 확인합니다. "
+                "절대 경로는 로컬 관리 화면에서 확인하세요.",
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
             },
             {
@@ -1152,7 +1153,7 @@ class Hub:
                 return text_result(self.agent_approvals.request(arguments["approval_id"]))
             return text_result(self.agent_approvals.wait_status(**arguments))
         if name == "hub_skills_status":
-            return text_result(self.skill_manager.status())
+            return text_result(self.skill_manager.status(include_paths=False))
         if name == "hub_skills_plan":
             if set(arguments) - {"operation", "names", "agents", "refresh"}:
                 raise RpcError(-32602, "지원하지 않는 스킬 계획 필드입니다.")
@@ -1205,7 +1206,10 @@ class Hub:
             )
         if name == "hub_status":
             return text_result(
-                {**describe(self.state_dir, len(self.registry.list())), "profile": self.profile_id}
+                {
+                    **describe(self.state_dir, len(self.registry.list()), include_paths=False),
+                    "profile": self.profile_id,
+                }
             )
         if name == "hub_read_resource":
             return text_result(self.read_resource(arguments.get("uri", "")))
