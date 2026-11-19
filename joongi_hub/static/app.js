@@ -57,7 +57,7 @@ function shortDescription(text = '', limit = 100) {
 function skillCopy(skill) {
   return skillPresentation[skill.name] || { label: skill.name, summary: shortDescription(skill.description) };
 }
-const labels = { settings: '연결 설정', projects: '프로젝트 범위', overview: '작업 공간', skills: '스킬 라이브러리', connections: 'MCP 연결', tasks: '실행 작업', compatibility: '지원 범위' };
+const labels = { catalog: '검색 설정', settings: '연결 설정', projects: '프로젝트 범위', overview: '작업 공간', skills: '스킬 라이브러리', connections: 'MCP 연결', tasks: '실행 작업', compatibility: '지원 범위' };
 function el(tag, props = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(props)) {
@@ -182,7 +182,7 @@ function render() {
     return;
   }
   const key = `${activeProfile}/${currentView}`;
-  ({ settings: renderConnectionSettings, projects: renderProjects, overview: renderOverview, skills: renderSkills, connections: renderConnections, tasks: renderTasks, compatibility: renderCompatibility }[currentView])();
+  ({ catalog: renderCatalogSettings, settings: renderConnectionSettings, projects: renderProjects, overview: renderOverview, skills: renderSkills, connections: renderConnections, tasks: renderTasks, compatibility: renderCompatibility }[currentView])();
   if (state.storage?.temporary) page.prepend(el('aside', { class: 'notice', role: 'status' }, '임시 저장소를 사용 중입니다. 등록 정보가 삭제될 수 있으므로 공용 사용에는 기본 영구 저장소를 사용하세요.', el('code', {}, state.storage.state_dir)));
   for (const [identity, node] of viewDrafts.get(key) || []) {
     const replacement = [...page.querySelectorAll('[data-preserve]')].find(item => item.dataset.preserve === identity);
@@ -239,19 +239,61 @@ function renderOverview() {
 function hubSearch() {
   const input = el('input', { type: 'search', placeholder: '스킬·MCP·도구 검색', 'aria-label': '스킬·MCP·도구 통합 검색', maxlength: '1000' });
   const kind = el('select', { 'aria-label': '통합 검색 종류' }, ...[['all', '전체'], ['skill', '스킬'], ['server', 'MCP 서버'], ['tool', '도구']].map(([value, name]) => el('option', { value }, name)));
-  const results = el('div', { 'aria-live': 'polite' });
-  const hint = el('p', { class: 'catalog-search-hint' }, '현재 작업 범위의 스킬·등록된 MCP·연결된 도구를 함께 찾습니다. 검색만으로 서버를 실행하지 않습니다.');
+  const results = el('div', { class: 'catalog-results', 'aria-live': 'polite' });
+  const detail = el('section', { class: 'catalog-item-detail', 'aria-label': '검색 항목 상세', hidden: true });
+  const initialHint = '이름·설명 검색 → 상세·스키마 확인 → 읽기·실행 입력. 검색만으로 서버를 연결하지 않습니다.';
+  const hint = el('p', { class: 'catalog-search-hint' }, initialHint);
   const submit = el('button', { type: 'submit' }, '검색');
-  let generation = 0;
-  input.addEventListener('input', () => { ++generation; results.replaceChildren(); hint.textContent = '검색 버튼이나 Enter로 스킬·MCP·도구를 함께 찾으세요.'; });
-  kind.addEventListener('change', () => { ++generation; results.replaceChildren(); hint.textContent = '선택한 종류에서 검색하려면 검색 버튼을 누르세요.'; });
+  let generation = 0, detailGeneration = 0;
+  const resetResults = message => { ++generation; ++detailGeneration; results.replaceChildren(); detail.replaceChildren(); detail.hidden = true; hint.textContent = message; };
+  input.addEventListener('input', () => resetResults('검색 버튼이나 Enter로 스킬·MCP·도구를 함께 찾으세요.'));
+  kind.addEventListener('change', () => resetResults('선택한 종류에서 검색하려면 검색 버튼을 누르세요.'));
   const clear = button('검색 지우기', () => { section.reset(); input.value = ''; input.focus(); }, 'quiet small');
-  const section = el('section', { class: 'hub-search', 'aria-label': '통합 검색' }, el('h2', { class: 'catalog-search-label' }, '통합 검색'), el('form', { class: 'hub-search-form', onSubmit: event => {
+  async function inspectItem(item, trigger) {
+    const request = ++detailGeneration, searchRequest = generation, scope = activeProfile, catalog = catalogGeneration;
+    detail.hidden = false;
+    detail.replaceChildren(el('p', { role: 'status' }, '선택한 항목의 원본 정의를 읽고 있습니다…'));
+    await run(async () => {
+      let data;
+      try { data = await api(`/api/v1/catalog/item?kind=${encodeURIComponent(item.kind)}&name=${encodeURIComponent(item.name)}`); }
+      catch (error) {
+        if (request !== detailGeneration || searchRequest !== generation || scope !== activeProfile || catalog !== catalogGeneration) return;
+        detail.replaceChildren(el('p', { class: 'connection-error' }, error.message));
+        throw error;
+      }
+      if (request !== detailGeneration || searchRequest !== generation || scope !== activeProfile || catalog !== catalogGeneration || workspaceStatus !== 'ready') return;
+      const selected = data.item || data;
+      const heading = el('h3', { tabindex: '-1' }, selected.name || item.name);
+      const next = button(item.kind === 'skill' ? '지침 읽기 →' : item.kind === 'server' ? '연결 관리 →' : '도구 입력 열기 →', () => {
+        if (item.kind === 'skill') {
+          remoteSkill = selected.server ? selected : null;
+          selectedSkill = selected.name; selectedPath = 'SKILL.md'; navigate('skills');
+        } else if (item.kind === 'server') {
+          navigate('connections');
+          const target = [...page.querySelectorAll('[data-connection]')].find(node => node.dataset.connection === (selected.server || selected.name));
+          if (target) { target.scrollIntoView({ block: 'center' }); target.focus(); }
+        } else {
+          const server = state.servers.find(server => server.id === selected.server || selected.name.startsWith(`${server.id}__`));
+          if (!server) { showNotice('연결 상태를 새로고침한 뒤 다시 검색하세요.', true); return; }
+          const tool = { ...selected, name: selected.name.slice(server.id.length + 2) };
+          navigate('connections'); renderCallPanel({ server, tool });
+        }
+      }, 'small');
+      detail.replaceChildren(el('div', { class: 'section-header' }, heading, button('상세 닫기', () => { ++detailGeneration; detail.hidden = true; detail.replaceChildren(); trigger.focus(); }, 'quiet small')),
+        el('p', { class: 'catalog-full-description' }, selected.description || '등록된 설명이 없습니다.'),
+        el('p', { class: 'muted' }, item.kind === 'tool' ? '원본 정의를 확인한 뒤 실행 입력을 여세요. 이 단계에서는 도구를 호출하지 않습니다.' : item.kind === 'server' ? '연결 관리로 이동한 뒤 직접 연결할 수 있습니다.' : '필요한 지침과 참조 파일을 선택해 읽으세요.'),
+        item.kind === 'tool' ? el('details', { class: 'catalog-schema', open: '' }, el('summary', {}, '원본 입력 스키마'), el('pre', {}, JSON.stringify(selected.inputSchema || {}, null, 2))) : null,
+        el('details', { class: 'catalog-definition' }, el('summary', {}, '전체 정의 보기'), el('pre', {}, JSON.stringify(selected, null, 2))), next);
+      heading.focus();
+    }, trigger);
+  }
+  const section = el('section', { class: 'hub-search', 'aria-label': '통합 검색' }, el('div', { class: 'section-header' }, el('h2', { class: 'catalog-search-label' }, '통합 검색'), button('검색 범위 설정', () => navigate('catalog'), 'quiet small')), el('form', { class: 'hub-search-form', onSubmit: event => {
     const request = ++generation, scope = activeProfile, catalog = catalogGeneration;
+    ++detailGeneration; detail.hidden = true; detail.replaceChildren();
     event.preventDefault(); run(async () => {
       hint.textContent = '스킬·MCP·도구를 검색하고 있습니다…';
       let data;
-      try { data = await api(`/api/v1/search?q=${encodeURIComponent(input.value)}&kind=${kind.value}&detail=summary&limit=20`); }
+      try { data = await api(`/api/v1/search?q=${encodeURIComponent(input.value)}&kind=${kind.value}&detail=summary&limit=5`); }
       catch (error) {
         if (request !== generation || scope !== activeProfile || catalog !== catalogGeneration) return;
         results.replaceChildren(); hint.textContent = '검색하지 못했습니다. 검색 버튼으로 다시 시도하세요.';
@@ -259,27 +301,135 @@ function hubSearch() {
       }
       if (request !== generation || scope !== activeProfile || catalog !== catalogGeneration || workspaceStatus !== 'ready') return;
       const rows = Array.isArray(data) ? data : data.results || [];
-      hint.textContent = `검색 결과 ${rows.length}개${rows.length === 20 ? ' · 상위 20개, 검색어나 종류로 좁힐 수 있습니다' : ''} · 미연결 MCP는 서버 정보만 표시합니다.`;
-      results.replaceChildren(...(rows.length ? rows.map(item => el('div', { class: 'item-row' }, el('div', {}, el('div', { class: 'item-title' }, el('strong', {}, item.name), badge({skill: '스킬', server: 'MCP 서버', tool: 'MCP 도구'}[item.kind])), el('p', { class: 'description-preview' }, shortDescription(item.description)), item.kind === 'server' ? el('small', {}, item.enabled === false ? '비활성 · 연결 설정에서 변경' : item.status === 'connected' ? '연결됨' : '연결 확인 전 · 도구 발견은 연결 후') : null), button(item.kind === 'skill' ? '읽기 →' : item.kind === 'server' ? '연결 관리 →' : '실행 →', () => {
-        results.replaceChildren(); hint.textContent = '선택한 항목을 열었습니다. 다른 항목은 다시 검색하세요.';
-        if (item.kind === 'skill') { remoteSkill = item.server ? item : null; selectedSkill = item.name; selectedPath = 'SKILL.md'; navigate('skills'); }
-        else if (item.kind === 'server') {
-          navigate('connections');
-          const target = [...page.querySelectorAll('[data-connection]')].find(node => node.dataset.connection === item.server);
-          if (target) { target.scrollIntoView({ block: 'center' }); target.focus(); }
-        }
-        else {
-          const server = state.servers.find(s => s.id === item.server || item.name.startsWith(`${s.id}__`));
-          const short = server ? item.name.slice(server.id.length + 2) : item.name;
-          const tool = server?.tools?.find(t => t.name === short);
-          if (server && tool) { navigate('connections'); renderCallPanel({ server, tool }); }
-          else showNotice('연결 상태를 새로고침한 뒤 다시 검색하세요.', true);
-        }
-      }, 'small'))) : [empty('검색 결과가 없습니다', '다른 검색어를 사용하세요. 도구를 찾으려면 해당 MCP 연결을 먼저 확인하세요.')]));
+      hint.textContent = `검색 결과 ${rows.length}개${rows.length === 5 ? ' · 상위 5개, 검색어나 종류로 좁혀보세요' : ''} · 상세에서 전체 설명과 스키마를 확인하세요.`;
+      results.replaceChildren(...(rows.length ? rows.map(item => {
+        const inspect = button('상세', () => inspectItem(item, inspect), 'small');
+        return el('div', { class: 'item-row' }, el('div', {}, el('div', { class: 'item-title' }, el('strong', {}, item.name), badge({skill: '스킬', server: 'MCP 서버', tool: 'MCP 도구'}[item.kind])), el('p', { class: 'description-preview' }, shortDescription(item.description)), item.kind === 'server' ? el('small', {}, item.enabled === false ? '비활성 · 연결 설정에서 변경' : item.status === 'connected' ? '연결됨' : '연결 확인 전 · 도구 발견은 연결 후') : null), inspect);
+      }) : [empty('검색 결과가 없습니다', '다른 검색어를 사용하거나 검색 설정을 확인하세요. 도구를 찾으려면 해당 MCP 연결을 먼저 확인하세요.')]));
     }, submit);
-  } }, input, kind, submit, clear), hint, results);
-  section.reset = () => { ++generation; results.replaceChildren(); hint.textContent = '현재 작업 범위의 스킬·등록된 MCP·연결된 도구를 함께 찾습니다. 검색만으로 서버를 실행하지 않습니다.'; };
+  } }, input, kind, submit, clear), hint, results, detail);
+  section.reset = () => resetResults(initialHint);
   return section;
+}
+function renderCatalogSettings() {
+  const scope = activeProfile;
+  const editor = preserveEditor(el('section', { class: 'catalog-settings-editor', 'aria-label': '검색 설정 편집' }, el('p', { role: 'status' }, '검색 설정을 읽고 있습니다…')), 'catalog-settings', true);
+  replacePage(title('검색 설정', '현재 작업 범위에서 사용할 출처와 묶음을 선택하세요.', button('변경 취소·다시 읽기', () => { discardDraft('catalog-settings'); render(); }, 'quiet small')), editor);
+  run(async () => {
+    const response = await api('/api/v1/catalog/settings');
+    if (scope !== activeProfile || currentView !== 'catalog' || !editor.isConnected) return;
+    const settings = response.settings;
+    const inventory = response.inventory || { skills: [], servers: [] };
+    const draft = structuredClone(settings);
+    draft.disabled ||= {};
+    for (const kind of ['skill', 'server', 'source', 'category']) draft.disabled[kind] ||= [];
+    draft.sources ||= []; draft.category_overrides ||= {};
+    const categoryNames = { development: '개발', documentation: '문서', design: '디자인', tools: '도구' };
+    const categoryIds = response.categories || Object.keys(categoryNames);
+    const status = el('p', { role: 'status', class: 'catalog-settings-status' }, '설정을 선택한 뒤 저장하세요.');
+    const mark = () => { editor.dataset.dirty = 'true'; status.textContent = '저장하지 않은 변경이 있습니다.'; };
+    function toggle(kind, name, enabled) {
+      draft.disabled[kind] = draft.disabled[kind].filter(item => item !== name);
+      if (!enabled) draft.disabled[kind].push(name);
+      mark();
+    }
+    function choice(label, checked, change, note = '') {
+      const checkbox = el('input', { type: 'checkbox' }); checkbox.checked = checked;
+      checkbox.addEventListener('change', () => { change(checkbox.checked); mark(); });
+      return el('label', { class: 'catalog-choice' }, checkbox, el('span', {}, el('strong', {}, label), note ? el('small', {}, note) : null));
+    }
+    const categoryChoices = el('div', { class: 'catalog-choice-list' }, categoryIds.map(category => choice(categoryNames[category] || category, !draft.disabled.category.includes(category), enabled => toggle('category', category, enabled))));
+    const sourceRows = el('div', { class: 'catalog-source-list' });
+    function renderSources() {
+      sourceRows.replaceChildren(choice('기본 제공 스킬', !draft.disabled.source.includes('builtin'), enabled => toggle('source', 'builtin', enabled), '배포본에 포함된 공통 지침. 프로젝트 자체 스킬과 별개입니다.'),
+        ...draft.sources.map(source => el('div', { class: 'catalog-source-row' },
+          choice(source.name || source.id, source.enabled !== false && !draft.disabled.source.includes(source.id), enabled => {
+            source.enabled = enabled;
+            if (enabled) draft.disabled.source = draft.disabled.source.filter(id => id !== source.id);
+          }, source.id),
+          el('code', {}, source.path), source.category ? badge(categoryNames[source.category] || source.category) : null,
+          button('목록에서 제외', () => { draft.sources = draft.sources.filter(item => item.id !== source.id); mark(); renderSources(); }, 'quiet small'))));
+    }
+    renderSources();
+    const sourceId = el('input', { 'aria-label': '스킬 출처 ID', placeholder: 'company', maxlength: '32' });
+    const sourceName = el('input', { 'aria-label': '스킬 출처 이름', placeholder: '회사 지침', maxlength: '100' });
+    const sourcePath = el('input', { 'aria-label': '스킬 출처 폴더', placeholder: '/absolute/path/to/company-skills' });
+    const sourceCategory = el('select', { 'aria-label': '스킬 출처 묶음' }, el('option', { value: '' }, '자동 분류'), categoryIds.map(category => el('option', { value: category }, categoryNames[category] || category)));
+    const sourceForm = el('details', { class: 'catalog-source-form', 'data-disclosure': 'catalog-source-form' }, el('summary', {}, '출처 폴더 추가'),
+      el('p', {}, '회사·공개·개인 지침을 각각 다른 폴더에 보관할 수 있습니다. 이 컴퓨터의 기존 절대 경로를 지정하세요. 원본 파일은 복사하거나 삭제하지 않습니다.'),
+      el('label', {}, '출처 ID', sourceId), el('label', {}, '표시 이름', sourceName), el('label', {}, '스킬 폴더', sourcePath), el('label', {}, '기본 묶음', sourceCategory),
+      button('추가 목록에 넣기', () => {
+        const id = sourceId.value.trim();
+        if (!/^[a-z0-9][a-z0-9-]{0,31}$/.test(id) || ['builtin', 'project'].includes(id)) { showNotice('출처 ID는 builtin·project를 제외한 영문 소문자·숫자·하이픈 32자 이내로 지정하세요.', true); return; }
+        if (draft.sources.some(source => source.id === id)) { showNotice('같은 출처 ID가 이미 있습니다.', true); return; }
+        if (!sourceName.value.trim() || !sourcePath.value.trim()) { showNotice('출처 이름과 스킬 폴더를 입력하세요.', true); return; }
+        draft.sources.push({ id, name: sourceName.value.trim(), path: sourcePath.value.trim(), enabled: true, ...(sourceCategory.value ? { category: sourceCategory.value } : {}) });
+        sourceId.value = ''; sourceName.value = ''; sourcePath.value = ''; sourceCategory.value = '';
+        mark(); renderSources();
+      }, 'small'));
+    function itemChoices(kind, items) {
+      return items.length ? items.map(item => {
+        const name = kind === 'skill' ? item.name : item.id;
+        const overrideKey = `${kind}:${name}`;
+        const categories = draft.category_overrides[overrideKey];
+        const grouping = el('select', { 'aria-label': `${name} 묶음` }, el('option', { value: '' }, '자동 분류'), categoryIds.map(category => el('option', { value: category }, categoryNames[category] || category)));
+        grouping.value = categories?.length === 1 ? categories[0] : '';
+        grouping.addEventListener('change', () => { if (grouping.value) draft.category_overrides[overrideKey] = [grouping.value]; else delete draft.category_overrides[overrideKey]; mark(); });
+        const selection = choice(kind === 'skill' ? skillCopy(item).label : item.name || item.id, !draft.disabled[kind].includes(name), enabled => toggle(kind, name, enabled), name);
+        selection.querySelector('input').dataset.catalogKind = kind;
+        selection.querySelector('input').dataset.catalogName = name;
+        return el('div', { class: 'catalog-preference-row' }, selection,
+          el('span', { class: 'catalog-effective-status' }, item.search_enabled === false ? '저장 상태: 검색 제외' : '저장 상태: 검색 포함'), grouping);
+      }) : [el('p', { class: 'muted' }, kind === 'skill' ? '선택할 스킬이 없습니다. 출처를 추가한 뒤 저장하세요.' : '등록한 MCP가 없습니다.')];
+    }
+    function selectBuiltinDesign(enabled) {
+      const selected = (inventory.skills || []).filter(item => item.source === 'builtin' && (draft.category_overrides[`skill:${item.name}`] || item.categories || []).includes('design'));
+      for (const item of selected) toggle('skill', item.name, enabled);
+      for (const input of editor.querySelectorAll('input[data-catalog-kind=skill]')) input.checked = !draft.disabled.skill.includes(input.dataset.catalogName);
+      status.textContent = `기본 디자인 스킬 ${selected.length}개의 개별 선택을 ${enabled ? '포함' : '제외'}으로 바꿨습니다. 저장하면 적용됩니다.`;
+    }
+    const exposure = el('select', { 'aria-label': '클라이언트 도구 노출' }, el('option', { value: 'search-first' }, '검색 중심 (기본)'), el('option', { value: 'all-native' }, '연결된 전체 도구 직접 노출'));
+    exposure.value = draft.exposure || 'search-first';
+    exposure.addEventListener('change', () => { draft.exposure = exposure.value; mark(); });
+    const usageChoice = choice('이 범위의 로컬 사용 통계 수집', Boolean(draft.usage_enabled), enabled => { draft.usage_enabled = enabled; }, '기본은 꺼짐. 검색어·도구 인수·내용·토큰은 저장하지 않습니다.');
+    const usageArea = el('div', { class: 'catalog-usage', 'aria-label': '사용 통계' });
+    async function showUsage() {
+      const data = await api('/api/v1/catalog/usage');
+      if (scope !== activeProfile || !editor.isConnected) return;
+      const entries = Array.isArray(data.entries) ? data.entries : [];
+      usageArea.replaceChildren(el('p', { class: 'muted' }, `${data.enabled ? '수집 중' : '수집 꺼짐'} · 최근 ${data.retention_days || 30}일 · 최대 ${data.max_keys || 1000}개 집계`),
+        entries.length ? el('div', { class: 'table-wrap' }, el('table', {}, el('thead', {}, el('tr', {}, ['날짜', '종류 · 이름', '결과', '횟수', '누적 시간'].map(name => el('th', { scope: 'col' }, name)))),
+          el('tbody', {}, entries.map(item => el('tr', {}, el('td', {}, item.day), el('td', {}, el('code', {}, `${item.kind} · ${item.name}`)), el('td', {}, item.outcome), el('td', {}, String(item.count)), el('td', {}, `${Math.round(item.total_duration_ms || 0)} ms`)))))) : el('p', {}, '아직 기록된 사용 통계가 없습니다.'));
+    }
+    async function changeSettings(path, body, message) {
+      const controls = [...editor.querySelectorAll('input, select, button')].map(node => [node, node.disabled]);
+      for (const [node] of controls) node.disabled = true;
+      status.textContent = '검색 설정을 적용하고 있습니다…';
+      try {
+        await api(path, { method: 'POST', body: JSON.stringify(body) });
+        if (scope !== activeProfile) return;
+        discardDraft('catalog-settings'); catalogSearch?.reset(); await load(); showNotice(message);
+      } catch (error) {
+        if (scope !== activeProfile || !editor.isConnected) return;
+        status.textContent = '변경을 적용하지 못했습니다. 입력을 확인하고 다시 시도하세요.';
+        throw error;
+      } finally { for (const [node, disabled] of controls) node.disabled = disabled; }
+    }
+    const save = button('검색 설정 저장', () => run(() => changeSettings('/api/v1/catalog/settings', { exposure: draft.exposure, disabled: draft.disabled, sources: draft.sources, category_overrides: draft.category_overrides, usage_enabled: draft.usage_enabled }, '검색 설정을 저장했습니다. 새 MCP 도구 목록은 클라이언트에서 다시 조회해야 할 수 있습니다.'), save), 'primary');
+    const reset = button('이 범위의 검색 설정 초기화', () => run(() => changeSettings('/api/v1/catalog/reset', {}, '검색 설정을 기본값으로 초기화했습니다. 출처 원본 파일과 MCP 등록·인증은 유지됩니다.'), reset), 'quiet');
+    const deleteUsage = button('로컬 통계 삭제', () => run(async () => { await api('/api/v1/catalog/usage/reset', { method: 'POST', body: '{}' }); if (scope === activeProfile) { await showUsage(); showNotice('이 범위의 집계 통계를 삭제했습니다.'); } }, deleteUsage), 'quiet small');
+    editor.replaceChildren(
+      el('p', { class: 'notice' }, 'Hub의 검색·조회·도구 목록에 적용됩니다. 호출 권한·OS 격리는 별도입니다. 설치된 native 스킬은 스킬 라이브러리 → 설치 관리에서 따로 제거하세요.'),
+      el('section', { class: 'section' }, el('h2', {}, '묶음으로 선택'), el('p', { class: 'muted' }, '사용하지 않을 묶음의 체크를 해제하세요. 다른 묶음에 속해 있어도 제외한 묶음이 우선합니다.'), categoryChoices,
+        el('details', { 'data-disclosure': 'builtin-design-selection' }, el('summary', {}, '회사 디자인과 기본 지침 구분하기'), el('p', { class: 'muted' }, '회사·개인 출처를 유지하면서 기본 제공 디자인 스킬만 일괄 선택합니다. 전체 묶음·출처의 제외 설정이 우선합니다.'), el('div', { class: 'form-actions' }, button('기본 디자인 지침만 제외', () => selectBuiltinDesign(false), 'small'), button('기본 디자인 지침 개별 선택 복원', () => selectBuiltinDesign(true), 'quiet small')))),
+      el('section', { class: 'section' }, el('h2', {}, '스킬 출처'), sourceRows, sourceForm),
+      el('details', { class: 'section', 'data-disclosure': 'catalog-skill-choices' }, el('summary', {}, '스킬별 검색과 묶음'), itemChoices('skill', inventory.skills || [])),
+      el('details', { class: 'section', 'data-disclosure': 'catalog-server-choices' }, el('summary', {}, 'MCP별 검색과 묶음'), el('p', { class: 'muted' }, 'MCP 검색을 끄면 해당 서버와 연결된 도구·원격 스킬을 검색 목록에서 제외합니다. 서버 프로세스 중지나 호출 차단은 별도 설정입니다.'), itemChoices('server', inventory.servers || [])),
+      el('section', { class: 'section' }, el('h2', {}, '클라이언트 도구 목록'), el('label', {}, '노출 방식', exposure), el('p', { class: 'muted' }, '검색 중심은 일반 도구를 검색·상세 조회 후 사용하고 Apps·Tasks에 필요한 도구 정의만 직접 제공합니다. stdio와 HTTP에 같은 정책을 적용합니다.')),
+      el('section', { class: 'section' }, el('h2', {}, '사용 통계'), usageChoice, el('p', { class: 'muted' }, '집계는 이 컴퓨터의 현재 범위에만 저장합니다. 수집을 꺼도 기존 집계는 보존 기간까지 남으며 직접 삭제할 수 있습니다.'), usageArea, deleteUsage),
+      status, el('div', { class: 'form-actions catalog-settings-actions' }, save, reset));
+    run(showUsage);
+  });
 }
 function matchingSkills() {
   const query = searchQuery.trim().toLowerCase();
@@ -543,6 +693,8 @@ function renderCompatibility() {
   ];
   replacePage(title('지원 범위', '프로토콜 버전과 확장 기능을 구분해서 확인하세요.'), el('p', { class: 'protocol-intro' }, '클라이언트와 서버 양쪽의 지원 범위가 맞아야 기능을 사용할 수 있습니다. 지원하지 않는 기능은 연결했다고 자동으로 추가되지 않습니다.'), el('div', { class: 'table-wrap' }, el('table', {}, el('thead', {}, el('tr', {}, ['규격 / 기능', '연결 방식', '확인할 내용'].map(s => el('th', { scope: 'col' }, s)))), el('tbody', {}, matrix.map(row => el('tr', {}, row.map((cell, i) => el('td', {}, i === 0 ? el('strong', {}, cell) : cell))))))), el('details', { class: 'compat-detail', open: '' }, el('summary', {}, '현재 Hub가 보고하는 지원 정보'), el('pre', {}, JSON.stringify(state.compatibility || {}, null, 2))), el('section', { class: 'section' }, el('h2', {}, '연결별 실제 기능'), state.servers.length ? state.servers.map(server => el('details', { class: 'compat-detail' }, el('summary', {}, `${server.name || server.id} · ${server.protocol_version || '연결 확인 전'}`), el('pre', {}, JSON.stringify(server.capabilities || {}, null, 2)))) : el('p', { class: 'protocol-intro mt-4' }, 'MCP 서버를 등록하고 연결 확인을 하면 기능 협상 결과를 볼 수 있습니다.')));
 }
+const catalogNav = el('button', { type: 'button', 'data-view': 'catalog' }, $('.nav [data-view="settings"] svg')?.cloneNode(true), '검색 설정');
+$('.nav').append(catalogNav);
 for (const node of document.querySelectorAll('[data-view]')) node.addEventListener('click', () => navigate(node.dataset.view));
 $('#refresh').addEventListener('click', event => run(refreshWorkspace, event.currentTarget));
 window.addEventListener('hashchange', () => { const next = location.hash.slice(1); if (Object.hasOwn(labels, next) && next !== currentView) navigate(next); });

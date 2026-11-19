@@ -194,6 +194,31 @@ class AgentPanel(unittest.TestCase):
             secret = parse_qs(urlsplit(url).fragment)["session"][0]
             self.assertNotIn(secret, output.getvalue())
 
+    def test_catalog_owner_updates_are_local_even_when_stdio_uses_http_bridge(self):
+        for version in ("2025-11-25", "2026-07-28"):
+            self.hub.configure_catalog(reset=True)
+            bridge = SimpleNamespace(version=version)
+            message = {
+                "jsonrpc": "2.0",
+                "id": 3,
+                "method": "tools/call",
+                "params": {
+                    "name": "hub_catalog_configure",
+                    "arguments": {"patch": {"usage_enabled": True}},
+                    "_meta": {
+                        "io.modelcontextprotocol/protocolVersion": version,
+                        "io.joongi-hub/consentInHost": True,
+                    },
+                },
+            }
+            incoming = io.TextIOWrapper(io.BytesIO((json.dumps(message) + "\n").encode()))
+            output = io.StringIO()
+            with patch("sys.stdin", incoming), patch("sys.stdout", output):
+                serve_stdio(self.hub, bridge)
+            response = json.loads(output.getvalue())
+            self.assertNotIn("error", response)
+            self.assertTrue(self.hub.catalog_preferences.get()["usage_enabled"])
+
     def test_persistent_panel_is_reused_without_a_temporary_lifetime(self):
         with patch(
             "joongi_hub.agent_panel.running", return_value={"url": "http://127.0.0.1:12345"}

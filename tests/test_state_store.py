@@ -191,7 +191,12 @@ class StateStore(unittest.TestCase):
         }
         status = json.loads(responses[2]["result"]["content"][0]["text"])
         servers = json.loads(responses[3]["result"]["content"][0]["text"])
-        self.assertEqual(status["state_dir"], hub.state()["storage"]["state_dir"])
+        self.assertNotIn("state_dir", status)
+        self.assertNotIn("default_state_dir", status)
+        self.assertNotIn("registry_backup", status)
+        self.assertNotIn(str(self.root), json.dumps(status))
+        self.assertEqual(status["backup_available"], True)
+        self.assertEqual(hub.state()["storage"]["state_dir"], str(self.root))
         self.assertEqual(status["server_count"], 1)
         self.assertEqual([s["id"] for s in servers], ["one"])
         self.assertIn("임시 저장소", result.stderr)

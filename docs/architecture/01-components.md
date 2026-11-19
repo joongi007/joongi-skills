@@ -28,8 +28,10 @@ flowchart TD
 
 검색은 스킬 설명과 발견한 도구의 설명을 대상으로 한다. 상세 schema와 스킬 본문은
 선택 후 가져온다. 호출 대상은 upstream ID와 도구 이름으로 구별하여 이름 충돌을 막는다.
-연결된 도구는 native `tools/list`에서도 원래 schema와 함께 제공한다.
-검색은 선택 가능한 탐색 경로이며 Apps·Tasks metadata를 감추는 유일한 진입점으로 쓰지 않는다.
+stdio·HTTP 공통의 기본 search-first는 허브 기본 도구와 원본 App·명시적 Task 지원 외부 도구만
+native `tools/list`에 제공한다. 일반 도구는 기본5개/summary 검색, 정확한 `hub_get_item` 상세, `hub_call` 실행으로 사용한다.
+고급 all-native는 선택된 서버의 모든 도구를 노출한다. App 내부 callback은 app-only 경로를 유지한다.
+프로필별 출처·분류·선호는 모든 지원 카탈로그 조회에 적용한다. native 에이전트 설치 사본과는 별개다.
 upstream 실패가 다른 upstream과 로컬 스킬 조회를 중단시키지 않도록 시간을 제한한다.
 
 MCP payload 안의 URI·도구명·task ID가 다른 upstream과 충돌하지 않도록 매핑한다.

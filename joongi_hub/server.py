@@ -14,6 +14,7 @@ from joongi_hub.apps import AppSessions
 from joongi_hub.connections import agent_value, configuration, state_id
 from joongi_hub.errors import RpcError
 from joongi_hub.local_auth import authenticate_local, local_token
+from joongi_hub.search import DEFAULT_DETAIL, DEFAULT_LIMIT
 from joongi_hub.security_events import record
 from joongi_hub.upstream import MAX_MESSAGE, MODERN, VERSIONS
 
@@ -366,8 +367,21 @@ class Handler(BaseHTTPRequestHandler):
                 self.send_data(200, {"token": self.next_local_token})
             elif path == "/api/v1/state":
                 self.send_data(200, hub.state())
+            elif path == "/api/v1/catalog/settings":
+                self.send_data(200, hub.catalog_settings())
+            elif path == "/api/v1/catalog/item":
+                self.send_data(
+                    200, hub.catalog_item(query.get("kind", [""])[0], query.get("name", [""])[0])
+                )
+            elif path == "/api/v1/catalog/usage":
+                self.send_data(
+                    200,
+                    hub.usage_stats.snapshot(
+                        enabled=hub.catalog_preferences.get()["usage_enabled"]
+                    ),
+                )
             elif path == "/api/v1/search":
-                raw_limit = query.get("limit", ["100"])[0]
+                raw_limit = query.get("limit", [str(DEFAULT_LIMIT)])[0]
                 if (
                     not 1 <= len(raw_limit) <= 3
                     or not raw_limit.isascii()
@@ -379,13 +393,13 @@ class Handler(BaseHTTPRequestHandler):
                     hub.search(
                         query.get("q", [""])[0],
                         kind=query.get("kind", ["all"])[0],
-                        detail=query.get("detail", ["full"])[0],
+                        detail=query.get("detail", [DEFAULT_DETAIL])[0],
                         limit=int(raw_limit),
                     ),
                 )
             elif path.startswith("/api/v1/skills/"):
                 name = path.removeprefix("/api/v1/skills/")
-                self.send_data(200, hub.skills.read(name, query.get("path", ["SKILL.md"])[0]))
+                self.send_data(200, hub.read_skill(name, query.get("path", ["SKILL.md"])[0]))
             elif path == "/api/v1/tasks":
                 self.send_data(200, hub.tasks.list())
             elif path == "/mcp" or path.startswith("/mcp/projects/"):
@@ -437,6 +451,17 @@ class Handler(BaseHTTPRequestHandler):
                         body.get("scope", "once"),
                     ),
                 )
+            elif self.path == "/api/v1/catalog/settings":
+                self.send_data(200, hub.configure_catalog(body))
+            elif self.path == "/api/v1/catalog/reset":
+                if body:
+                    raise RpcError(-32602, "Reset takes no arguments")
+                self.send_data(200, hub.configure_catalog(reset=True))
+            elif self.path == "/api/v1/catalog/usage/reset":
+                if body:
+                    raise RpcError(-32602, "Usage reset takes no arguments")
+                hub.usage_stats.reset()
+                self.send_data(200, {"reset": True})
             elif self.path == "/api/v1/connection":
                 self.send_data(200, hub.connection_settings.put(body))
             elif self.path == "/api/v1/connection/plan":

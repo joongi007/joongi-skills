@@ -35,9 +35,12 @@ YAML은 SafeLoader로 파싱하며 node 수·깊이·alias 확장과 JSON으로 
 하위 디렉터리를 조회한다. directory MIME은 `inode/directory`이다. 전체 manifest는 512개 파일·16 MiB,
 파일 하나는 1 MiB가 현재 한도다. 경로 이탈·symlink와 내부 제외 경로는 읽지 않는다.
 
-연결된 upstream의 모든 도구를 `서버ID__원래도구명`으로 `tools/list`에 직접 노출한다.
+기본 search-first는 stdio·HTTP 공통으로 원본 App 리소스나 명시적 optional/required Task 지원이 있는
+upstream 도구만 `서버ID__원래도구명`으로 native `tools/list`에 노출한다. 일반 도구는 검색·정확한 상세 조회 후
+`hub_call`로 사용한다. 고급 all-native에서는 현재 선택된 서버의 모든 도구를 직접 노출한다.
 원래 input/output schema·annotations·Apps metadata를 보존하며 검색과 `hub_call`도 함께 제공한다.
-2025 목록에는 `execution.taskSupport`를 유지하고 Hub가 감쌀 수 있는 도구에는 `optional`을 제공한다.
+2025 목록에는 `execution.taskSupport`를 유지하고 Hub가 감쌀 수 있는 노출 도구에는 `optional`을 제공한다.
+이 후처리는 기본 노출을 결정하는 근거가 아니다. 필터는 upstream 원본 metadata로 먼저 판정한다.
 2025의 `required`·`forbidden`을 호출 시 검사한다. 2026 목록에서는 이전 규격의 `execution`을 제거하고
 요청별 Tasks 확장 협상을 따른다. `hub_call`만으로 도구를 숨기던 정책은 ADR-0005로 대체했다.
 Apps 도구의 UI metadata는 호스트 preloading에도 사용한다.

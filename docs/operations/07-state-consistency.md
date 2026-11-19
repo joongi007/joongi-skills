@@ -17,7 +17,8 @@ joongi-hub open
 joongi-hub stop
 ```
 
-`state`, `status`, MCP 도구 `hub_status`는 실제 저장 경로·등록 수·백업 위치를 표시한다.
+CLI의 `state`, `status`와 인증한 관리 화면은 실제 저장 경로·백업 위치를 표시한다.
+MCP 도구 `hub_status`는 절대 경로 없이 등록 수·임시 저장소 경고·백업 유무(`backup_available`)를 반환한다.
 웹의 빈 목록도 현재 경로를 표시한다. 임시 저장소는 CLI stderr와 웹에 경고한다.
 MCP stdout에는 JSON-RPC 이외의 진단 메시지를 쓰지 않는다.
 

@@ -12,6 +12,8 @@ from joongi_hub import __version__
 from joongi_hub.agent_connections import AgentConnections
 from joongi_hub.apps import app_resource_uri, wrap_app_html
 from joongi_hub.auth import AuthManager, fingerprint
+from joongi_hub.catalog_preferences import CATEGORIES, CatalogPreferences
+from joongi_hub.catalog_skills import CatalogSkills
 from joongi_hub.connections import ConnectionSettings, configuration
 from joongi_hub.consent_schema import proxy_output
 from joongi_hub.errors import RpcError
@@ -19,13 +21,21 @@ from joongi_hub.profiles import ProjectRegistry, Projects, ProjectSkills
 from joongi_hub.resources import resource_uri, unwrap_resource
 from joongi_hub.sculpt_review import TOOL as SCULPT_TOOL
 from joongi_hub.sculpt_review import validate as validate_sculpt
-from joongi_hub.search import Document, parameter_text, rank
+from joongi_hub.search import (
+    DEFAULT_DETAIL,
+    DEFAULT_LIMIT,
+    Document,
+    SearchCache,
+    parameter_text,
+    rank,
+)
 from joongi_hub.skill_management import SkillManager
 from joongi_hub.skills import Skills
 from joongi_hub.state_store import describe
 from joongi_hub.storage import Registry, TaskStore
 from joongi_hub.tool_policy import ToolPolicy
 from joongi_hub.upstream import MODERN, VERSIONS, Upstream, validate_server
+from joongi_hub.usage_stats import UsageStats
 
 INFO = {"name": "joongi-hub", "version": __version__}
 TASK_EXTENSION = "io.modelcontextprotocol/tasks"
@@ -148,7 +158,11 @@ class Hub:
         self.projects = self.root_hub.projects if root_hub else Projects(state_dir)
         self.profile_hubs = {}
         self.common_skills = self.root_hub.common_skills if root_hub else Skills(skills_dir)
-        self.skills = ProjectSkills(self.common_skills, project) if project else self.common_skills
+        self.catalog_preferences = CatalogPreferences(state_dir)
+        base_skills = ProjectSkills(root_hub.skills, project) if project else self.common_skills
+        self.skills = CatalogSkills(base_skills, self.catalog_preferences)
+        self.search_cache = SearchCache()
+        self.usage_stats = UsageStats(state_dir)
         self.credential_store_factory = (
             root_hub.credential_store_factory if root_hub else credential_store_factory
         )
@@ -235,6 +249,8 @@ class Hub:
 
     def register(self, data):
         config = validate_server(data)
+        if any(source["id"] == config["id"] for source in self.catalog_preferences.sources()):
+            raise RpcError(-32602, "MCP ID conflicts with a registered local skill source")
         with self.lock:
             previous = self.clients.pop(config["id"], None)
             if previous:
@@ -367,11 +383,29 @@ class Hub:
         *,
         mode="keyword",
         match="any",
-        limit=100,
-        detail="full",
+        limit=DEFAULT_LIMIT,
+        detail=DEFAULT_DETAIL,
         kind="all",
         server=None,
     ):
+        started = time.monotonic()
+        outcome = "success"
+        try:
+            result = self._search(
+                query, mode=mode, match=match, limit=limit, detail=detail, kind=kind, server=server
+            )
+            outcome = "success" if result else "empty"
+            return result
+        except Exception:
+            outcome = "error"
+            raise
+        finally:
+            self.record_usage("search", "hub_search", outcome, (time.monotonic() - started) * 1000)
+
+    def _search(self, query, **options):
+        return rank(self.catalog_documents(), query, cache=self.search_cache, **options)
+
+    def catalog_documents(self):
         documents = []
         for skill in self.skills.list():
             documents.append(
@@ -387,6 +421,8 @@ class Hub:
                 )
             )
         for config in self.registry.list():
+            if not self.catalog_server_enabled(config):
+                continue
             client = self.clients.get(config["id"])
             status = self.health.get(config["id"], {}).get("status", "disconnected")
             value = {
@@ -415,6 +451,8 @@ class Hub:
             if not config["enabled"] or not client:
                 continue
             for entry in client.skill_entries:
+                if not self.remote_skill_enabled(config["id"], entry):
+                    continue
                 frontmatter = entry.get("frontmatter", {})
                 name = frontmatter.get("name", "")
                 description = frontmatter.get("description", "")
@@ -457,16 +495,148 @@ class Hub:
                         },
                     )
                 )
-        return rank(
-            documents,
-            query,
-            mode=mode,
-            match=match,
-            limit=limit,
-            detail=detail,
-            kind=kind,
+        return documents
+
+    def catalog_server_enabled(self, config):
+        identity = config["id"]
+        categories = self.catalog_preferences.categories("server", identity)
+        if not self.catalog_preferences.allows("server", identity, categories=categories):
+            return False
+        if config.get("inherited"):
+            root = self.root_hub.catalog_preferences
+            return root.allows("server", identity, categories=root.categories("server", identity))
+        return True
+
+    def remote_skill_enabled(self, server, entry):
+        config = next((item for item in self.registry.list() if item["id"] == server), None)
+        if config is None or not self.catalog_server_enabled(config):
+            return False
+        name = server + "__" + entry.get("frontmatter", {}).get("name", "")
+        return self.catalog_preferences.allows(
+            "skill",
+            name,
             server=server,
+            categories=self.catalog_preferences.categories("skill", name),
         )
+
+    def catalog_settings(self, *, owner=True):
+        settings = self.catalog_preferences.get()
+        if not owner:
+            settings = copy.deepcopy(settings)
+            for source in settings["sources"]:
+                source.pop("path", None)
+        skills = self.skills.inventory()
+        for server_id, client in list(self.clients.items()):
+            for entry in client.skill_entries:
+                identity = server_id + "__" + entry.get("frontmatter", {}).get("name", "")
+                skills.append(
+                    {
+                        "name": identity,
+                        "server": server_id,
+                        "description": entry.get("frontmatter", {}).get("description", ""),
+                        "source": "mcp:" + server_id,
+                        "categories": self.catalog_preferences.categories("skill", identity),
+                        "search_enabled": self.remote_skill_enabled(server_id, entry),
+                    }
+                )
+        servers = [
+            {
+                "id": item["id"],
+                "name": item["name"],
+                "search_enabled": self.catalog_server_enabled(item),
+            }
+            for item in self.registry.list()
+        ]
+        if not owner:
+            return {
+                "settings": settings,
+                "categories": list(CATEGORIES),
+                "counts": {"skills": len(skills), "servers": len(servers)},
+                "cache": self.search_cache.status(),
+                "profile": self.profile_id,
+                "native_installation": "Independent; use an installation plan",
+            }
+        return {
+            "settings": settings,
+            "categories": list(CATEGORIES),
+            "inventory": {"skills": skills, "servers": servers},
+            "cache": self.search_cache.status(),
+            "profile": self.profile_id,
+            "native_installation": "Independent of catalog selection; use an installation plan",
+        }
+
+    def configure_catalog(self, patch=None, *, reset=False):
+        if not reset and isinstance(patch, dict) and isinstance(patch.get("sources"), list):
+            server_ids = {item["id"] for item in self.registry.list()}
+            if any(
+                isinstance(source, dict) and source.get("id") in server_ids
+                for source in patch["sources"]
+            ):
+                raise RpcError(-32602, "Local skill source ID conflicts with a registered MCP ID")
+        value = (
+            self.catalog_preferences.reset() if reset else self.catalog_preferences.update(patch)
+        )
+        self.search_cache.clear()
+        return {
+            "settings": value,
+            "profile": self.profile_id,
+            "reconnect_required_for_native_tools": True,
+        }
+
+    def catalog_item(self, kind, name):
+        started = time.monotonic()
+        identity, outcome = "unavailable", "error"
+        try:
+            result = self._catalog_item(kind, name)
+            identity, outcome = result["name"], "success"
+            return result
+        finally:
+            self.record_usage("detail", identity, outcome, (time.monotonic() - started) * 1000)
+
+    def _catalog_item(self, kind, name):
+        if (
+            not isinstance(kind, str)
+            or kind not in {"skill", "server", "tool"}
+            or not isinstance(name, str)
+        ):
+            raise RpcError(-32602, "Choose an exact skill/server/tool name")
+        candidates = [
+            document.value
+            for document in self.catalog_documents()
+            if document.value["kind"] == kind and document.value["name"] == name
+        ]
+        if len(candidates) != 1:
+            raise RpcError(-32602, "Catalog item is unavailable or ambiguous in this profile")
+        item = candidates[0]
+        if kind == "tool":
+            server = item["server"]
+            original_name = name[len(server) + 2 :]
+            original = next(
+                tool for tool in self.clients[server].tools if tool["name"] == original_name
+            )
+            return {
+                "kind": kind,
+                "server": server,
+                **proxy_output(
+                    rewrite_resources({**original, "name": name}, server),
+                    self.clients[server].config,
+                    original_name,
+                ),
+            }
+        return copy.deepcopy(item)
+
+    def record_usage(self, kind, name, outcome, duration_ms):
+        try:
+            self.usage_stats.record(
+                kind,
+                name,
+                outcome,
+                duration_ms,
+                enabled=self.catalog_preferences.get()["usage_enabled"],
+            )
+        except (RpcError, OSError):
+            # Optional diagnostics must never change the outcome of an actual call.
+            pass
 
     def tools(self):
         tools = [
@@ -478,7 +648,8 @@ class Hub:
                     "Server results include disconnected registrations; connect explicitly with "
                     "hub_connect before tool discovery. Search never starts a server. "
                     "Lexical, not semantic or filesystem search. Use short keywords/identifiers. "
-                    "Try limit=5, detail=summary; get detail=full by exact name before calling. "
+                    "Defaults: limit=5, detail=summary. Select hub_get_item(kind,name) for the "
+                    "exact original schema, then hub_call. "
                     "mode=literal uses fixed strings; mode=regex uses ripgrep (rg required), "
                     "e.g. markdown|convert. match=all narrows keywords. Retry alternate/English "
                     "terms on no results; rewrite Korean requests into short English keywords "
@@ -494,11 +665,16 @@ class Hub:
                             "default": "keyword",
                         },
                         "match": {"type": "string", "enum": ["any", "all"], "default": "any"},
-                        "limit": {"type": "integer", "minimum": 1, "maximum": 100, "default": 100},
+                        "limit": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 100,
+                            "default": DEFAULT_LIMIT,
+                        },
                         "detail": {
                             "type": "string",
                             "enum": ["summary", "full"],
-                            "default": "full",
+                            "default": DEFAULT_DETAIL,
                         },
                         "kind": {
                             "type": "string",
@@ -526,7 +702,8 @@ class Hub:
             },
             {
                 "name": "hub_status",
-                "description": "현재 저장 경로·등록 수·임시 저장소 경고·백업 위치를 확인합니다.",
+                "description": "등록 수·임시 저장소 경고·백업 유무를 확인합니다. "
+                "절대 경로는 로컬 관리 화면에서 확인하세요.",
                 "inputSchema": {"type": "object", "properties": {}, "additionalProperties": False},
             },
             {
@@ -738,12 +915,98 @@ class Hub:
                 },
             }
         )
-        tools.append(SCULPT_TOOL)
-        # Native discovery preserves each upstream's schema, Apps metadata and
-        # task execution contract. Search/call remain optional convenience tools.
+        tools.extend(
+            [
+                {
+                    "name": "hub_get_item",
+                    "description": "Stage 2: read one exact catalog item and its "
+                    "original schema before invocation. Does not connect or execute a server.",
+                    "annotations": {"readOnlyHint": True},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {
+                            "kind": {"type": "string", "enum": ["skill", "server", "tool"]},
+                            "name": {"type": "string"},
+                        },
+                        "required": ["kind", "name"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "hub_catalog_status",
+                    "description": "Read catalog source/group selections "
+                    "without private source paths. Catalog preferences are not OS access controls.",
+                    "annotations": {"readOnlyHint": True},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "hub_catalog_configure",
+                    "description": "Change catalog search selection, "
+                    "sources or optional local usage counters at the user's request. "
+                    "Local stdio owner "
+                    "only; HTTP MCP cannot change owner settings. "
+                    "Native installed skills are separate.",
+                    "execution": {"taskSupport": "forbidden"},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"patch": {"type": "object"}},
+                        "required": ["patch"],
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "hub_catalog_reset",
+                    "description": "Reset this profile's catalog preferences "
+                    "at the user's request. Does not delete skill files, "
+                    "credentials or usage data. "
+                    "Local stdio owner only.",
+                    "execution": {"taskSupport": "forbidden"},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "hub_catalog_usage",
+                    "description": "Read local opt-in aggregate counters. "
+                    "No query, arguments, payloads or tokens are stored.",
+                    "annotations": {"readOnlyHint": True},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False,
+                    },
+                },
+                {
+                    "name": "hub_catalog_usage_reset",
+                    "description": "Delete local aggregate counters. "
+                    "Local stdio owner only; does not change catalog preferences.",
+                    "execution": {"taskSupport": "forbidden"},
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {},
+                        "additionalProperties": False,
+                    },
+                },
+            ]
+        )
+        tools.append(copy.deepcopy(SCULPT_TOOL))
+        # All transports share this original-metadata decision, before legacy task augmentation.
+        expose_all = self.catalog_preferences.get()["exposure"] == "all-native"
         for server_id, client in list(self.clients.items()):
-            if client.version:
+            if client.version and self.catalog_server_enabled(client.config):
                 for tool in client.tools:
+                    is_task = tool.get("execution", {}).get("taskSupport") in {
+                        "optional",
+                        "required",
+                    }
+                    if not (expose_all or app_resource_uri(tool) or is_task):
+                        continue
                     tools.append(
                         proxy_output(
                             rewrite_resources(
@@ -757,7 +1020,7 @@ class Hub:
         # preserve that contract when the name identifies exactly one upstream.
         for server_id, client in list(self.clients.items()):
             has_app = any(app_resource_uri(tool) for tool in client.tools)
-            if not client.version or not has_app:
+            if not client.version or not has_app or not self.catalog_server_enabled(client.config):
                 continue
             for tool in client.tools:
                 matches = self.alias_matches(tool["name"])
@@ -797,8 +1060,77 @@ class Hub:
         request_state=None,
         local_owner=False,
     ):
+        started = time.monotonic()
+        outcome = "success"
+        try:
+            return self._invoke(
+                name,
+                arguments,
+                cancel_event,
+                local_task_id,
+                input_responses,
+                request_state,
+                local_owner,
+            )
+        except Exception as exc:
+            outcome = "approval_required" if getattr(exc, "consent_required", False) else "error"
+            raise
+        finally:
+            if isinstance(name, str):
+                if "__" in name:
+                    server, original = name.split("__", 1)
+                    client = self.clients.get(server)
+                    known = client and any(tool.get("name") == original for tool in client.tools)
+                    self.record_usage(
+                        "tool",
+                        name if known else "unavailable",
+                        outcome,
+                        (time.monotonic() - started) * 1000,
+                    )
+
+    def _invoke(
+        self,
+        name,
+        arguments,
+        cancel_event=None,
+        local_task_id=None,
+        input_responses=None,
+        request_state=None,
+        local_owner=False,
+    ):
         if not isinstance(name, str) or not isinstance(arguments, dict):
             raise RpcError(-32602, "Tool name and arguments must be a string and object")
+        if name == "hub_get_item":
+            if set(arguments) != {"kind", "name"}:
+                raise RpcError(-32602, "Choose kind and exact name")
+            return text_result(self.catalog_item(**arguments))
+        if name == "hub_catalog_status":
+            if arguments:
+                raise RpcError(-32602, "Catalog status takes no arguments")
+            return text_result(self.catalog_settings(owner=False))
+        if name in {"hub_catalog_configure", "hub_catalog_reset", "hub_catalog_usage_reset"}:
+            if not local_owner:
+                raise RpcError(
+                    -32043, "Catalog changes require the local stdio owner or management UI"
+                )
+            if name == "hub_catalog_configure":
+                if set(arguments) != {"patch"}:
+                    raise RpcError(-32602, "Provide a catalog settings patch")
+                self.configure_catalog(arguments["patch"])
+                return text_result(self.catalog_settings(owner=False))
+            if arguments:
+                raise RpcError(-32602, "Reset takes no arguments")
+            if name == "hub_catalog_reset":
+                self.configure_catalog(reset=True)
+                return text_result(self.catalog_settings(owner=False))
+            self.usage_stats.reset()
+            return text_result({"reset": True})
+        if name == "hub_catalog_usage":
+            if arguments:
+                raise RpcError(-32602, "Usage status takes no arguments")
+            return text_result(
+                self.usage_stats.snapshot(enabled=self.catalog_preferences.get()["usage_enabled"])
+            )
         if name == "hub_open_settings":
             if not local_owner:
                 raise RpcError(-32043, "설정 창은 로컬 stdio 연결에서만 열 수 있습니다.")
@@ -821,7 +1153,7 @@ class Hub:
                 return text_result(self.agent_approvals.request(arguments["approval_id"]))
             return text_result(self.agent_approvals.wait_status(**arguments))
         if name == "hub_skills_status":
-            return text_result(self.skill_manager.status())
+            return text_result(self.skill_manager.status(include_paths=False))
         if name == "hub_skills_plan":
             if set(arguments) - {"operation", "names", "agents", "refresh"}:
                 raise RpcError(-32602, "지원하지 않는 스킬 계획 필드입니다.")
@@ -853,18 +1185,46 @@ class Hub:
             return text_result(self.search(**{"query": "", **arguments}))
         if name == "hub_read_skill":
             return text_result(
-                self.skills.read(arguments.get("name"), arguments.get("path", "SKILL.md"))
+                self.read_skill(arguments.get("name"), arguments.get("path", "SKILL.md"))
             )
         if name == "hub_list_servers":
-            return text_result(self.state()["servers"])
+            return text_result(
+                [
+                    {
+                        "id": config["id"],
+                        "name": config["name"],
+                        "transport": config["transport"],
+                        "enabled": config["enabled"],
+                        "status": self.health.get(config["id"], {}).get("status", "disconnected"),
+                        "search_enabled": self.catalog_server_enabled(config),
+                        "tool_count": len(self.clients[config["id"]].tools)
+                        if config["id"] in self.clients
+                        else 0,
+                    }
+                    for config in self.registry.list()
+                ]
+            )
         if name == "hub_status":
             return text_result(
-                {**describe(self.state_dir, len(self.registry.list())), "profile": self.profile_id}
+                {
+                    **describe(self.state_dir, len(self.registry.list()), include_paths=False),
+                    "profile": self.profile_id,
+                }
             )
         if name == "hub_read_resource":
             return text_result(self.read_resource(arguments.get("uri", "")))
         if name == "hub_connect":
-            return text_result(self.probe(arguments.get("server")))
+            connected = self.probe(arguments.get("server"))
+            return text_result(
+                {
+                    "server": arguments.get("server"),
+                    "status": connected["status"],
+                    "protocol_version": connected["protocol_version"],
+                    "tool_count": len(connected["tools"]),
+                    "next_tool": "hub_search",
+                    "refresh_native_tools": True,
+                }
+            )
         if name == "hub_call":
             return self.invoke(
                 arguments.get("name"),
@@ -1182,6 +1542,62 @@ class Hub:
         )
         return {}
 
+    def read_skill(self, name, path="SKILL.md"):
+        started = time.monotonic()
+        identity, outcome = "unavailable", "error"
+        try:
+            result = self.skills.read(name, path)
+            identity, outcome = result["name"], "success"
+            return result
+        finally:
+            self.record_usage("skill", identity, outcome, (time.monotonic() - started) * 1000)
+
+    def read_skill_uri(self, uri):
+        started = time.monotonic()
+        identity, outcome = "unavailable", "error"
+        try:
+            result = self.skills.read_uri(uri)
+            identity, outcome = result["name"], "success"
+            return result
+        finally:
+            self.record_usage("skill", identity, outcome, (time.monotonic() - started) * 1000)
+
+    def remote_resource_allowed(self, server_id, original, *, directory=False, skill=False):
+        config = next((item for item in self.registry.list() if item["id"] == server_id), None)
+        if config is None or not self.catalog_server_enabled(config):
+            return False
+        client = self.clients.get(server_id)
+        if not client:
+            return not skill
+        matching = []
+        for entry in client.skill_entries:
+            manifest = entry.get("resources", [])
+            manifest = manifest if isinstance(manifest, list) else []
+            root_uri = entry.get("uri", "")
+            uris = [root_uri, *[item.get("uri", "") for item in manifest if isinstance(item, dict)]]
+            root = root_uri.rsplit("/", 1)[0] + "/" if root_uri.endswith("/SKILL.md") else ""
+            in_root = bool(root and (original.startswith(root) or original == root.rstrip("/")))
+            parent_of_root = bool(
+                root and directory and root.startswith(original.rstrip("/") + "/")
+            )
+            if (
+                in_root
+                or parent_of_root
+                or any(
+                    uri == original or (directory and uri.startswith(original.rstrip("/") + "/"))
+                    for uri in uris
+                    if isinstance(uri, str)
+                )
+            ):
+                matching.append(entry)
+        if skill and not matching:
+            return False
+        return all(self.remote_skill_enabled(server_id, entry) for entry in matching)
+
+    def require_remote_resource(self, server_id, original, *, directory=False, skill=False):
+        if not self.remote_resource_allowed(server_id, original, directory=directory, skill=skill):
+            raise RpcError(-32602, "Resource is disabled or unavailable in this catalog")
+
     def resources(self):
         items = [
             {
@@ -1193,21 +1609,33 @@ class Hub:
             for item in self.skills.list()
         ]
         for server_id, client in list(self.clients.items()):
-            if client.version and "resources" in client.capabilities:
+            if (
+                client.version
+                and "resources" in client.capabilities
+                and self.catalog_server_enabled(client.config)
+            ):
                 items.extend(
-                    rewrite_resources(client.list_items("resources/list", "resources"), server_id)
+                    rewrite_resources(
+                        [
+                            item
+                            for item in client.list_items("resources/list", "resources")
+                            if self.remote_resource_allowed(server_id, item["uri"])
+                        ],
+                        server_id,
+                    )
                 )
         return items
 
     def read_resource(self, uri):
         if uri.startswith("skill://"):
-            file = self.skills.read_uri(uri)
+            file = self.read_skill_uri(uri)
             content = {"uri": uri, "mimeType": file["mimeType"]}
             content.update(
                 {"text": file["content"]} if "content" in file else {"blob": file["blob"]}
             )
             return {"contents": [content]}
         server_id, original = unwrap_resource(uri)
+        self.require_remote_resource(server_id, original)
         client = self.client(server_id)
         result = client.request("resources/read", {"uri": original})
         # A proxy must not silently serve bytes that differ from its advertised skill manifest.
@@ -1367,19 +1795,29 @@ class Hub:
                         for server_id, client in list(self.clients.items()):
                             if client.version:
                                 result["skills"].extend(
-                                    rewrite_resources(client.skill_entries, server_id)
+                                    rewrite_resources(
+                                        [
+                                            entry
+                                            for entry in client.skill_entries
+                                            if self.remote_skill_enabled(server_id, entry)
+                                        ],
+                                        server_id,
+                                    )
                                 )
                     else:
                         uri = params.get("uri", "")
                         if uri.startswith("skill://"):
-                            file = self.skills.read_uri(uri)
+                            file = self.read_skill_uri(uri)
                             if file["path"] != "SKILL.md":
                                 raise RpcError(-32602, "Use the skill's SKILL.md URI")
                             result["skill"] = self.skills.entry(file["name"])
                         else:
                             server_id, original = unwrap_resource(uri)
+                            self.require_remote_resource(server_id, original, skill=True)
                             client = self.client(server_id)
                             entry = client.request("skills/get", {"uri": original})["skill"]
+                            if not self.remote_skill_enabled(server_id, entry):
+                                raise RpcError(-32602, "Skill is disabled in this catalog")
                             client.skill_entries = [
                                 cached
                                 for cached in client.skill_entries
@@ -1421,6 +1859,9 @@ class Hub:
                             "hub_approval_request",
                             "hub_approval_status",
                             "hub_open_settings",
+                            "hub_catalog_configure",
+                            "hub_catalog_reset",
+                            "hub_catalog_usage_reset",
                         )
                         result = self.invoke(
                             name,
@@ -1463,6 +1904,7 @@ class Hub:
                         }
                     else:
                         server_id, original = unwrap_resource(uri)
+                        self.require_remote_resource(server_id, original, directory=True)
                         result = rewrite_resources(
                             self.client(server_id).request(method, {"uri": original}), server_id
                         )

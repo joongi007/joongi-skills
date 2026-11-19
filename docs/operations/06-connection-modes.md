@@ -38,13 +38,18 @@ Hub가 실행한 MCP 프로세스도 정리한다. Windows의 강제 TerminatePr
 정상 종료와 같지 않으므로 에이전트의 정상 연결 종료 또는 stop을 사용한다. 사용하지 않는 upstream의 자동 유휴 종료는
 현재 구현하지 않았다. 여러 에이전트에서 MCP 프로세스를 공유하려면 혼합 또는 HTTP 모드를 사용한다.
 
+검색의 기본값과 native 도구 노출 정책은 세 방식 모두 같은 Hub 서비스에서 처리한다.
+기본은 5개/summary 검색 → 정확한 상세 → 호출이며, App·명시적 Task 도구만 직접 노출한다.
+[검색 계약](08-catalog-search.md)과 [선호의 owner 경계](14-catalog-preferences.md)를 따른다.
+연결 방식은 전송 선택이고, 카탈로그 설정은 사용할 항목·출처 선택이다.
+
 ## 설정하기
 
 웹의 **연결 설정**에서 방식을 저장한다. 공용 설정은 기본값이고, 프로젝트 범위는 이를 상속하거나
 별도 방식으로 바꿀 수 있다. 방식 변경은 연결 설정만 바꾸며 스킬·인증·Tasks 저장소를 이동하지 않는다.
 독립 stdio 프로세스들의 자격증명 갱신은 재진입 가능한 OS 파일 잠금으로 직렬화한다.
 
-CLI에서도 같은 설정을 쓴다. `joongi-hub state` 또는 MCP의 `hub_status`에서 현재
+CLI에서도 같은 설정을 쓴다. `joongi-hub state`에서 실제 경로를, MCP의 `hub_status`에서는 경로를 제외한 현재
 저장 경로·등록 수·백업 위치를 확인한다. [저장소 일관성과 복구](07-state-consistency.md)를 참고한다.
 
 ```bash
@@ -82,8 +87,10 @@ localhost 입력은 127.0.0.1로 정규화한다. HTTP 전용 bridge는 지정�
 현재 에이전트의 MCP 연결·세션은 다시 열어야 한다. 신뢰할 프로젝트의 설정을 로드하는 절차는
 각 에이전트의 기능이며 Hub가 대신 승인하지 않는다.
 
-공용 등록은 기존 installer manifest를 재사용하고, 프로젝트 등록은 `.joongi/private/mcp-installation.json`에
-소유권을 기록한다. 프로젝트 연결 파일 경로는 다음과 같다.
+공용 등록은 기존 installer manifest를 재사용하고, 프로젝트 등록은 프로젝트 밖의 해당 Hub profile 저장소
+`managed-installations/connections/installation.json`에 소유권을 기록한다.
+프로젝트 안의 이전 `.joongi/private/mcp-installation.json`은 신뢰하거나 자동 이전하지 않는다.
+이전 기록만 있으면 기존 등록을 미관리 설정으로 보호해 변경이 차단될 수 있다. 프로젝트 연결 파일 경로는 다음과 같다.
 
 | 에이전트 | 프로젝트 설정 파일 |
 |---|---|

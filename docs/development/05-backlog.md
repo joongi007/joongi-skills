@@ -46,7 +46,8 @@ MCP adapter는 검색·본문 조회만 제한적으로 노출하고 임의 CLI 
 
 - 후보 목록 조회만으로 MCP 실행·OAuth 로그인·스킬 설치·도구 목록 전체 연결을 하지 않는다.
 - 외부 설명은 비신뢰 텍스트로 표시하고 기존 XSS·SSRF·경로·실행 정책을 재사용한다.
-- 검색 메타데이터를 캐시하고 페이지를 나눈다. 공급자 실패·요청 제한·오프라인 상태를 표시한다.
+- 외부 후보 목록의 메타데이터를 캐시하고 페이지를 나눈다. 공급자 실패·요청 제한·오프라인 상태를 표시한다.
+  이 백로그는 현재 등록된 카탈로그의 프로세스별 준비 캐시와 별개다.
 - 지원하지 않는 전송·런타임·인증은 등록 전 설명하고, 추가 실패 시 부분 설정을 복구한다.
 - 공용·프로젝트 등록 격리, 기존 설정 충돌, 악성 메타데이터, 버전 변경, 제거·재추가를 검증한다.
 - 검색 적중률·추가 완료율·실패율·지연·실제 클라이언트 토큰·프로세스 비용으로 효과를 측정한다.
@@ -58,3 +59,11 @@ MCP adapter는 검색·본문 조회만 제한적으로 노출하고 임의 CLI 
 - [Modern Web Guidance 제작 소스](https://github.com/GoogleChrome/modern-web-guidance-src), [배포본·설치 안내](https://github.com/GoogleChrome/modern-web-guidance), [배포 package](https://github.com/GoogleChrome/modern-web-guidance/blob/main/package.json)
 - [awesome-shelf](https://github.com/joongi007/awesome-shelf): README가 `data/shelf.json`을 원본으로 명시한다. 이번 조회에서는 JSON 본문을 가져오지 못했으므로 새 후보를 추출·설치했다고 주장하지 않는다.
 - [공식 MCP Registry](https://github.com/modelcontextprotocol/registry): 서버 카탈로그와 API를 제공한다.
+
+
+## Codex Security 선택 실행 어댑터
+
+상태: 보류 · 현재 제공: engineering-playbook 검수 가이드. 공식 CLI MCP는 `info`만 제공한다.
+[통합 적합성과 수용 조건](../operations/15-codex-security.md)을 충족한 다음에만 구현한다.
+별도 worker·프로젝트 snapshot·외부 전송 승인·자격증명 분리·비용/시간 상한·영속 작업 상태·취소·보고서 접근 제어가 필요하다.
+공식 scan 접근 권한으로 실제 정상·거부·취소·실패 경로를 검증할 환경이 없으면 지원 완료로 표시하지 않는다.

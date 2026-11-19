@@ -32,6 +32,9 @@ description: 구현·설계·리뷰·테스트·운영의 판단 가이드다. �
 | uv·Python·Vite 프로젝트 구성, UI–API 계약, /api/v1, 역방향 프록시 단일 진입점 | `references/scaffolding.md` |
 | 인가·IDOR, 인증, injection·ReDoS, 업로드·이미지 압축 폭탄·디코딩 자원 제한·경로 이탈, SSRF·CORS·CSRF, DoS, 경쟁 상태, XSS | `references/web-security.md` |
 | 보안 헤더·CSP, 개인정보·암호화, 비밀 유출, 공급망, 컨테이너·외부 연결·백업 | `references/security-ops.md` |
+| 기술 도입·배포 전 취약점 확인, 30일 경과 시 전체 스택 재점검·중대 취약점 대응 | `references/vulnerability-management.md` |
+| nginx 보안 공지·수정 버전·배포판 backport 확인 | `references/nginx-security.md` |
+| Codex Security·Claude /security-review 등 에이전트 개발 보안 검수 | `references/agent-security-review.md` |
 | 침해 탐지·알림·자동 차단·격리·키 폐기·복구·훈련 | `references/incident-response.md` |
 | Java·Spring Boot Actuator, heapdump·관리 endpoint·JMX 노출 | `references/java-actuator.md` |
 | 요청 컨텍스트 정리, ThreadLocal·async 전파, 메모리 비밀·core/heap dump | `references/memory-secrets.md` |
@@ -55,4 +58,6 @@ Python·React·Java 예시 때문에 다른 프로젝트의 기술 스택을 바
 - 예방과 함께 탐지·차단·복구를 설계한다. 알림에는 담당자와 다음 행동이 있어야 한다.
 - 보안 검토는 `references/web-security.md`의 우선순위를 따르고 관측·대응은 `references/incident-response.md`를 본다.
 - Python의 Repository 패턴·JWT 사용자 정의 claim·React 상태 도구는 선택형 예시다. 기존 계약을 임의 변경하지 않는다.
+- 기술 도입·배포 전에는 관련 취약점 공지를 확인한다. 관련 엔지니어링·운영 점검 시 마지막 전체 스택 점검 후 30일 이상 지났거나 기록이 없으면 현재 프로젝트를 재점검한다. 긴급 공지는 기다리지 않는다.
+- 에이전트 개발의 완료 전 보안 검수는 `references/agent-security-review.md`를 따른다. Codex는 Codex Security를 최소 단계로 두고 미실행을 통과로 처리하지 않는다.
 - 중요한 결정은 이유·대안·검증·한계를 남긴다. 새 공통 원칙은 PLAYBOOK의 주제와 관련 참조를 함께 갱신한다.

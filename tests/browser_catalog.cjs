@@ -20,17 +20,23 @@ async function main(){
  const search=page.getByRole('region',{name:'통합 검색',exact:true});
  const input=search.getByRole('searchbox');
  async function find(query){await input.fill(query);const response=page.waitForResponse(r=>r.url().includes('/api/v1/search?'));await search.getByRole('button',{name:'검색',exact:true}).click();await response;await search.locator('.item-row').first().waitFor()}
- await find('');
- for(const label of ['스킬','MCP 서버','MCP 도구'])assert(await search.locator('.badge').filter({hasText:new RegExp('^'+label+'$')}).count()>0);
+ for(const [kind,label] of [['skill','스킬'],['server','MCP 서버'],['tool','MCP 도구']]){
+  await search.getByLabel('통합 검색 종류').selectOption(kind);await find('');
+  assert(await search.locator('.badge').filter({hasText:new RegExp('^'+label+'$')}).count()>0);
+  assert(await search.locator('.item-row').count()<=5);
+ }
+ await search.getByLabel('통합 검색 종류').selectOption('all');
  await page.getByRole('button',{name:'스킬 라이브러리',exact:true}).click();
  assert(await input.isVisible());
  await find('sleeping');
+ await search.getByRole('button',{name:'상세',exact:true}).click();
  await search.getByRole('button',{name:'연결 관리 →'}).click();
  assert.equal(await page.locator('[data-connection=sleeping]').evaluate(n=>n===document.activeElement),true);
  assert.equal(probes,0,'Searching/selecting registration must not start a server');
  await search.getByLabel('통합 검색 종류').selectOption('tool');
  await find('app');
- await search.locator('.item-row').filter({hasText:'catalog__app'}).getByRole('button',{name:'실행 →'}).click();
+ await search.locator('.item-row').filter({hasText:'catalog__app'}).getByRole('button',{name:'상세',exact:true}).click();
+ await search.getByRole('button',{name:'도구 입력 열기 →',exact:true}).click();
  await page.getByRole('button',{name:'App 열기',exact:true}).click();
  await page.frameLocator('.app-frame').frameLocator('#mcp-origin-view').getByText('App 연결됨',{exact:true}).waitFor();
  const frame=await page.locator('.app-frame').elementHandle();

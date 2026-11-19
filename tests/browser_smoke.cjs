@@ -97,7 +97,8 @@ async function main() {
   await page.getByRole('button', { name: '작업 공간', exact: true }).click();
   await page.getByRole('searchbox', { name: '스킬·MCP·도구 통합 검색', exact: true }).fill('remote-review');
   await page.getByRole('button', { name: '검색', exact: true }).click();
-  await page.locator('.hub-search .item-row').filter({ hasText: 'browser-check__remote-review' }).getByRole('button', { name: '읽기 →', exact: true }).click();
+  await page.locator('.hub-search .item-row').filter({ hasText: 'browser-check__remote-review' }).getByRole('button', { name: '상세', exact: true }).click();
+  await page.locator('.hub-search').getByRole('button', { name: '지침 읽기 →', exact: true }).click();
   await page.locator('#skill-content .markdown-body').getByText('Review carefully.', { exact: false }).waitFor();
   await page.getByRole('button', { name: 'MCP 연결', exact: true }).click();
   await page.getByRole('button', { name: '제거', exact: true }).click();

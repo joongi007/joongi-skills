@@ -447,6 +447,30 @@ class Connections(unittest.TestCase):
         with self.assertRaises(RpcError):
             self.hub.scoped("p").agent_connections.apply(plan["id"])
 
+    def test_checkout_manifest_cannot_claim_existing_mcp_registration(self):
+        project = self.hub.scoped("p")
+        path = self.project_root / ".mcp.json"
+        value = {"command": "company-owned"}
+        path.write_text(json.dumps({"mcpServers": {"joongi-hub": value}}))
+        legacy = self.project_root / ".joongi/private/mcp-installation.json"
+        legacy.parent.mkdir(parents=True)
+        legacy.write_text(
+            json.dumps(
+                {
+                    "schema": 1,
+                    "entries": {},
+                    "configs": {
+                        "claude": {"path": ".mcp.json", "value": value, "container": "mcpServers"}
+                    },
+                }
+            )
+        )
+        before = path.read_bytes()
+        with self.assertRaises(RpcError):
+            project.agent_connections.plan(["claude"])
+        self.assertEqual(path.read_bytes(), before)
+        self.assertFalse(project.agent_connections.installer().manifest["entries"])
+
     def test_project_registrations_use_project_files_and_private_manifest(self):
         project = self.hub.scoped("p")
         project.connection_settings.put(self.settings("http"))
@@ -455,7 +479,9 @@ class Connections(unittest.TestCase):
         manager.apply(plan["id"])
         self.assertIn('"--profile"', (self.project_root / ".mcp.json").read_text())
         self.assertIn('"--profile"', (self.project_root / ".github/mcp.json").read_text())
-        self.assertTrue((self.project_root / ".joongi/private/mcp-installation.json").is_file())
+        self.assertTrue(manager.installer().manifest_path.is_file())
+        self.assertTrue(manager.installer().manifest_path.is_relative_to(project.state_dir))
+        self.assertFalse((self.project_root / ".joongi/private/mcp-installation.json").exists())
         self.assertFalse((self.home / ".claude.json").exists())
 
     @unittest.skipIf(os.name == "nt", "WSL bridge is generated from its Linux environment")

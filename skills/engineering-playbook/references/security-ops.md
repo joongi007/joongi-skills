@@ -2,6 +2,7 @@
 
 구현 단계의 검사는 [웹 보안](web-security.md), 관측·알림·격리·복구 절차는
 [탐지·대응](incident-response.md)을 따른다. 아래 항목은 선택한 배포 환경과 위험에 맞춰 적용한다.
+도입 전·30일 경과 시 점검은 [취약점 관리](vulnerability-management.md), nginx는 [보안 버전 확인](nginx-security.md)을 따른다.
 Java 관리 경로는 [Actuator](java-actuator.md), 덤프·컨텍스트 수명은 [메모리 보안](memory-secrets.md)을 본다.
 
 ## 목차

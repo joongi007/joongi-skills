@@ -27,16 +27,9 @@ class AgentConnections:
         manager = Installer(
             Path(project["root"]) if project else self.home,
             self.hub.root_hub.common_skills.directory.parent,
+            state_dir=self.hub.state_dir / "managed-installations/connections" if project else None,
         )
         if project:
-            from joongi_hub.profiles import confined
-
-            manager.state = confined(project["root"], ".joongi/private")
-            manager.manifest_path = manager.state / "mcp-installation.json"
-            manager.original_manifest = (
-                manager.manifest_path.read_bytes() if manager.manifest_path.exists() else None
-            )
-            manager.manifest = manager._read_manifest()
             manager.project_scope = True
         manager.connection = configuration(self.hub.root_hub, self.hub.profile_id)
         return manager
@@ -51,8 +44,8 @@ class AgentConnections:
             or len(set(agents)) != len(agents)
         ):
             raise RpcError(-32602, "등록할 에이전트를 선택하세요.")
-        manager = self.installer()
         try:
+            manager = self.installer()
             for agent in agents:
                 manager._config(agent, Path(sys.executable))
             identity = secrets.token_hex(20)
@@ -99,10 +92,10 @@ class AgentConnections:
             or plan["settings"] != self.hub.connection_settings.get()
         ):
             raise RpcError(-32602, "연결 계획이 만료되었거나 설정이 바뀌었습니다. 다시 확인하세요.")
-        manager = self.installer()
-        if hashlib.sha256(manager.original_manifest or b"").hexdigest() != plan["manifest"]:
-            raise RpcError(-32602, "등록 상태가 바뀌었습니다. 계획을 다시 만드세요.")
         try:
+            manager = self.installer()
+            if hashlib.sha256(manager.original_manifest or b"").hexdigest() != plan["manifest"]:
+                raise RpcError(-32602, "등록 상태가 바뀌었습니다. 계획을 다시 만드세요.")
             for agent in plan["agents"]:
                 manager._config(agent, Path(sys.executable))
             current = {
@@ -111,9 +104,6 @@ class AgentConnections:
             }
             if current != plan["baselines"]:
                 raise RpcError(-32602, "에이전트 설정이 계획 이후 바뀌었습니다.")
-            if self.hub.project:
-                manager.state.mkdir(parents=True, exist_ok=True)
-                (manager.state / ".gitignore").write_text("*\n", encoding="utf-8")
             manager.manifest["agents"] = sorted(
                 set(manager.manifest.get("agents", [])) | set(plan["agents"])
             )

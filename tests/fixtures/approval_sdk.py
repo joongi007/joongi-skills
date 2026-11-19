@@ -43,6 +43,8 @@ hub = Hub(
     Path(sys.argv[1]),
     credential_store_factory=test_store,
 )
+# This fixture explicitly tests native typed-schema validation, an opt-in mode.
+hub.configure_catalog({"exposure": "all-native"})
 config = hub.register(
     {
         "id": "protected",

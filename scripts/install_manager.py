@@ -323,10 +323,22 @@ def run_wsl_hub(backend, arguments):
 
 
 class Installer:
-    def __init__(self, home: Path, source: Path, dry_run: bool = False):
+    def __init__(
+        self, home: Path, source: Path, dry_run: bool = False, *, state_dir: Path | None = None
+    ):
         self.home = home.expanduser().resolve()
         self.source = source.resolve()
-        self.state = self.home / ".local/share/joongi-skills"
+        self.external_state = state_dir is not None
+        self.state = (
+            Path(state_dir).expanduser().absolute()
+            if state_dir is not None
+            else self.home / ".local/share/joongi-skills"
+        )
+        if self.external_state and (
+            self.state.resolve().is_relative_to(self.home)
+            or self.home.is_relative_to(self.state.resolve())
+        ):
+            raise InstallError("Project ownership state must be outside the project checkout")
         self.manifest_path = self.state / "installation.json"
         self.runtime = self.state / "runtime"
         self.bin_dir = self.home / ".local/bin"
@@ -334,16 +346,29 @@ class Installer:
         self.messages: list[str] = []
         self.operations: list[tuple[Path, bytes | Path | None, dict | None]] = []
         self.config_baselines: dict[Path, bytes | None] = {}
-        self._check_path(self.manifest_path)
+        self._check_state_path(self.manifest_path)
         self.original_manifest = (
             self.manifest_path.read_bytes() if self.manifest_path.exists() else None
         )
         self.manifest = self._read_manifest()
 
+    def _check_state_path(self, path: Path) -> None:
+        # State is a separate trusted boundary; destination writes stay confined
+        # to self.home through _check_path. No CLI option accepts this override.
+        if not self.external_state:
+            self._check_path(path)
+            return
+        if not path.is_relative_to(self.state) or not path.resolve().is_relative_to(
+            self.state.resolve()
+        ):
+            raise InstallError("Installation state path escapes its trusted directory")
+        if any(current.is_symlink() for current in (path, *path.parents)):
+            raise InstallError("Installation state traverses a symlink")
+
     def _read_manifest(self) -> dict:
         if not self.manifest_path.exists():
             return {"schema": 1, "entries": {}, "agents": []}
-        self._check_path(self.manifest_path)
+        self._check_state_path(self.manifest_path)
         data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         if data.get("schema") != 1 or not isinstance(data.get("entries"), dict):
             raise InstallError("Unsupported installation manifest")
@@ -512,7 +537,27 @@ class Installer:
         self.manifest.setdefault("configs", {})[agent] = entry
         self.messages.append(f"Register MCP for {agent}: {path}")
 
-    def install(self, agents: list[str] | None = None, all_agents: bool = False) -> None:
+    def install(
+        self,
+        agents: list[str] | None = None,
+        all_agents: bool = False,
+        *,
+        exclude_categories: list[str] | None = None,
+        reset_skill_selection: bool = False,
+    ) -> None:
+        from joongi_hub.catalog_preferences import CATEGORIES, builtin_categories
+
+        saved = [] if reset_skill_selection else self.manifest.get("excluded_categories", [])
+        incoming = [] if exclude_categories is None else exclude_categories
+        if (
+            type(reset_skill_selection) is not bool
+            or not isinstance(saved, list)
+            or not isinstance(incoming, list)
+            or any(not isinstance(item, str) or item not in CATEGORIES for item in saved + incoming)
+        ):
+            raise InstallError("Excluded skill categories must use the supported category names")
+        excluded = set(saved) | set(incoming)
+        self.manifest["excluded_categories"] = sorted(excluded)
         selected = list(AGENTS) if all_agents else agents if agents else self.detect()
         if not (self.source / "skills").is_dir():
             raise InstallError(f"Source has no skills directory: {self.source}")
@@ -612,18 +657,28 @@ class Installer:
                 current_skills = set()
                 for skill in sorted((runtime / "skills").iterdir()):
                     if skill.is_dir() and (skill / "SKILL.md").is_file():
+                        if excluded.intersection(builtin_categories(skill.name)):
+                            self.messages.append(f"Skip excluded skill for {agent}: {skill.name}")
+                            continue
                         self._stage(target / skill.name, skill, "tree")
                         current_skills.add(skill.name)
                 prefix = AGENTS[agent][1] + "/"
                 for key, entry in list(self.manifest["entries"].items()):
                     if key.startswith(prefix) and key[len(prefix) :] not in current_skills:
                         stale = self.home / key
+                        reason = (
+                            "excluded"
+                            if excluded.intersection(builtin_categories(key[len(prefix) :]))
+                            else "retired"
+                        )
                         if not stale.exists() or self._managed_matches(stale, entry):
                             self.operations.append((stale, None, None))
                             del self.manifest["entries"][key]
-                            self.messages.append(f"Remove retired skill: {stale}")
+                            self.messages.append(f"Remove {reason} skill: {stale}")
                         else:
-                            self.messages.append(f"Preserve locally changed retired skill: {stale}")
+                            self.messages.append(
+                                f"Preserve locally changed {reason} skill: {stale}"
+                            )
                 self._config(agent, hub)
             self.manifest["agents"] = sorted(set(self.manifest.get("agents", [])) | set(selected))
             if not selected:
@@ -683,8 +738,8 @@ class Installer:
     def _apply(self) -> None:
         if self.dry_run:
             return
-        self._check_path(self.state)
-        self.state.mkdir(parents=True, exist_ok=True)
+        self._check_state_path(self.state)
+        self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
         lock = self.state / "install.lock"
         try:
             descriptor = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
@@ -693,6 +748,7 @@ class Installer:
         os.close(descriptor)
         applied: list[tuple[Path, Path | None]] = []
         try:
+            self._check_state_path(self.manifest_path)
             current_manifest = (
                 self.manifest_path.read_bytes() if self.manifest_path.exists() else None
             )
@@ -724,6 +780,7 @@ class Installer:
             self.manifest["source"] = str(self.source)
             content = json.dumps(self.manifest, ensure_ascii=False, indent=2) + "\n"
             staged = self.state / "installation.json.tmp"
+            self._check_state_path(staged)
             staged.write_text(content, encoding="utf-8")
             staged.chmod(0o600)
             staged.replace(self.manifest_path)
@@ -746,6 +803,7 @@ class Installer:
         return {
             "detected_agents": self.detect(),
             "installed_agents": self.manifest.get("agents", []),
+            "excluded_categories": self.manifest.get("excluded_categories", []),
             "managed_paths": len(self.manifest["entries"]),
             "runtime": str(self.runtime),
             "launcher": str(self.bin_dir / ("joongi-hub.cmd" if os.name == "nt" else "joongi-hub")),
@@ -753,6 +811,7 @@ class Installer:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from joongi_hub.catalog_preferences import CATEGORIES
     from joongi_hub.errors import RpcError
 
     for stream in (sys.stdout, sys.stderr):
@@ -771,6 +830,17 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--agent", action="append", choices=AGENTS)
     parser.add_argument(
+        "--exclude-category",
+        action="append",
+        choices=CATEGORIES,
+        help="Exclude bundled native skills in a category; repeat to add persistent exclusions",
+    )
+    parser.add_argument(
+        "--reset-skill-selection",
+        action="store_true",
+        help="Clear saved native skill exclusions before applying --exclude-category",
+    )
+    parser.add_argument(
         "--all", action="store_true", help="Explicitly install to every supported agent"
     )
     parser.add_argument("--dry-run", action="store_true")
@@ -787,6 +857,10 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--port", type=int, help="HTTP Hub port for --start")
     args = parser.parse_args(argv)
+    if args.action not in {"install", "update"} and (
+        args.exclude_category or args.reset_skill_selection
+    ):
+        parser.error("Skill selection options apply only to install or update")
     try:
         with contextlib.ExitStack() as stack:
             source = args.source or Path(__file__).resolve().parents[1]
@@ -858,7 +932,12 @@ def main(argv: list[str] | None = None) -> int:
             elif args.action == "uninstall":
                 installer.uninstall()
             else:
-                installer.install(args.agent, args.all)
+                installer.install(
+                    args.agent,
+                    args.all,
+                    exclude_categories=args.exclude_category,
+                    reset_skill_selection=args.reset_skill_selection,
+                )
                 if not args.dry_run and any(
                     getattr(args, key) is not None for key in ("mode", "url", "fallback")
                 ):
