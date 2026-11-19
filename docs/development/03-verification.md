@@ -405,3 +405,18 @@ Windows 종료 판단 근거: [WaitForSingleObject](https://learn.microsoft.com/
 - 카테고리 제외의 최초 설치·누적·업데이트·새 에이전트·복원·수정/다른 도구 소유 파일 보호·실제 설치된 runtime을 검증했다.
   Linux Python에서 `tests.test_installer` 40개 통과, native Windows에서도 40개 실행·플랫폼 전용 2개 제외·실패 없음.
 - 나머지 검색·노출·카탈로그·캐시·통계·브라우저의 최종 결과와 cold/warm 성능 수치는 이 기록의 설치기 결과로 대신하지 않는다.
+
+
+### 최종 로컬 수용 검사와 보안 검수 구분
+
+- Python 전체 회귀 검사: 372개 실행, 플랫폼 전용 4개 제외, 실패 없음 (Python 3.10).
+- 새 카탈로그·출처·통계 모듈은 native Windows에서도 25개 실행, 플랫폼 전용 2개 제외, 실패 없음.
+- 공식 MCP SDK의 2025/2026 × stdio/HTTP 조합, 승인 응답·호스트 동의·출처별 Skills SDK 검증 통과.
+- 전체 브라우저 suite: 검색 세 단계·출처/묶음·통계 설정·프로필 경합·설치·승인·모바일·Mermaid 보안 검사 통과.
+- Ruff·문서 실행 계약·스킬 패키징 검사·로컬 Pages HTML 생성 통과.
+- 초기 독립 검토에서 발견한 비활성 원격 스킬의 URI 우회, dynamic manifest 처리, 통계의 미검증 ID 저장,
+  출처 URI의 SDK 규칙 불일치를 수정하고 회귀 검사에 포함했다. 일반 도구의 native 노출 기대값도 두 노출 모드에서 검증한다.
+- [오프라인 검색 실측](../../refs/research/2026-11-19-search-first-evaluation.md)은 전체 MCP/LLM 성능 측정과 구분한다.
+- **Codex Security 실제 스캔은 미실행**이다. 위 검사와 별도 에이전트의 소스 리뷰를 해당 제품의 검수로 대신하지 않는다.
+  변경은 보안 전용 검수 전 draft PR로 유지하며 병합·배포 완료로 표시하지 않는다.
+  공식 기능과 추가 어댑터 수용 조건은 [통합 검토](../operations/15-codex-security.md)에 기록했다.

@@ -13,6 +13,8 @@ Codex Security 실행으로 대체하거나, 실행하지 않은 검사를 통�
 |---|---|---|
 | Codex | Codex Security의 공식 CLI·SDK 또는 연결된 클라우드 저장소/커밋 scan. 연결된 공식 플러그인이 해당 diff/working tree scan을 지원하면 그 범위를 사용한다. | 미실행 사유와 필요한 연결을 기록한다. 대체 검수는 별도로 실행하되 필수 검수 완료로 처리하지 않는다. |
 | Claude Code | 프로젝트에서 `/security-review`; 공식 GitHub Action으로 PR 검수를 자동화할 수도 있다. | 지원 버전·계정·명령 접근을 확인하고 미실행을 기록한다. |
+| GitHub Copilot | 사용 중인 공식 client의 local security review 또는 저장소 code scanning을 실행하고 결과를 확인한다. 일반 Copilot code review와 CodeQL·비밀·의존성 검사는 구분한다. | 계정·조직 정책·언어 지원 범위를 기록하고 지원하는 보안 검사와 별도 리뷰를 수행한다. |
+| Gemini CLI | 공식 명령·확장 중 실제 보안 검수 기능을 확인한 경우 사용한다. 확인되지 않으면 SAST·의존성 검사와 별도 리뷰를 조합한다. | Folder Trust·sandbox·도구 승인 정책 자체를 코드 보안 검수로 취급하지 않는다. |
 | 그 외 | 공급사가 제공하는 보안 전용 검수 기능이 실제로 있으면 사용한다. 없으면 지원 scanner와 별도 보안 리뷰를 조합한다. | 존재하지 않는 명령·MCP·동등한 검수 성능을 만들어내지 않는다. |
 
 Codex Security의 공식 CLI·SDK도 사용할 수 있다. 실제 설치 버전을 고정하고 스캔 권한·인증·소스 전송 범위를 확인한다.
@@ -53,3 +55,6 @@ MCP 실행 명령·모델 제공자·전송 목적지를 비신뢰 저장소가 
 - [Codex Security 플러그인](https://openai.com/business/plugins/codex-security/)
 - [Claude Code 자동 보안 검수](https://support.anthropic.com/en/articles/11932705-automated-security-reviews-in-claude-code/)
 - [Claude Code Security 소개](https://www.anthropic.com/news/claude-code-security)
+
+- [GitHub의 에이전트 개발 보안 검사 경로](https://docs.github.com/en/code-security/tutorials/secure-code-from-commit-to-production)
+- [Gemini CLI 보안 설정](https://geminicli.com/docs/cli/settings/)
