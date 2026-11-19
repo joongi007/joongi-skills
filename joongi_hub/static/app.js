@@ -804,6 +804,15 @@ async function openSkillManager() {
       el('details', {}, el('summary', {}, `설치 상태 ${info.installed.length}개`), ...info.installed.map(item => el('p', {}, `${item.agent} · ${item.name}${item.pinned ? ' · 고정' : ''}${item.modified ? ' · 직접 수정됨' : ''}`)))));
   });
 }
+function credentialStorageDescription(storage) {
+  const descriptions = {
+    'windows-dpapi': 'Windows DPAPI로 암호화한 파일에 저장합니다.',
+    'wsl-windows-dpapi': 'Windows PowerShell을 통해 Windows DPAPI로 암호화한 파일에 저장합니다.',
+    'macos-keychain': 'macOS Keychain에 비밀 값을 저장하고 로컬 파일에는 항목 식별자만 기록합니다.',
+    'linux-secret-service': 'Linux Secret Service의 로그인 키링에 비밀 값을 저장하고 로컬 파일에는 항목 식별자만 기록합니다.'
+  };
+  return Object.hasOwn(descriptions, storage) ? descriptions[storage] : 'OS 보안 저장 방식을 확인할 수 없습니다. 저장소 상태를 확인하세요. 평문 파일로 우회하지 않습니다.';
+}
 function authenticationPanel(server) {
   const auth = server.auth || { type: server.auth_status?.type || 'none' };
   const status = server.auth_status || {};
@@ -868,7 +877,7 @@ function authenticationPanel(server) {
         if (profile === activeProfile) { discardDraft(identity); await load(); showNotice('로컬 인증 정보를 저장했습니다.'); }
       }, store), 'small');
       const inputArea = el('fieldset', {}, el('legend', {}, '이 컴퓨터에 저장할 인증 정보'), kind === 'basic' ? field('사용자 이름', `${server.id}-manual-username`, username) : null, field(kind === 'basic' ? '비밀번호' : '토큰', `${server.id}-manual-secret`, token), store);
-      manual.append(el('details', { 'data-disclosure': `manual:${server.id}` }, el('summary', {}, '환경변수 대신 이 컴퓨터에 저장'), el('p', {}, status.storage === 'windows-dpapi' ? 'Windows DPAPI로 저장합니다.' : '소유자 전용 권한의 로컬 파일에 저장합니다. OS 계정에 접근할 수 있는 사용자는 읽을 수 있습니다.'), inputArea));
+      manual.append(el('details', { 'data-disclosure': `manual:${server.id}` }, el('summary', {}, '환경변수 대신 이 컴퓨터에 저장'), el('p', {}, credentialStorageDescription(status.storage)), inputArea));
     }
     update();
   };

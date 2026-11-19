@@ -68,6 +68,18 @@ class CatalogSearchTests(unittest.TestCase):
         )
         self.hub.clients["docs"] = self.client
 
+    def test_security_guidance_is_discoverable_without_a_codex_mcp_server(self):
+        for query in ("codex", "security", "Codex Security", "보안 검수"):
+            with self.subTest(query=query):
+                results = self.hub.search(query)
+                self.assertTrue(
+                    any(
+                        item["kind"] == "skill" and item["name"] == "engineering-playbook"
+                        for item in results
+                    )
+                )
+        self.assertEqual([server["id"] for server in self.hub.registry.list()], ["docs"])
+
     def test_exact_identifier_ranks_before_description_keyword_matches(self):
         result = self.hub.search("convert_to_markdown")
         self.assertEqual(result[0]["name"], "docs__convert_to_markdown")
@@ -150,6 +162,19 @@ class CatalogSearchTests(unittest.TestCase):
         self.assertEqual(self.hub.search("convert.*markdown", mode="literal"), [])
         result = self.hub.search("docs__convert_to_markdown", mode="literal")
         self.assertEqual([r["name"] for r in result], ["docs__convert_to_markdown"])
+
+    def test_summary_length_includes_ellipsis_and_preserves_full_description(self):
+        for size in (159, 160, 161, 320):
+            with self.subTest(size=size):
+                text = "가" * size
+                self.client.tools[0]["description"] = text
+                row = self.hub.search("convert_to_markdown", detail="summary", limit=1)[0]
+                self.assertLessEqual(len(row["description"]), 160)
+                self.assertEqual(row.get("description_truncated", False), size > 160)
+                if size > 160:
+                    self.assertTrue(row["description"].endswith("…"))
+                full = self.hub.catalog_item("tool", "docs__convert_to_markdown")
+                self.assertEqual(full["description"], text)
 
     def test_summary_then_exact_full_definition_keeps_origin_and_schema(self):
         small = self.hub.search("markdown", limit=1, detail="summary")[0]

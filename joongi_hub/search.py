@@ -231,7 +231,7 @@ def rank(
                 description = clean(value.get("description", ""))
                 value["description"] = description
                 if len(description) > SUMMARY_CHARS:
-                    value["description"] = description[:SUMMARY_CHARS] + "…"
+                    value["description"] = description[: SUMMARY_CHARS - 1] + "…"
                     value["description_truncated"] = True
             ranked.append(value)
     return sorted(ranked, key=lambda item: (-item["score"], item["name"]))[:limit]

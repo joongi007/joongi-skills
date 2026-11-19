@@ -49,8 +49,8 @@ Hub가 실행한 MCP 프로세스도 정리한다. Windows의 강제 TerminatePr
 별도 방식으로 바꿀 수 있다. 방식 변경은 연결 설정만 바꾸며 스킬·인증·Tasks 저장소를 이동하지 않는다.
 독립 stdio 프로세스들의 자격증명 갱신은 재진입 가능한 OS 파일 잠금으로 직렬화한다.
 
-CLI에서도 같은 설정을 쓴다. `joongi-hub state`에서 실제 경로를, MCP의 `hub_status`에서는 경로를 제외한 현재
-저장 경로·등록 수·백업 위치를 확인한다. [저장소 일관성과 복구](07-state-consistency.md)를 참고한다.
+CLI에서도 같은 설정을 쓴다. `joongi-hub state`에서는 실제 저장 경로·백업 위치를 확인한다.
+MCP의 `hub_status`는 절대 경로 없이 등록 수·임시 저장소 경고·백업 유무를 반환한다. [저장소 일관성과 복구](07-state-consistency.md)를 참고한다.
 
 ```bash
 joongi-hub configure --mode stdio

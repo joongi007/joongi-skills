@@ -42,7 +42,7 @@ upstream 도구만 `서버ID__원래도구명`으로 native `tools/list`에 노�
 2025 목록에는 `execution.taskSupport`를 유지하고 Hub가 감쌀 수 있는 노출 도구에는 `optional`을 제공한다.
 이 후처리는 기본 노출을 결정하는 근거가 아니다. 필터는 upstream 원본 metadata로 먼저 판정한다.
 2025의 `required`·`forbidden`을 호출 시 검사한다. 2026 목록에서는 이전 규격의 `execution`을 제거하고
-요청별 Tasks 확장 협상을 따른다. `hub_call`만으로 도구를 숨기던 정책은 ADR-0005로 대체했다.
+요청별 Tasks 확장 협상을 따른다. ADR-0005의 전체 native 기본 노출은 [ADR-0015](../adr/0015-search-first-catalog.md)의 검색 중심 정책으로 대체했다.
 Apps 도구의 UI metadata는 호스트 preloading에도 사용한다.
 metadata와 `ui://` 리소스 URI를 출처별로 매핑한다. 로컬 관리 화면은 공식 AppBridge를
 통해 opaque-origin iframe에서 App을 렌더링한다. iframe에는 `allow-scripts`만 부여하며,

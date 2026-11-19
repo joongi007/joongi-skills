@@ -67,6 +67,20 @@ async function main() {
   await page.goto('https://pages.example/joongi-skills/');
   await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('link', { name: '문서', exact: true }).click();
   await page.getByRole('heading', { name: '문서 안내', exact: true }).waitFor();
+  await page.goto('https://pages.example/joongi-skills/');
+  const security = page.locator('#security-example');
+  await security.getByRole('heading', { name: '“이 보안 문제를 Codex Security로 확인해줘.”', exact: true }).waitFor();
+  assert((await security.innerText()).includes('CLI 설치·서비스 접근 권한이 별도로 필요'));
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(await page.locator('html').evaluate(el => el.scrollWidth > innerWidth), false, 'Security example overflow at ' + width);
+  }
+  await security.getByRole('link', { name: '보안 검수 가이드와 실행 조건 →', exact: true }).click();
+  await page.getByRole('heading', { name: 'Hub에서 검수 가이드 찾기', exact: true }).waitFor();
+  assert((await page.locator('main').innerText()).includes('MCP 서버가 아니다'));
+  await page.goto('https://pages.example/joongi-skills/read/skills/engineering-playbook/references/wsl-development.html');
+  await page.getByRole('heading', { name: 'WSL 개발 환경과 저장 공간', exact: true }).waitFor();
+  assert((await page.locator('main').innerText()).includes('compact를 실행하라는 규칙은 아니다'));
   console.log('Static documentation: no-JS navigation, Korean anchors, mobile menu, widths 320–1440 and installation-page entry passed.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
