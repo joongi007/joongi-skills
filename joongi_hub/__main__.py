@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -193,6 +194,7 @@ def main(argv=None):
         "state",
         "credentials",
         "sandbox",
+        "browser",
     ):
         command = subparsers.add_parser(name)
         command.add_argument(
@@ -237,6 +239,30 @@ def main(argv=None):
             command.add_argument(
                 "--prepare", action="store_true", help="Prepare the pinned sandbox runtime image"
             )
+        if name == "browser":
+            command.add_argument(
+                "--prepare",
+                action="store_true",
+                help="Explicitly build the pinned optional Playwright container",
+            )
+            command.add_argument(
+                "--register",
+                action="store_true",
+                help="Register the prepared browser without starting it",
+            )
+            command.add_argument("--image", help="Prepared local sha256 image ID")
+            command.add_argument(
+                "--replace",
+                action="store_true",
+                help="Replace an existing browser profile after owner review",
+            )
+            command.add_argument(
+                "--origin",
+                action="append",
+                default=[],
+                help="Allowed HTTPS origin; repeat for assets and redirects",
+            )
+            command.add_argument("--display", choices=["headless", "wayland"], default="headless")
         if name == "credentials":
             command.add_argument(
                 "--rotate-local",
@@ -254,6 +280,44 @@ def main(argv=None):
         return 0
     args.state_dir = args.state_dir.expanduser().resolve()
     args.skills_dir = args.skills_dir.expanduser().resolve()
+    if args.command == "browser":
+        from joongi_hub.browser_runtime import prepare, server_config
+        from joongi_hub.storage import Registry
+
+        try:
+            if args.prepare == args.register:
+                raise RpcError(-32602, "browser --prepare 또는 --register 중 하나를 선택하세요.")
+            if args.prepare:
+                if args.image or args.origin or args.display != "headless" or args.replace:
+                    raise RpcError(-32602, "이미지 준비와 연결 등록은 별도 명령입니다.")
+                result = prepare()
+            else:
+                config = server_config(args.image or "", args.origin, args.display)
+                registry = Registry(args.state_dir)
+                with registry.lock:
+                    old = next((s for s in registry.list() if s["id"] == "playwright"), None)
+                    if old is not None and old != config:
+                        if (
+                            not args.replace
+                            or old.get("sandbox", {}).get("backend") != "first-party-browser"
+                        ):
+                            raise RpcError(
+                                -32602,
+                                "기존 등록을 보존했습니다. 변경하려면 --replace를 지정하세요.",
+                            )
+                    registry.put(config)
+                result = {
+                    "server": "playwright",
+                    "registered": True,
+                    "display": args.display,
+                    "origins": config["sandbox"]["browser_origins"],
+                    "started": False,
+                }
+            print(json.dumps(result, ensure_ascii=False))
+            return 0
+        except (RpcError, OSError, subprocess.SubprocessError) as error:
+            print(str(error), file=sys.stderr)
+            return 1
     if args.command == "sandbox":
         from joongi_hub.sandbox import prepare, status
 

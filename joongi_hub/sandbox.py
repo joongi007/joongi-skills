@@ -42,6 +42,8 @@ def validate_sandbox(value):
         "cpu_seconds",
         "process_backend",
         "graph_python",
+        "browser_origins",
+        "browser_display",
     }:
         raise RpcError(-32602, "샌드박스 설정 필드를 확인하세요.")
     if value.get("backend", "auto") not in {
@@ -50,8 +52,13 @@ def validate_sandbox(value):
         "docker",
         "docker-native",
         "first-party-graph",
+        "first-party-browser",
     }:
         raise RpcError(-32602, "지원하지 않는 샌드박스입니다. 제한 없는 실행은 지원하지 않습니다.")
+    if value.get("backend") == "first-party-browser":
+        from joongi_hub.browser_runtime import validate_browser
+
+        validate_browser(value)
     if value.get("process_backend", "docker-native") not in {"auto", "landlock", "docker-native"}:
         raise RpcError(-32602, "코드 그래프 process backend를 확인하세요.")
     if value.get("backend") == "first-party-graph" and (
@@ -235,11 +242,19 @@ class Execution:
         )
         self.container = None
         self.engine = None
+        self.browser = None
         self.environment = _helper_environment()
         try:
             settings = config.get("sandbox", {})
             validate_sandbox(settings)
             backend = settings.get("backend", "auto")
+            if backend == "first-party-browser":
+                from joongi_hub.browser_runtime import BrowserExecution
+
+                self.browser = BrowserExecution(config)
+                self.command = self.browser.command
+                self.environment = self.browser.environment
+                return
             if backend == "first-party-graph":
                 from joongi_hub.review_graph import adapter_command
 
@@ -487,6 +502,9 @@ class Execution:
                 os.killpg(process.pid, signal.SIGKILL)
             except (ProcessLookupError, PermissionError):
                 pass
+        if self.browser:
+            self.browser.cleanup()
+            self.browser = None
         if self.container:
             try:
                 subprocess.run(

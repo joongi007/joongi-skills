@@ -2,7 +2,7 @@
 
 문서 ID: OPS-LOCAL · 요구사항: REQ-UI, REQ-REGISTRY, REQ-TASKS
 
-<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--rotate-local","--skills-dir","--state-dir"],"sandbox":["--help","--prepare","--skills-dir","--state-dir"]} -->
+<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--rotate-local","--skills-dir","--state-dir"],"sandbox":["--help","--prepare","--skills-dir","--state-dir"],"browser":["--display","--help","--image","--origin","--prepare","--register","--replace","--skills-dir","--state-dir"]} -->
 
 설치는 [설치 안내](../installation/00-index.md), 기능 경계는
 [호환성 계약](../architecture/02-compatibility.md)을 먼저 확인한다.
@@ -71,7 +71,7 @@ state에는 endpoint와 작업 결과가 포함될 수 있으므로 공개 저�
 | 스킬 변경 미반영 | 설치본/원본 위치, 업데이트 충돌, catalog 새 조회 |
 | 작업이 멈춤 | upstream 생존·timeout·취소 결과·재시작 정책 |
 
-upstream stdio 명령은 사용자 권한으로 실행된다. 신뢰하는 명령만 등록한다.
+upstream stdio 명령은 선택한 OS 격리 경계 안에서 실행된다. 신뢰하는 명령만 등록한다.
 비밀은 등록 예제에 직접 쓰지 않고 필요한 환경 변수로 주입한다.
 
 ## 제거와 복구
@@ -117,3 +117,8 @@ manifest의 digest·size는 최종 읽은 바이트와 대조한다. 파일은 1
 3D 작업 지침·검사와 GUI 입력 승인은 [사용 예시](12-3d-and-host-consent.md)를 본다.
 
 Codex Security의 공식 MCP 범위와 안전한 통합 조건은 [연동 검토](15-codex-security.md)를 본다.
+
+## 브라우저 조작
+
+선택형 [격리 Playwright 브라우저](16-browser-automation.md)는 별도 준비·등록이 필요하다.
+허용 HTTPS 사이트·호출 승인·화면 모드를 확인하고 사용한다. 기본 설치나 TinyFish 로그인과는 별개다.

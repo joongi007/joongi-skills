@@ -22,6 +22,26 @@ async function main() {
     child.once('error', reject);
   });
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
+  const browserProfilePage = await browser.newPage();
+  await browserProfilePage.route('**/api/v1/state', async route => {
+    const response = await route.fetch();
+    const data = await response.json();
+    const server = data.servers.find(item => item.id === 'protected');
+    server.transport = 'stdio';
+    server.sandbox = { backend: 'first-party-browser', browser_display: 'wayland', browser_origins: ['https://example.com'] };
+    await route.fulfill({ response, json: data });
+  });
+  await browserProfilePage.goto(fixture.ui_url);
+  await browserProfilePage.getByRole('button', { name: 'MCP 연결', exact: true }).click();
+  await browserProfilePage.locator('.connection').first().waitFor();
+  // Locate the browser-specific disclosure regardless of the fixture's display label.
+  await browserProfilePage.getByText('Playwright 전용 컨테이너', { exact: false }).waitFor({ state: 'attached' });
+  const browserSettings = browserProfilePage.locator('.connection').filter({ has: browserProfilePage.getByText('Playwright 전용 컨테이너', { exact: false }) });
+  await browserSettings.getByText('연결 설정', { exact: true }).click();
+  await browserSettings.getByText('브라우저 허용 사이트와 경계', { exact: true }).click();
+  assert((await browserSettings.innerText()).includes('Wayland 화면 서비스·클립보드 신뢰 범위 추가'));
+  assert.equal(await browserSettings.locator('textarea').first().isDisabled(), true);
+  await browserProfilePage.close();
   // The UI must describe the OS store actually reported by the backend.
   const storagePage = await browser.newPage();
   let selectedStorage;

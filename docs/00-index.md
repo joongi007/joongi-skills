@@ -15,6 +15,7 @@ Joongi Skills & Hub는 AI 에이전트에 공통 지침을 설치하고 여러 M
 | MCP 등록·연결·로그인·호출 승인 | [첫 연결 순서](getting-started/00-index.md#4-외부-mcp-등록연결로그인하기) · [인증 상세](operations/05-auth-project-skills.md) |
 | 스킬·등록 MCP·연결 도구 검색 | [검색 → 상세 → 호출](operations/08-catalog-search.md) |
 | 회사·개인 스킬, 묶음 on/off, 사용 통계 | [검색 설정과 출처](operations/14-catalog-preferences.md) |
+| 브라우저 화면 확인·클릭·입력 | [격리 Playwright 브라우저](operations/16-browser-automation.md) |
 | 다이어그램·아이콘·3D 제작 | [시각 자료 제작](operations/13-visual-workflows.md) · [3D와 호스트 승인](operations/12-3d-and-host-consent.md) |
 | 연결이 안 되거나 목록이 다름 | [장애 확인](operations/00-index.md#장애-확인) · [상태 저장소](operations/07-state-consistency.md) |
 | 지원 기능과 보안 한계 확인 | [호환성](architecture/02-compatibility.md) · [보안 경계](operations/10-security-boundaries.md) |

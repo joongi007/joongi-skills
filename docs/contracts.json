@@ -169,6 +169,17 @@
         "--prepare",
         "--skills-dir",
         "--state-dir"
+      ],
+      "browser": [
+        "--display",
+        "--help",
+        "--image",
+        "--origin",
+        "--prepare",
+        "--register",
+        "--replace",
+        "--skills-dir",
+        "--state-dir"
       ]
     },
     "protocol.modernCapabilities": {
