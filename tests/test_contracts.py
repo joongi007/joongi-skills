@@ -69,6 +69,20 @@ class ContractTests(unittest.TestCase):
         self.assertEqual(route_patterns(module), ["POST /api/v1/tasks/{value}/cancel"])
         self.assertEqual(method_branches(module), ["tasks/cancel", "tasks/get"])
 
+    def test_catalog_defaults_drift_is_reported(self):
+        defaults = {
+            "limit": 5,
+            "detail": "summary",
+            "summary_chars": 160,
+            "exposure": "search-first",
+            "usage_enabled": False,
+        }
+        self.manifest["facts"]["catalog.defaults"] = defaults
+        self.save()
+        actual = {**self.facts, "catalog.defaults": {**defaults, "limit": 100}}
+        errors = check(self.root, actual)
+        self.assertTrue(any("catalog.defaults drift" in error for error in errors))
+
     def test_repository_contracts(self):
         root = Path(__file__).resolve().parents[1]
         self.assertEqual(check(root, actual_facts(root)), [])

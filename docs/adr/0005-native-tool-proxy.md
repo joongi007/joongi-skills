@@ -1,6 +1,9 @@
 # ADR-0005: 도구 원형을 보존하는 발견과 Apps·Tasks 라우팅
 
-상태: accepted · 날짜: 2026-11-06
+상태: 부분 대체됨 · 날짜: 2026-11-06
+
+2026-11-19: 전체 native 노출의 기본 정책은 [ADR-0015](0015-search-first-catalog.md)로 대체했다.
+아래는 당시 선택의 기록이다. schema·App callback·Task 소유권 보존 원칙은 유지한다.
 
 ## 맥락
 

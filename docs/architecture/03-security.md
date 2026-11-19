@@ -19,6 +19,9 @@ Hub는 loopback에 바인딩한다. 로컬 서비스라도 외부 웹페이지�
 등록한 외부 stdio 명령은 Landlock·seccomp 또는 제한한 Docker 안에서 실행한다. 격리할 수 없으면 거절한다. 자동 발견을 위해
 프로세스를 실행하는 시점도 실행 경계로 다룬다. 명령·인자는 배열로 전달하고 shell을 쓰지 않는다.
 외부 MCP 서버가 반환한 지침은 untrusted content이며 사용자 권한이나 설치 승인을 대체하지 않는다.
+카탈로그의 출처·묶음·검색 on/off는 사용성 선호다. local stdio/credential bridge owner만 MCP로 변경하며
+직접 HTTP MCP는 조회만 가능하다. 인증한 관리 API 변경은 기존 관리 토큰·Origin·Host 검사를 따른다.
+알려진 도구의 직접 호출 인가를 검색 여부로 판단하지 않고 기존 인증·승인·실행 격리를 유지한다.
 stdio 자식에는 PATH·홈·임시 경로·OS 실행·locale 등 기본 허용 목록만 전달한다.
 API key·proxy·인증 agent socket·인터프리터 주입 변수 등은 자동 상속하지 않는다.
 추가 변수가 필요하면 서버별 env 매핑을 명시한다. 파일 접근은 명시한 경로로 제한하고 네트워크 연결은 차단한다.

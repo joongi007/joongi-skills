@@ -43,15 +43,15 @@
 <details class="clone"><summary>클론한 저장소에서 설치하기</summary><p>소스를 직접 관리하려면 저장소를 클론하고 변경 계획을 확인하세요. Windows 명령은 <a href="read/docs/installation/00-index.html#section-windows">PowerShell 안내</a>에 있습니다.</p><pre tabindex="0">git clone https://github.com/joongi007/joongi-skills.git
 cd joongi-skills
 bash install.sh install --dry-run
-bash install.sh install</pre><p>특정 에이전트만 선택하려면 <code>--agent codex</code>처럼 덧붙입니다. <a href="install.sh" download>Bash 스크립트</a> · <a href="install.ps1" download>PowerShell 스크립트</a></p></details>
+bash install.sh install</pre><p>특정 에이전트는 <code>--agent codex</code>, 기본 디자인의 native 설치 제외는 <code>--exclude-category design</code>을 덧붙입니다. 제외는 업데이트에도 유지합니다. <a href="install.sh" download>Bash 스크립트</a> · <a href="install.ps1" download>PowerShell 스크립트</a></p></details>
 <div class="install-next"><strong>설치가 끝났다면</strong><ol><li>에이전트에서 <code>joongi-hub</code> MCP 연결을 다시 여세요.</li><li>“Hub에서 usual-korean 스킬을 찾아 읽어줘”라고 요청하세요.</li></ol><a href="read/docs/getting-started/00-index.html">첫 사용·외부 MCP 연결 안내 →</a></div>
 </div>
 </section>
 <section id="how" class="how section">
 <div class="section-intro"><h2>지침은 스킬로,<br>실행은 MCP로.</h2><p>스킬은 에이전트가 읽는 작업 지침입니다. MCP는 에이전트가 외부 도구를 호출하는 연결 방식입니다.</p><p class="section-detail">기본 stdio 방식은 에이전트가 Hub를 실행합니다. 관리 화면은 필요한 때만 열 수 있습니다.</p></div>
-<ol class="steps"><li><span class="step-num">01</span><div><h3>기존 에이전트에 등록</h3><p>Claude Code·Codex·Cursor·Copilot CLI·Gemini CLI·OpenCode의 설정 폴더를 감지합니다. 에이전트 앱 자체를 설치하지는 않습니다.</p></div></li><li><span class="step-num">02</span><div><h3>외부 MCP는 직접 추가</h3><p>처음 설치하면 외부 서버 목록은 비어 있습니다. 서버를 등록한 뒤 연결하고, 필요한 서비스에 로그인하세요.</p></div></li><li><span class="step-num">03</span><div><h3>필요한 것부터 검색</h3><p>스킬·등록된 MCP·연결된 도구를 함께 검색합니다. 선택한 지침과 도구의 상세 정보를 읽고 사용합니다.</p></div></li></ol>
+<ol class="steps"><li><span class="step-num">01</span><div><h3>기존 에이전트에 등록</h3><p>Claude Code·Codex·Cursor·Copilot CLI·Gemini CLI·OpenCode의 설정 폴더를 감지합니다. 에이전트 앱 자체를 설치하지는 않습니다.</p></div></li><li><span class="step-num">02</span><div><h3>외부 MCP는 직접 추가</h3><p>처음 설치하면 외부 서버 목록은 비어 있습니다. 서버를 등록한 뒤 연결하고, 필요한 서비스에 로그인하세요.</p></div></li><li><span class="step-num">03</span><div><h3>필요한 것부터 검색</h3><p>한 줄 설명으로 상위 5개를 찾고, 상세에서 전체 지침과 스키마를 확인한 뒤 읽거나 실행합니다. stdio와 HTTP에서 같은 흐름을 사용합니다.</p></div></li></ol>
 </section>
-<section id="skills" class="skill-section" aria-labelledby="skills-title"><div class="section-intro"><h2 id="skills-title">함께 설치되는 스킬 5개</h2><p>필요한 작업에서 선택해 읽습니다. 파일 설치만으로 모든 에이전트의 자동 적용을 보장하지는 않습니다.</p></div><dl class="skill-list">
+<section id="skills" class="skill-section" aria-labelledby="skills-title"><div class="section-intro"><h2 id="skills-title">함께 설치되는 스킬 5개</h2><p>필요한 작업에서 선택해 읽습니다. 회사·개인 출처와 묶음은 검색 설정에서 고를 수 있고, native 설치 제외는 --exclude-category로 따로 지정합니다.</p></div><dl class="skill-list">
 <div><dt><a href="read/skills/engineering-playbook/SKILL.html">엔지니어링 플레이북</a></dt><dd>구현·설계·보안·테스트·운영의 판단 가이드</dd></div>
 <div><dt><a href="read/skills/usual-korean/SKILL.html">자연스러운 한국어</a></dt><dd>명확한 문장과 실제 용례에 맞는 기술 용어 선택</dd></div>
 <div><dt><a href="read/skills/applying-design-systems/SKILL.html">디자인 시스템과 UX</a></dt><dd>기존 토큰 활용, 디자인 명세 선택, 정보와 상태 설계</dd></div>

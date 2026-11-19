@@ -82,6 +82,11 @@ SHA-256으로 검증해 CI 홈에만 설치한다. 폰트는 사용자 런타임
 문법·링크 검사는 의미의 일치까지 증명하지 않으므로 별도 검토한다.
 오래된 ADR은 삭제보다 `superseded` 상태와 대체 ADR 연결을 남긴다.
 
+검색의 limit/detail과 노출 정책도 실행 계약으로 검사한다. stdio·HTTP의 기본값과 예외,
+정확한 상세 조회, source·분류·프로필의 off 동작, metadata 변경 후 캐시, 통계의 비밀 비기록,
+native 설치 제외의 새 에이전트·업데이트·복원까지 실제 fixture로 확인한다.
+[검사 계획과 독립 조사](07-catalog-contract-audit.md)를 따른다.
+
 명시적 인터페이스·버전·capability·경로 주장은 [실행 가능한 계약](../architecture/04-contracts.md)으로
 관리한다. `check_docs.py`는 contracts.json이 있는 저장소에서 이 검사도 함께 실행하므로,
 링크만 맞고 실제 API나 CLI·설치 경로가 달라진 변경을 통과시키지 않는다.

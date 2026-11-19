@@ -16,6 +16,7 @@
 
 | 날짜 | 문서 | 주제 |
 |------|------|------|
+| 2026-11-19 | [research/2026-11-19-search-first-evaluation.md](research/2026-11-19-search-first-evaluation.md) | 검색 전처리 cold/warm·3단계 응답 크기·5,000개 캐시 우회 후속 실측과 한계 |
 | 2026-11-18 | [research/2026-11-18-visual-workflows-and-image-bombs.md](research/2026-11-18-visual-workflows-and-image-bombs.md) | 이미지 압축 폭탄·디자인 정책·Excalidraw·diagram-design·anatomy·snapdom 선택과 등록 비용 |
 | 2026-11-07 | [research/2026-11-07-gtmux-ux-and-skill-language.md](research/2026-11-07-gtmux-ux-and-skill-language.md) | GTMUX에서 추출한 공통 UX 원칙과 스킬 작성 언어의 선택 기준 |
 | 2026-11-06 | [research/2026-11-06-usual-korean.md](research/2026-11-06-usual-korean.md) | fluent-korean·im-not-ai·GeekNews를 참고한 자연스러운 한국어와 기술 용어 선택 지침 |
@@ -39,6 +40,7 @@
 
 | 주제 | 폴더 | 무엇 | 쓰이는 곳 |
 |------|------|------|-----------|
+| 카탈로그 검색 실측 | [catalog-search-lab/](catalog-search-lab/) | 고정 Git baseline·합성 metadata 비교 스크립트와 원자료 | `docs/operations/08-catalog-search.md` |
 | ReDoS 실측 | [redos-lab/](redos-lab/) | `re`의 파국적 백트래킹을 직접 재현하는 스크립트 + 실측 표 | `web-security.md` §3.8 |
 | ASGI 바디 크기 제한 | [asgi-body-limit/](asgi-body-limit/) | Starlette에 없는 바디 크기 제한 미들웨어 최소 구현 + 왜 `BaseHTTPMiddleware`면 안 되는지 | `web-security.md` §4.1, `security-ops.md` §13.1 |
 

@@ -142,6 +142,36 @@ def runtime_snapshot(root):
     return capabilities, commands
 
 
+def catalog_defaults(root):
+    code = """
+import inspect, json, tempfile
+from pathlib import Path
+from joongi_hub.service import Hub
+from joongi_hub.search import rank, SUMMARY_CHARS
+with tempfile.TemporaryDirectory() as directory:
+    hub = Hub(Path.cwd() / 'skills', Path(directory))
+    try:
+        tool = next(t for t in hub.tools() if t['name']=='hub_search')
+        schema = tool['inputSchema']['properties']
+        result = {name:schema[name]['default'] for name in ('limit','detail')}
+        for function in (hub.search,rank):
+            for name in ('limit','detail'):
+                if inspect.signature(function).parameters[name].default != result[name]:
+                    raise ValueError('Search function/schema defaults disagree')
+        result.update(summary_chars=SUMMARY_CHARS,
+                      exposure=hub.catalog_preferences.get()['exposure'],
+                      usage_enabled=hub.catalog_preferences.get()['usage_enabled'])
+        print(json.dumps(result))
+    finally: hub.close()
+"""
+    process = subprocess.run(
+        [sys.executable, "-B", "-c", code], cwd=root, capture_output=True, text=True, timeout=20
+    )
+    if process.returncode:
+        raise ValueError("Catalog contract inspection failed: " + process.stderr[-1000:])
+    return json.loads(process.stdout)
+
+
 def actual_facts(root, execute=True):
     root = Path(root).resolve()
     upstream = literals(tree(root, "joongi_hub/upstream.py"))
@@ -157,6 +187,7 @@ def actual_facts(root, execute=True):
         "agents.detection": {name: paths[0] for name, paths in agents.items()},
     }
     if execute:
+        facts["catalog.defaults"] = catalog_defaults(root)
         capabilities, commands = runtime_snapshot(root)
         facts.update(
             {

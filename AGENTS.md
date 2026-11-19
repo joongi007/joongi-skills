@@ -59,6 +59,7 @@ Bundled files:
 Bundled files:
 
 - `skills/engineering-playbook/PLAYBOOK.md`
+- `skills/engineering-playbook/references/agent-security-review.md`
 - `skills/engineering-playbook/references/architecture.md`
 - `skills/engineering-playbook/references/async-patterns.md`
 - `skills/engineering-playbook/references/auth-jwt.md`
@@ -77,10 +78,12 @@ Bundled files:
 - `skills/engineering-playbook/references/logging.md`
 - `skills/engineering-playbook/references/memory-secrets.md`
 - `skills/engineering-playbook/references/network-failure.md`
+- `skills/engineering-playbook/references/nginx-security.md`
 - `skills/engineering-playbook/references/patterns-scale.md`
 - `skills/engineering-playbook/references/python-api.md`
 - `skills/engineering-playbook/references/scaffolding.md`
 - `skills/engineering-playbook/references/security-ops.md`
+- `skills/engineering-playbook/references/vulnerability-management.md`
 - `skills/engineering-playbook/references/web-security.md`
 
 ### usual-korean

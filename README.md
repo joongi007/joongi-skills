@@ -98,8 +98,14 @@ Hub는 클라이언트와 외부 서버의 MCP 버전을 각각 협상합니다.
 Linux에서 토큰을 저장하려면 Secret Service와 열린 로그인 키링이 필요합니다.
 [환경별 인증 준비](docs/operations/05-auth-project-skills.md).
 
-검색은 스킬·등록된 MCP·연결된 도구를 함께 제공합니다. 연결된 도구는 native 목록에도 노출하므로
-실제 컨텍스트 사용량은 에이전트에 따라 달라집니다. [검색 범위](docs/operations/08-catalog-search.md).
+기본은 stdio·HTTP 공통의 검색 중심 모드입니다. 일반 도구는 **상위 5개 한 줄 검색 → 정확한 상세·schema 조회 → 호출**로 사용합니다.
+App·명시적 Task 지원 외부 도구는 native 목록에 남겨 원래 호스트 계약을 유지합니다.
+[검색 범위와 예외](docs/operations/08-catalog-search.md).
+
+회사·개인 스킬 출처와 개발·문서·디자인·도구 묶음은 [검색 설정](docs/operations/14-catalog-preferences.md)에서 선택합니다.
+Hub 선택과 에이전트의 native 설치는 별개입니다. native 기본 디자인 지침도 제외하려면 설치 명령에
+`--exclude-category design`을 추가하세요. 제외는 업데이트에도 유지하며 `--reset-skill-selection`으로 복원합니다.
+사용 통계는 기본 꺼짐이며 선택한 경우에만 로컬 집계를 저장합니다.
 
 ## 기여와 배포
 

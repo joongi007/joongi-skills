@@ -8,9 +8,10 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from joongi_hub.errors import RpcError
-from joongi_hub.skills import NAME_PATTERN, Skills
+from joongi_hub.skills import Skills
 from joongi_hub.storage import Registry, atomic_json
 
+CATALOG_SKILL_ID = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*(?:__[a-z0-9]+(?:-[a-z0-9]+)*)?$")
 PROFILE_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,47}$")
 PROJECT_SKILL_PATHS = [
     ".agents/skills",
@@ -74,7 +75,7 @@ class Projects:
         skills = value.get("common_skills", [])
         servers = value.get("common_servers", [])
         paths = value.get("skill_paths", PROJECT_SKILL_PATHS)
-        for items, pattern in ((skills, NAME_PATTERN), (servers, PROFILE_ID)):
+        for items, pattern in ((skills, CATALOG_SKILL_ID), (servers, PROFILE_ID)):
             if (
                 not isinstance(items, list)
                 or len(items) > 100

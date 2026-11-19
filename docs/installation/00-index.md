@@ -66,6 +66,20 @@ bash install.sh install --all       # 미설치 에이전트 경로도 만들겠
 bash install.sh status
 ```
 
+기본 묶음의 native 설치를 제외할 수 있다. `--exclude-category`는 반복 가능하며 제외를 설치 manifest에 저장한다.
+이후 업데이트·새 에이전트 설치에도 적용하고, `--reset-skill-selection`은 기존 제외를 비운 뒤 새 제외를 적용한다.
+여러 분류에 속한 스킬은 하나의 제외에만 해당해도 설치하지 않는다. 예를 들어 문서 제외는 engineering-playbook도 제외한다.
+
+```bash
+bash install.sh install --exclude-category design
+bash install.sh update --exclude-category documentation --exclude-category tools
+bash install.sh update --reset-skill-selection
+```
+
+위 옵션은 Windows PowerShell 명령에도 전달한다. 기존 관리된 제외 사본은 수정되지 않았을 때만 제거하고
+회사·다른 도구 소유 사본과 수정본은 보호한다. Hub 원본과 카탈로그 선호는 바꾸지 않는다.
+[카탈로그 선택과 native 설치 차이](../operations/14-catalog-preferences.md#회사-기본값과-native-설치-구분).
+
 지원 에이전트와 정확한 설치 경로는 [01-agent-paths.md](01-agent-paths.md)를 본다.
 에이전트의 현재 세션에서는 새 스킬·MCP가 즉시 보이지 않을 수 있으므로 새 세션을 연다.
 

@@ -96,16 +96,33 @@ class TaskExtensions(unittest.TestCase):
 
     def test_native_discovery_preserves_schema_and_versioned_task_contract(self):
         fixtures.HubTest.register(self)
-        for version in (MODERN, "2025-11-25"):
-            tools = fixtures.HubTest.call(self, "tools/list", version=version)["tools"]
-            by_name = {tool["name"]: tool for tool in tools}
-            self.assertIn("fixture__echo", by_name)
-            self.assertEqual(by_name["fixture__echo"]["inputSchema"], {"type": "object"})
-            if version == MODERN:
-                self.assertNotIn("execution", by_name["fixture__ask"])
-            else:
-                self.assertEqual(by_name["fixture__ask"]["execution"]["taskSupport"], "required")
-                self.assertEqual(by_name["hub_call"]["execution"]["taskSupport"], "optional")
+        for exposure in ("search-first", "all-native"):
+            self.hub.configure_catalog({"exposure": exposure})
+            for version in (MODERN, "2025-11-25"):
+                with self.subTest(exposure=exposure, version=version):
+                    tools = fixtures.HubTest.call(self, "tools/list", version=version)["tools"]
+                    by_name = {tool["name"]: tool for tool in tools}
+                    if exposure == "search-first":
+                        self.assertNotIn("fixture__echo", by_name)
+                        detail = self.hub.catalog_item("tool", "fixture__echo")
+                        self.assertEqual(detail["inputSchema"], {"type": "object"})
+                    else:
+                        self.assertIn("fixture__echo", by_name)
+                        self.assertEqual(
+                            by_name["fixture__echo"]["inputSchema"], {"type": "object"}
+                        )
+                    self.assertIn("fixture__app", by_name)
+                    self.assertIn("fixture__ask", by_name)
+                    self.assertEqual(by_name["fixture__ask"]["inputSchema"], {"type": "object"})
+                    if version == MODERN:
+                        self.assertNotIn("execution", by_name["fixture__ask"])
+                    else:
+                        self.assertEqual(
+                            by_name["fixture__ask"]["execution"]["taskSupport"], "required"
+                        )
+                        self.assertEqual(
+                            by_name["hub_call"]["execution"]["taskSupport"], "optional"
+                        )
 
     def test_native_required_task_rejects_legacy_synchronous_request(self):
         fixtures.HubTest.register(self)

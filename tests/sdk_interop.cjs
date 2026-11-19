@@ -86,9 +86,14 @@ async function commonChecks(client, label) {
   assert(!connect.isError, `${label}: upstream connection`);
   const echo = await client.callTool({ name: 'hub_call', arguments: { name: 'sdk-upstream__echo', arguments: { message: label } } });
   const nativeTools = await client.listTools();
-  const nativeEcho = nativeTools.tools.find(tool => tool.name === 'sdk-upstream__echo');
-  assert(nativeEcho?.inputSchema?.type === 'object', `${label}: native tool schema missing`);
-  const direct = await client.callTool({ name: nativeEcho.name, arguments: { message: 'native-proxy' } });
+  assert(!nativeTools.tools.some(tool => tool.name === 'sdk-upstream__echo'), `${label}: ordinary schema leaked into native list`);
+  const summary = await client.callTool({ name: 'hub_search', arguments: { query: 'sdk-upstream__echo', kind: 'tool' } });
+  const selected = JSON.parse(summary.content[0].text)[0];
+  assert(selected && !selected.inputSchema, `${label}: search must be a light summary`);
+  const detail = await client.callTool({ name: 'hub_get_item', arguments: { kind: 'tool', name: selected.name } });
+  const definition = JSON.parse(detail.content[0].text);
+  assert(definition.inputSchema?.type === 'object', `${label}: exact detail schema missing`);
+  const direct = await client.callTool({ name: definition.name, arguments: { message: 'native-proxy' } });
   assert.match(direct.content[0].text, /native-proxy/, `${label}: direct native tool call`);
   assert(echo.content[0].text.includes(label), `${label}: upstream result`);
   const prompts = await client.listPrompts();

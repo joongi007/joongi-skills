@@ -172,6 +172,8 @@ jobs:
           node --check tests/browser_settings.cjs
           node --check tests/browser_inbox.cjs
           node --check tests/browser_catalog.cjs
+          node --check tests/browser_catalog_preferences.cjs
+          node --check tests/sdk_catalog_skills.cjs
           node --check joongi_hub/static/app.js
           node --check joongi_hub/static/app-relay.js
           node --check tests/sdk_interop.cjs

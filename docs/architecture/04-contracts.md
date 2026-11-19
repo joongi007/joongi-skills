@@ -1,5 +1,7 @@
 # 실행 가능한 문서 계약
 
+<!-- contract: catalog.defaults = {"limit":5,"detail":"summary","summary_chars":160,"exposure":"search-first","usage_enabled":false} -->
+
 문서 ID: ARCH-CONTRACTS · 요구사항: REQ-PROCESS, REQ-KNOWLEDGE
 
 이 문서가 설명하는 패키지 버전은 **0.1.0**이다.
@@ -23,6 +25,7 @@ CLI의 `serve`는 `--host`, `--port`, `--skills-dir`, `--state-dir`, `--help`를
 `python3 scripts/check_contracts.py`가 다음을 실제 구현과 대조한다.
 
 - 패키지 버전·VERSION 파일과 문서 주장.
+- 검색의 기본 limit5/summary·설명160자와 search-first/App·Task 노출 계약.
 - 각 CLI의 실제 `--help` 출력과 문서의 옵션 목록.
 - HTTP dispatch의 method·경로·가변 경로와 문서 계약.
 - RPC method 분기 목록과 modern/legacy capability의 실제 반환값.

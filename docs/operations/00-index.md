@@ -115,3 +115,5 @@ manifest의 digest·size는 최종 읽은 바이트와 대조한다. 파일은 1
 반복 허용과 임시 설정 화면의 추가 보안 검수는 [승인·설정 보안 검수](11-consent-settings-review.md)를 본다.
 
 3D 작업 지침·검사와 GUI 입력 승인은 [사용 예시](12-3d-and-host-consent.md)를 본다.
+
+Codex Security의 공식 MCP 범위와 안전한 통합 조건은 [연동 검토](15-codex-security.md)를 본다.

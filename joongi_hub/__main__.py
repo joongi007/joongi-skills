@@ -98,6 +98,9 @@ def serve_stdio(hub, bridge=None, profile="global"):
                         "hub_approval_request",
                         "hub_approval_status",
                         "hub_open_settings",
+                        "hub_catalog_configure",
+                        "hub_catalog_reset",
+                        "hub_catalog_usage_reset",
                     }:
                         if "task" in params:
                             raise RpcError(

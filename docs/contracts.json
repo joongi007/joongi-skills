@@ -37,6 +37,9 @@
       "DELETE /mcp/projects/{value}",
       "GET /",
       "GET /api/v1/approvals",
+      "GET /api/v1/catalog/item",
+      "GET /api/v1/catalog/settings",
+      "GET /api/v1/catalog/usage",
       "GET /api/v1/connection",
       "GET /api/v1/panel",
       "GET /api/v1/permissions",
@@ -58,6 +61,9 @@
       "POST /api/v1/apps/{value}/rpc",
       "POST /api/v1/auth/{value}",
       "POST /api/v1/call",
+      "POST /api/v1/catalog/reset",
+      "POST /api/v1/catalog/settings",
+      "POST /api/v1/catalog/usage/reset",
       "POST /api/v1/connection",
       "POST /api/v1/connection/apply",
       "POST /api/v1/connection/plan",
@@ -194,12 +200,20 @@
           }
         }
       }
+    },
+    "catalog.defaults": {
+      "limit": 5,
+      "detail": "summary",
+      "summary_chars": 160,
+      "exposure": "search-first",
+      "usage_enabled": false
     }
   },
   "requiredClaims": [
     "runtime.version",
     "protocol.versions",
-    "cli.options"
+    "cli.options",
+    "catalog.defaults"
   ],
   "requirements": {
     "REQ-SKILL": {
@@ -346,13 +360,17 @@
     "docs/architecture/04-contracts.md": [
       "runtime.version",
       "protocol.versions",
-      "cli.options"
+      "cli.options",
+      "catalog.defaults"
     ],
     "docs/architecture/02-compatibility.md": [
       "protocol.versions"
     ],
     "docs/operations/00-index.md": [
       "cli.options"
+    ],
+    "docs/operations/08-catalog-search.md": [
+      "catalog.defaults"
     ]
   }
 }

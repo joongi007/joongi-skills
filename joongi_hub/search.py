@@ -1,11 +1,14 @@
 """Bounded lexical catalog retrieval; optional ripgrep uses Rust's default engine."""
 
+import hashlib
+import json
 import math
 import re
 import shutil
 import subprocess
+import threading
 import unicodedata
-from collections import Counter
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
 
 from joongi_hub.errors import RpcError
@@ -13,6 +16,9 @@ from joongi_hub.errors import RpcError
 WEIGHTS = {"name": 5.0, "aliases": 4.0, "server": 2.0, "description": 1.0, "parameters": 0.75}
 MAX_INDEX_BYTES = 8 * 1024**2
 MAX_FIELD_CHARS = 8192
+DEFAULT_LIMIT = 5
+DEFAULT_DETAIL = "summary"
+SUMMARY_CHARS = 160
 
 
 def clean(value):
@@ -131,10 +137,11 @@ def rank(
     *,
     mode="keyword",
     match="any",
-    limit=100,
-    detail="full",
+    limit=DEFAULT_LIMIT,
+    detail=DEFAULT_DETAIL,
     kind="all",
     server=None,
+    cache=None,
 ):
     validate(query, mode, match, limit, detail, kind, server)
     selected = []
@@ -154,13 +161,12 @@ def rank(
         return []
     normalized = clean(query).casefold()
     term_list = sorted(set(tokens(clean(query))))
-    counts = [{key: Counter(tokens(text)) for key, text in doc.fields.items()} for doc in selected]
-    unions = [set().union(*(set(field) for field in item.values())) for item in counts]
-    frequency = Counter(word for words in unions for word in words)
-    averages = {
-        key: sum(sum(item.get(key, {}).values()) for item in counts) / len(selected)
-        for key in WEIGHTS
-    }
+    if mode == "keyword" and term_list:
+        counts, unions, frequency, averages = (
+            cache.prepare(selected) if cache else prepare(selected)
+        )
+    else:
+        counts, unions, frequency, averages = [], [], {}, {}
     regex_hits = regex_matches(selected, query) if mode == "regex" and query else None
     ranked = []
     for index, doc in enumerate(selected):
@@ -217,11 +223,70 @@ def rank(
                         "status",
                         "enabled",
                         "next_tool",
+                        "source",
+                        "categories",
+                        "scope",
                     }
                 }
-                description = value.get("description", "")
-                if len(description) > 300:
-                    value["description"] = description[:300] + "…"
+                description = clean(value.get("description", ""))
+                value["description"] = description
+                if len(description) > SUMMARY_CHARS:
+                    value["description"] = description[:SUMMARY_CHARS] + "…"
                     value["description_truncated"] = True
             ranked.append(value)
     return sorted(ranked, key=lambda item: (-item["score"], item["name"]))[:limit]
+
+
+def prepare(selected):
+    counts = [{key: Counter(tokens(text)) for key, text in doc.fields.items()} for doc in selected]
+    unions = [set().union(*(set(field) for field in item.values())) for item in counts]
+    frequency = Counter(word for words in unions for word in words)
+    averages = {
+        key: sum(sum(item.get(key, {}).values()) for item in counts) / len(selected)
+        for key in WEIGHTS
+    }
+    return counts, unions, frequency, averages
+
+
+class SearchCache:
+    """Two bounded metadata-only preparations per Hub; never cache call results."""
+
+    def __init__(self):
+        self.lock = threading.RLock()
+        self.entries = OrderedDict()
+        self.hits = 0
+        self.misses = 0
+
+    def prepare(self, selected):
+        if len(selected) > 2000:
+            return prepare(selected)
+        metadata = json.dumps([item.fields for item in selected], ensure_ascii=False).encode()
+        if len(metadata) > 2 * 1024**2:
+            return prepare(selected)
+        key = hashlib.sha256(metadata).digest()
+        with self.lock:
+            if key in self.entries:
+                self.hits += 1
+                self.entries.move_to_end(key)
+                return self.entries[key]
+            self.misses += 1
+            value = prepare(selected)
+            self.entries[key] = value
+            while len(self.entries) > 2:
+                self.entries.popitem(last=False)
+            return value
+
+    def clear(self):
+        with self.lock:
+            self.entries.clear()
+
+    def status(self):
+        with self.lock:
+            return {
+                "entries": len(self.entries),
+                "hits": self.hits,
+                "misses": self.misses,
+                "max_entries": 2,
+                "max_documents": 2000,
+                "max_metadata_bytes": 2 * 1024**2,
+            }

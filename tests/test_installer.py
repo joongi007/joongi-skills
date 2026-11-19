@@ -58,6 +58,152 @@ class InstallerTests(unittest.TestCase):
         self.assertFalse((self.home / ".claude/skills/example/old.md").exists())
         self.assertTrue((self.home / ".cursor/skills/example/SKILL.md").exists())
 
+    def add_bundled_skill(self, name):
+        folder = self.source / "skills" / name
+        folder.mkdir()
+        (folder / "SKILL.md").write_text(
+            f"---\nname: {name}\ndescription: Fixture skill\n---\nFixture guidance\n"
+        )
+        return folder
+
+    def test_category_exclusions_keep_runtime_sources_but_filter_native_installations(self):
+        for name in (
+            "engineering-playbook",
+            "usual-korean",
+            "applying-design-systems",
+            "creating-diagrams",
+            "building-procedural-3d",
+        ):
+            self.add_bundled_skill(name)
+        installer = self.installer()
+        installer.install(["codex"], exclude_categories=["design"])
+        destination = self.home / ".agents/skills"
+        self.assertTrue((destination / "engineering-playbook/SKILL.md").is_file())
+        self.assertTrue((destination / "usual-korean/SKILL.md").is_file())
+        self.assertTrue((destination / "example/SKILL.md").is_file())
+        for name in ("applying-design-systems", "creating-diagrams", "building-procedural-3d"):
+            self.assertFalse((destination / name).exists())
+            self.assertTrue((installer.runtime / "skills" / name / "SKILL.md").is_file())
+        self.assertEqual(self.installer().status()["excluded_categories"], ["design"])
+
+    def test_cli_category_exclusions_persist_accumulate_and_reset_for_new_agents(self):
+        for name in ("engineering-playbook", "usual-korean", "applying-design-systems"):
+            self.add_bundled_skill(name)
+        root = ["--home", str(self.home), "--source", str(self.source)]
+        self.assertEqual(
+            main(["install", *root, "--agent", "claude", "--exclude-category", "design"]), 0
+        )
+        (self.home / ".copilot").mkdir()
+        self.assertEqual(main(["update", "--home", str(self.home)]), 0)
+        self.assertTrue((self.home / ".copilot/skills/example/SKILL.md").is_file())
+        self.assertFalse((self.home / ".copilot/skills/applying-design-systems").exists())
+        self.assertEqual(main(["update", *root, "--exclude-category", "documentation"]), 0)
+        self.assertEqual(
+            self.installer().manifest["excluded_categories"], ["design", "documentation"]
+        )
+        self.assertFalse((self.home / ".claude/skills/engineering-playbook").exists())
+        self.assertFalse((self.home / ".copilot/skills/usual-korean").exists())
+        self.assertEqual(
+            main(
+                [
+                    "update",
+                    *root,
+                    "--reset-skill-selection",
+                    "--exclude-category",
+                    "development",
+                ]
+            ),
+            0,
+        )
+        self.assertEqual(self.installer().manifest["excluded_categories"], ["development"])
+        self.assertTrue((self.home / ".claude/skills/applying-design-systems/SKILL.md").is_file())
+        self.assertTrue((self.home / ".copilot/skills/usual-korean/SKILL.md").is_file())
+        self.assertEqual(main(["update", *root, "--reset-skill-selection"]), 0)
+        self.assertEqual(self.installer().manifest["excluded_categories"], [])
+        self.assertTrue((self.home / ".claude/skills/engineering-playbook/SKILL.md").is_file())
+
+    def test_exclusion_removes_only_unchanged_owned_copies_and_protects_modified_skill(self):
+        self.add_bundled_skill("applying-design-systems")
+        self.add_bundled_skill("creating-diagrams")
+        self.installer().install(["codex"])
+        edited = self.home / ".agents/skills/applying-design-systems/SKILL.md"
+        edited.write_text("local company design guidance")
+        installer = self.installer()
+        installer.install(["codex"], exclude_categories=["design"])
+        self.assertEqual(edited.read_text(), "local company design guidance")
+        self.assertFalse((self.home / ".agents/skills/creating-diagrams").exists())
+        self.assertIn(".agents/skills/applying-design-systems", installer.manifest["entries"])
+        self.assertTrue(
+            any("Preserve locally changed excluded skill" in x for x in installer.messages)
+        )
+        with self.assertRaises(InstallError):
+            self.installer().install(["codex"], reset_skill_selection=True)
+        self.assertEqual(edited.read_text(), "local company design guidance")
+
+    def test_excluded_unowned_company_skill_is_not_claimed_or_removed(self):
+        self.add_bundled_skill("applying-design-systems")
+        target = self.home / ".agents/skills/applying-design-systems"
+        target.mkdir(parents=True)
+        company_file = target / "SKILL.md"
+        company_file.write_text("company-owned guidance")
+        self.installer().install(["codex"], exclude_categories=["design"])
+        self.assertEqual(company_file.read_text(), "company-owned guidance")
+        self.assertNotIn(
+            ".agents/skills/applying-design-systems", self.installer().manifest["entries"]
+        )
+        with self.assertRaises(InstallError):
+            self.installer().install(["codex"], reset_skill_selection=True)
+        self.assertEqual(company_file.read_text(), "company-owned guidance")
+
+    def test_dry_run_exclusion_does_not_change_files_or_saved_selection(self):
+        self.add_bundled_skill("applying-design-systems")
+        self.installer().install(["codex"])
+        existing = self.installer()
+        original_manifest = existing.manifest_path.read_bytes()
+        original_skill = (
+            self.home / ".agents/skills/applying-design-systems/SKILL.md"
+        ).read_bytes()
+        self.installer(dry_run=True).install(["codex"], exclude_categories=["design"])
+        self.assertEqual(existing.manifest_path.read_bytes(), original_manifest)
+        self.assertEqual(
+            (self.home / ".agents/skills/applying-design-systems/SKILL.md").read_bytes(),
+            original_skill,
+        )
+
+    def test_invalid_category_selection_is_rejected_before_any_installation(self):
+        for categories in (["unknown"], "design", [None]):
+            with self.subTest(categories=categories):
+                with self.assertRaises(InstallError):
+                    self.installer().install(["codex"], exclude_categories=categories)
+                self.assertEqual(list(self.home.iterdir()), [])
+        with self.assertRaises(SystemExit):
+            main(["status", "--home", str(self.home), "--exclude-category", "design"])
+        self.assertEqual(list(self.home.iterdir()), [])
+
+    def test_installed_runtime_contains_category_policy_and_retains_choice_on_update(self):
+        installer = Installer(self.home, Path(__file__).resolve().parents[1])
+        installer.install(["codex"], exclude_categories=["design"])
+        self.assertTrue((installer.runtime / "joongi_hub/catalog_preferences.py").is_file())
+        result = subprocess.run(
+            [
+                sys.executable,
+                "-I",
+                "-B",
+                str(installer.runtime / "scripts/install_manager.py"),
+                "update",
+                "--home",
+                str(self.home),
+                "--agent",
+                "codex",
+            ],
+            capture_output=True,
+            timeout=40,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr.decode(errors="replace"))
+        self.assertEqual(self.installer().manifest["excluded_categories"], ["design"])
+        self.assertFalse((self.home / ".agents/skills/applying-design-systems").exists())
+        self.assertTrue((self.home / ".agents/skills/usual-korean/SKILL.md").is_file())
+
     def test_windows_wsl_backend_is_preserved_and_uses_argument_list(self):
         installer = self.installer()
         backend = {"distribution": "Ubuntu", "launcher": "/home/example/.local/bin/joongi-hub"}
