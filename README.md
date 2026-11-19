@@ -66,6 +66,10 @@ Codex Security는 별도 스캔 MCP가 아니라 `engineering-playbook`의 검�
 CLI 설치·로그인·서비스 접근 권한은 별도이며 Hub 설치만으로 자동 검수되지는 않습니다.
 [검수 가이드와 실행 조건](docs/operations/15-codex-security.md).
 
+브라우저가 필요하면 선택형 [격리 Playwright MCP](docs/operations/16-browser-automation.md)를 준비할 수 있습니다.
+Linux/WSL·Docker에서 전용 브라우저로 화면 확인·클릭·입력을 처리하며, 개인 Chrome 프로필은 공유하지 않습니다.
+허용 HTTPS 사이트와 호출 승인을 사용합니다. 기본 설치에는 이미지 다운로드나 서버 등록을 포함하지 않습니다.
+
 ## 관리·업데이트·제거
 
 macOS·Linux·WSL에서는 다음 전체 경로 명령을 사용합니다. `~/.local/bin`이 PATH에 있다면 경로를 생략해도 됩니다.

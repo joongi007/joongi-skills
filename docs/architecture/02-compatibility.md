@@ -26,6 +26,10 @@ V1/V2는 제품 내 별칭일 뿐이다. 지원 범위는 `2025-11-25`, `2026-07
 
 ## 구현한 기능 범위
 
+선택형 [Playwright 어댑터](../operations/16-browser-automation.md)는 Linux/WSL·Docker에서만 실행한다.
+클라이언트와 Hub의 전송 방식과 별개로 브라우저 upstream은 stdio `2025-11-25`를 사용한다.
+공식 MCP의 축소한 도구 목록만 제공하며 일반 도구의 검색 → 상세 → 호출과 이미지 응답을 유지한다.
+
 로컬 스킬은 `hub_search`, `hub_read_skill` 도구와 `skill://` resources로 조회한다.
 2026 Skills 확장은 `skills/list`, `skills/get`과 SHA-256 resource manifest를 제공한다.
 native manifest는 YAML frontmatter와 텍스트·바이너리 supporting file을 포함한다.

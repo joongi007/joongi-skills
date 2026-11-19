@@ -76,6 +76,20 @@ jobs:
         shell: pwsh
         run: ./tests/windows_installer_smoke.ps1
 
+  isolated-browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+      - name: Build pinned optional browser and verify real consent/control lifecycle
+        shell: bash
+        run: |
+          python -B -m joongi_hub browser --prepare > "$RUNNER_TEMP/browser-image.json"
+          export JOONGI_TEST_BROWSER_IMAGE="$(python -c 'import json,os; print(json.load(open(os.environ["RUNNER_TEMP"]+"/browser-image.json"))["image"])')"
+          python -B -m unittest tests.test_browser_runtime tests.test_browser_live -v
+
   native-vault:
     runs-on: ${{ matrix.os }}
     strategy:

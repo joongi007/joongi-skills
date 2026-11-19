@@ -81,6 +81,14 @@ async function main() {
   await page.goto('https://pages.example/joongi-skills/read/skills/engineering-playbook/references/wsl-development.html');
   await page.getByRole('heading', { name: 'WSL 개발 환경과 저장 공간', exact: true }).waitFor();
   assert((await page.locator('main').innerText()).includes('compact를 실행하라는 규칙은 아니다'));
+  await page.goto('https://pages.example/joongi-skills/');
+  await page.locator('#browser-example').getByRole('link', { name: '브라우저 준비와 보안 경계 →', exact: true }).click();
+  await page.getByRole('heading', { name: 'Playwright로 브라우저 확인·조작하기', exact: true }).waitFor();
+  assert((await page.locator('main').innerText()).includes('기본 Hub 설치는 브라우저 이미지나 MCP를 설치·등록하지 않는다'));
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(await page.locator('html').evaluate(el => el.scrollWidth > innerWidth), false, 'Browser guide overflow at ' + width);
+  }
   console.log('Static documentation: no-JS navigation, Korean anchors, mobile menu, widths 320–1440 and installation-page entry passed.');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
