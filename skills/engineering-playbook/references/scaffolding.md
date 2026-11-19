@@ -8,6 +8,8 @@
 - UI–API 연결 검증 순서 (§11.3)
 - .gitignore 기본
 
+WSL에서 설치 환경·Windows mount·저장 공간을 다루면 [WSL 개발 가이드](wsl-development.md)를 함께 본다.
+
 ## 호스트에 Python/Node 안 깔고 시작하기
 
 다른 사람이 "어떻게 초기화했냐"고 물으면 **아래를 그대로 안내**.

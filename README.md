@@ -52,7 +52,7 @@ Notion 등의 서비스는 사용할 사람이 자신의 연결과 권한을 설
 
 | 스킬 | 사용할 때 |
 |---|---|
-| [engineering-playbook](skills/engineering-playbook/SKILL.md) | 구현·설계·보안·테스트·운영의 판단 기준 |
+| [engineering-playbook](skills/engineering-playbook/SKILL.md) | 개발 전반의 판단 기준과 Codex Security CLI 검수 절차 |
 | [usual-korean](skills/usual-korean/SKILL.md) | 자연스러운 한국어와 기술 용어 선택 |
 | [applying-design-systems](skills/applying-design-systems/SKILL.md) | 기존 토큰 활용·디자인 명세 선택·UX 검토 |
 | [creating-diagrams](skills/creating-diagrams/SKILL.md) | Mermaid·Excalidraw·SVG 다이어그램, 아이콘·캡처 선택 |
@@ -60,6 +60,11 @@ Notion 등의 서비스는 사용할 사람이 자신의 연결과 권한을 설
 
 스킬은 제작·검토 지침입니다. Excalidraw·snapdom·img2threejs 같은 외부 엔진 전체를 설치하는 것은 아닙니다.
 자동 선택과 같은 이름의 스킬 우선순위는 에이전트마다 다릅니다. [시각 자료 제작 예시](docs/operations/13-visual-workflows.md).
+
+Codex Security는 별도 스캔 MCP가 아니라 `engineering-playbook`의 검수 가이드로 제공합니다.
+`codex`·`security`로 스킬을 검색해 읽은 뒤 에이전트의 shell 도구로 공식 CLI를 실행합니다.
+CLI 설치·로그인·서비스 접근 권한은 별도이며 Hub 설치만으로 자동 검수되지는 않습니다.
+[검수 가이드와 실행 조건](docs/operations/15-codex-security.md).
 
 ## 관리·업데이트·제거
 

@@ -1,6 +1,6 @@
 ---
 name: engineering-playbook
-description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review의 검수 절차, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review의 검수 절차, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, WSL 개발 환경·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 ---
 
 # 엔지니어링 가이드
@@ -44,6 +44,7 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | k3s·Kubernetes·etcd, probe·topology spread·PDB, Helm 배포·업그레이드 | `references/kubernetes-helm.md` |
 | 문서 번호·ADR·정합성, 테스트 품질·뮤테이션 테스트·병렬 작업 단위 | `references/documentation-testing.md` |
 | 프로젝트 규모, 설계 패턴·adapter·circuit breaker·outbox·코드 그래프 | `references/patterns-scale.md` |
+| WSL·Windows 설치 경계, 캐시·VHDX 용량 진단, 필요 시 compact 절차 | `references/wsl-development.md` |
 | PR·커밋 전 최종 점검 | `references/checklist.md` |
 
 색상·글꼴·간격·시각적 방향은 `applying-design-systems`를 함께 사용한다.

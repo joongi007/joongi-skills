@@ -7,13 +7,15 @@
 
 ## Hub에서 검수 가이드 찾기
 
-`hub_search(query="codex", kind="all")` 또는 `security`, `Codex Security`, `보안 검수`로
+기본 스킬 선택이 켜진 환경에서는 `hub_search(query="codex", kind="all")` 또는 `security`, `Codex Security`, `보안 검수`로
 `engineering-playbook` 스킬을 찾는다. 결과 종류는 `skill`이며 등록된 MCP 서버가 아니다.
 `kind="server"`로 제한하거나 `hub_list_servers`만 보면 이 가이드는 나오지 않는다.
 
 선택한 스킬의 `SKILL.md`를 읽고 라우팅된 `references/agent-security-review.md`를 읽는다.
 에이전트는 여기의 절차에 따라 공식 CLI 설치·인증·범위를 확인한 후 별도 shell 도구로 검수를 실행한다.
 Hub의 검색·스킬 읽기만으로 CLI 설치·로그인·보안 검수가 자동 실행되지는 않는다.
+설치기는 공식 Codex Security 패키지를 포함하지 않으며, 임시 `npx` 설치/캐시가 영구 설치나 PATH 등록을 보장하지 않는다.
+가이드가 보이지 않으면 현재 profile에서 `engineering-playbook`·기본 출처·개발/문서 묶음이 켜져 있는지도 확인한다.
 검색에는 참조 본문 전체를 색인하지 않으므로 발견에 필요한 제품명은 스킬 설명에도 유지한다.
 
 ## 공식 지원 범위

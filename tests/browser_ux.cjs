@@ -22,6 +22,36 @@ async function main() {
     child.once('error', reject);
   });
   browser = await chromium.launch({ headless: true, ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}), args: ['--no-sandbox'] });
+  // The UI must describe the OS store actually reported by the backend.
+  const storagePage = await browser.newPage();
+  let selectedStorage;
+  await storagePage.route('**/api/v1/state', async route => {
+    const response = await route.fetch();
+    const data = await response.json();
+    for (const server of data.servers) {
+      if (server.id === 'protected') server.auth_status = { ...server.auth_status, storage: selectedStorage };
+    }
+    await route.fulfill({ response, json: data });
+  });
+  for (const [storage, expected] of [
+    ['windows-dpapi', 'Windows DPAPI로 암호화한 파일에 저장합니다.'],
+    ['wsl-windows-dpapi', 'Windows PowerShell을 통해 Windows DPAPI로 암호화한 파일에 저장합니다.'],
+    ['macos-keychain', 'macOS Keychain에 비밀 값을 저장하고 로컬 파일에는 항목 식별자만 기록합니다.'],
+    ['linux-secret-service', 'Linux Secret Service의 로그인 키링에 비밀 값을 저장하고 로컬 파일에는 항목 식별자만 기록합니다.'],
+    ['unavailable', 'OS 보안 저장 방식을 확인할 수 없습니다. 저장소 상태를 확인하세요. 평문 파일로 우회하지 않습니다.']
+  ]) {
+    selectedStorage = storage;
+    const storageUrl = new URL(fixture.ui_url);
+    storageUrl.searchParams.set('storage-check', storage);
+    await storagePage.goto(storageUrl.href);
+    await storagePage.getByRole('button', { name: 'MCP 연결', exact: true }).click();
+    await storagePage.getByText('인증 · OAuth 브라우저 로그인', { exact: false }).click();
+    await storagePage.getByLabel('protected 인증 방식', { exact: true }).selectOption('bearer');
+    await storagePage.getByText('환경변수 대신 이 컴퓨터에 저장', { exact: true }).click();
+    await storagePage.getByText(expected, { exact: true }).waitFor();
+    assert(!(await storagePage.locator('#page').innerText()).includes('소유자 전용 권한의 로컬 파일에 저장합니다.'));
+  }
+  await storagePage.close();
   const page = await browser.newPage({ viewport: { width: 1440, height: 1000 } });
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(fixture.ui_url);

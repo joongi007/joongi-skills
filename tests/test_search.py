@@ -163,6 +163,19 @@ class CatalogSearchTests(unittest.TestCase):
         result = self.hub.search("docs__convert_to_markdown", mode="literal")
         self.assertEqual([r["name"] for r in result], ["docs__convert_to_markdown"])
 
+    def test_summary_length_includes_ellipsis_and_preserves_full_description(self):
+        for size in (159, 160, 161, 320):
+            with self.subTest(size=size):
+                text = "가" * size
+                self.client.tools[0]["description"] = text
+                row = self.hub.search("convert_to_markdown", detail="summary", limit=1)[0]
+                self.assertLessEqual(len(row["description"]), 160)
+                self.assertEqual(row.get("description_truncated", False), size > 160)
+                if size > 160:
+                    self.assertTrue(row["description"].endswith("…"))
+                full = self.hub.catalog_item("tool", "docs__convert_to_markdown")
+                self.assertEqual(full["description"], text)
+
     def test_summary_then_exact_full_definition_keeps_origin_and_schema(self):
         small = self.hub.search("markdown", limit=1, detail="summary")[0]
         self.assertNotIn("inputSchema", small)

@@ -147,7 +147,7 @@ def catalog_defaults(root):
 import inspect, json, tempfile
 from pathlib import Path
 from joongi_hub.service import Hub
-from joongi_hub.search import rank, SUMMARY_CHARS
+from joongi_hub.search import Document, rank, SUMMARY_CHARS
 with tempfile.TemporaryDirectory() as directory:
     hub = Hub(Path.cwd() / 'skills', Path(directory))
     try:
@@ -158,6 +158,18 @@ with tempfile.TemporaryDirectory() as directory:
             for name in ('limit','detail'):
                 if inspect.signature(function).parameters[name].default != result[name]:
                     raise ValueError('Search function/schema defaults disagree')
+        for length in (159, 160, 161, 320):
+            description = '가' * length
+            document = Document(
+                {'kind':'skill','name':'fixture','description':description},
+                {'name':'fixture','description':description})
+            summary = rank([document], 'fixture')[0]
+            if len(summary['description']) > SUMMARY_CHARS:
+                raise ValueError('Summary exceeds the documented limit including ellipsis')
+        for query in ('codex', 'security'):
+            if not any(item['kind']=='skill' and item['name']=='engineering-playbook'
+                       for item in hub.search(query)):
+                raise ValueError('Documented security guidance query is not discoverable')
         result.update(summary_chars=SUMMARY_CHARS,
                       exposure=hub.catalog_preferences.get()['exposure'],
                       usage_enabled=hub.catalog_preferences.get()['usage_enabled'])
