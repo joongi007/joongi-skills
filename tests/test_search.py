@@ -68,6 +68,18 @@ class CatalogSearchTests(unittest.TestCase):
         )
         self.hub.clients["docs"] = self.client
 
+    def test_security_guidance_is_discoverable_without_a_codex_mcp_server(self):
+        for query in ("codex", "security", "Codex Security", "보안 검수"):
+            with self.subTest(query=query):
+                results = self.hub.search(query)
+                self.assertTrue(
+                    any(
+                        item["kind"] == "skill" and item["name"] == "engineering-playbook"
+                        for item in results
+                    )
+                )
+        self.assertEqual([server["id"] for server in self.hub.registry.list()], ["docs"])
+
     def test_exact_identifier_ranks_before_description_keyword_matches(self):
         result = self.hub.search("convert_to_markdown")
         self.assertEqual(result[0]["name"], "docs__convert_to_markdown")

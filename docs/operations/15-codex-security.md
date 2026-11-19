@@ -5,6 +5,17 @@
 **현재 Hub에 Codex Security 스캔 실행기를 추가하지 않았다.** 엔지니어링 플레이북을 Hub 스킬로 읽어
 검수 절차를 따를 수 있다. 아래는 공식 기능과 추가 실행 어댑터의 도입 조건을 구분한 검토다.
 
+## Hub에서 검수 가이드 찾기
+
+`hub_search(query="codex", kind="all")` 또는 `security`, `Codex Security`, `보안 검수`로
+`engineering-playbook` 스킬을 찾는다. 결과 종류는 `skill`이며 등록된 MCP 서버가 아니다.
+`kind="server"`로 제한하거나 `hub_list_servers`만 보면 이 가이드는 나오지 않는다.
+
+선택한 스킬의 `SKILL.md`를 읽고 라우팅된 `references/agent-security-review.md`를 읽는다.
+에이전트는 여기의 절차에 따라 공식 CLI 설치·인증·범위를 확인한 후 별도 shell 도구로 검수를 실행한다.
+Hub의 검색·스킬 읽기만으로 CLI 설치·로그인·보안 검수가 자동 실행되지는 않는다.
+검색에는 참조 본문 전체를 색인하지 않으므로 발견에 필요한 제품명은 스킬 설명에도 유지한다.
+
 ## 공식 지원 범위
 
 | 경로 | 가능 범위 | Hub에서의 의미 |
