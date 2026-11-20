@@ -117,7 +117,10 @@ class Companion:
                 process.wait(timeout=3)
             except subprocess.TimeoutExpired:
                 process.kill()
-                process.wait()
+                try:
+                    process.wait(timeout=3)
+                except subprocess.TimeoutExpired as exc:
+                    raise ValueError("Companion did not exit after termination") from exc
         if self.temporary:
             self.temporary.cleanup()
             self.temporary = None

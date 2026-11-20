@@ -70,8 +70,11 @@ public static class JoongiEdgePipe {
         Task output = Task.Run(() => Pump(process.StandardOutput.BaseStream, Console.OpenStandardOutput()));
         Task error = Task.Run(() => process.StandardError.BaseStream.CopyTo(Stream.Null));
         while (!process.HasExited && !input.IsCompleted) Thread.Sleep(50);
-        if (!process.WaitForExit(20000)) { process.Kill(); process.WaitForExit(); }
-        output.Wait();
+        if (!process.WaitForExit(20000)) {
+            process.Kill();
+            if (!process.WaitForExit(5000)) throw new IOException("Companion exit timeout");
+        }
+        if (!output.Wait(5000)) throw new IOException("Companion output timeout");
         return process.ExitCode;
     }
 }

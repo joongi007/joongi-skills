@@ -42,6 +42,10 @@ def powershell():
 
 
 def ps_command(script):
+    script = (
+        "[Console]::OutputEncoding=New-Object System.Text.UTF8Encoding($false);"
+        "$OutputEncoding=[Console]::OutputEncoding;$ProgressPreference='SilentlyContinue';" + script
+    )
     return [
         powershell(),
         "-NoLogo",

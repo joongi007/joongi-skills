@@ -11,10 +11,11 @@ Windows x64와 공식 서명이 유효한 Windows Python 3.10+, 최신 Hub가 �
 Edge에 [Microsoft Playwright 확장](https://chromewebstore.google.com/detail/playwright-extension/mmlmfjhmonkocbjadbfplnigmagldckm)을 직접 설치한다.
 백그라운드 모드는 확장 0.5.0 이상이 필요하다. 자동 설치·승인 우회 토큰은 사용하지 않는다.
 
-Windows PowerShell에서 Windows에 설치한 Hub의 Python으로 실행한다.
+Windows PowerShell에서 설치한 Hub launcher로 실행한다. Python 패키지로 설치한 경우에는
+`python -m joongi_hub`로 바꿔도 된다.
 
 ```powershell
-python -m joongi_hub edge-browser --prepare --register --origin https://example.com
+& "$HOME/.local/bin/joongi-hub.cmd" edge-browser --prepare --register --origin https://example.com
 ```
 
 WSL Hub에서는 **실제 Windows Python 경로**를 지정한다. 다음 예시 경로를 자신의 경로로 바꾼다.
