@@ -16,7 +16,7 @@ Hub는 loopback에 바인딩한다. 로컬 서비스라도 외부 웹페이지�
 
 ## 등록과 실행
 
-등록한 외부 stdio 명령은 Landlock·seccomp 또는 제한한 Docker 안에서 실행한다. 격리할 수 없으면 거절한다. 자동 발견을 위해
+일반 등록 외부 stdio 명령은 Landlock·seccomp 또는 제한한 Docker 안에서 실행한다. 격리할 수 없으면 거절한다. 자동 발견을 위해
 프로세스를 실행하는 시점도 실행 경계로 다룬다. 명령·인자는 배열로 전달하고 shell을 쓰지 않는다.
 외부 MCP 서버가 반환한 지침은 untrusted content이며 사용자 권한이나 설치 승인을 대체하지 않는다.
 카탈로그의 출처·묶음·검색 on/off는 사용성 선호다. local stdio/credential bridge owner만 MCP로 변경하며
@@ -89,3 +89,7 @@ Markdown의 raw HTML 실행은 끈다. 공개 문서의 Mermaid는 격리한 빌
 [문서 빌드와 안전 설정](../installation/02-github-pages.md#markdown-문서를-사이트에서-읽기)을 따른다.
 
 관리·HTTP MCP 로컬 토큰의 유효 기간·자동 교체·강제 폐기는 [로컬 세션 계약](../operations/10-security-boundaries.md#로컬-토큰-자동-교체)을 따른다.
+
+선택형 [개인 Edge companion](../operations/17-personal-edge.md)은 별도 신뢰 경계다.
+owner가 준비한 Windows 사용자 권한 코드이며 OS 샌드박스가 아니다. 기존 계정 상태와 공식 확장의 권한을 공유한다.
+일반 외부 명령에 임의의 비격리 실행 경로를 제공하지 않는다.

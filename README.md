@@ -9,6 +9,10 @@ AI 에이전트에 공통 작업 지침을 설치하고, 여러 MCP 서버를 �
 - **MCP**는 에이전트와 외부 도구를 연결하는 프로토콜입니다. **Hub**가 연결·검색·호출을 중계합니다.
 - 기본 **stdio** 방식은 에이전트가 Hub 프로세스를 실행합니다. 웹 서버를 미리 켤 필요가 없습니다.
 
+브라우저 조작은 선택 설치입니다. [격리 Playwright](docs/operations/16-browser-automation.md)와
+기존 로그인을 공유하는 [개인 Windows Edge 백그라운드 연결](docs/operations/17-personal-edge.md)을 구분해 선택합니다.
+개인 Edge 모드는 공식 확장과 사용자 연결 승인이 필요하며 OS 샌드박스가 아닙니다.
+
 ## 설치
 
 Python 3.10 이상과 [GitHub CLI](https://cli.github.com/)를 먼저 준비하세요.

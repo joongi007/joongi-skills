@@ -195,6 +195,7 @@ def main(argv=None):
         "credentials",
         "sandbox",
         "browser",
+        "edge-browser",
     ):
         command = subparsers.add_parser(name)
         command.add_argument(
@@ -263,6 +264,34 @@ def main(argv=None):
                 help="Allowed HTTPS origin; repeat for assets and redirects",
             )
             command.add_argument("--display", choices=["headless", "wayland"], default="headless")
+        if name == "edge-browser":
+            command.add_argument(
+                "--prepare",
+                action="store_true",
+                help="Prepare pinned Windows companion: personal account access, no OS sandbox",
+            )
+            command.add_argument(
+                "--register",
+                action="store_true",
+                help="Register the prepared personal Edge mode separately",
+            )
+            command.add_argument("--replace", action="store_true")
+            command.add_argument("--connection-id")
+            command.add_argument("--fingerprint")
+            command.add_argument(
+                "--windows-python", help="WSL preparation only: signed Windows Python exe path"
+            )
+            command.add_argument(
+                "--profile",
+                default="Default",
+                help="Edge profile directory name: Default or Profile N",
+            )
+            command.add_argument(
+                "--origin",
+                action="append",
+                default=[],
+                help="Enabled top-level HTTPS origin (not a network firewall)",
+            )
         if name == "credentials":
             command.add_argument(
                 "--rotate-local",
@@ -280,6 +309,19 @@ def main(argv=None):
         return 0
     args.state_dir = args.state_dir.expanduser().resolve()
     args.skills_dir = args.skills_dir.expanduser().resolve()
+    if args.command == "edge-browser":
+        from joongi_hub.edge_runtime import cli
+
+        try:
+            print(json.dumps(cli(args), ensure_ascii=False))
+            return 0
+        except (RpcError, ValueError, OSError, subprocess.SubprocessError):
+            print(
+                "개인 Edge 준비/등록 실패. Windows Python 서명·인터넷·기존 등록을 확인하세요. "
+                "자동 우회하지 않습니다.",
+                file=sys.stderr,
+            )
+            return 1
     if args.command == "browser":
         from joongi_hub.browser_runtime import prepare, server_config
         from joongi_hub.storage import Registry

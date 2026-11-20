@@ -4,7 +4,10 @@
 
 ## stdio MCP 실행 격리
 
-등록된 외부 프로그램은 OS 경계 안에서만 실행한다. `sandbox.backend`의 기본값은 `auto`다.
+별도 선택형 [개인 Edge companion](17-personal-edge.md)은 Windows 사용자 권한으로 실행하는 신뢰한 코드다.
+OS 샌드박스가 아니며, 고정 gate·owner 준비·DPAPI·변조 검증을 사용한다. 일반 외부 명령의 격리 우회 옵션은 아니다.
+
+일반 등록 외부 프로그램은 OS 경계 안에서만 실행한다. `sandbox.backend`의 기본값은 `auto`다.
 지원 환경이 없으면 연결을 거절한다. 제한 없는 실행으로 되돌아가는 설정은 없다.
 원격 HTTPS MCP는 로컬 실행 대상이 아니며 기존 인증·호출 승인 정책을 따른다.
 

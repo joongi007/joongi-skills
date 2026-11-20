@@ -118,6 +118,8 @@ jobs:
         env:
           JOONGI_TEST_NATIVE_VAULT: '1'
         run: python -B -m unittest tests.test_credential_store.NativeCredentialStoreTests -v
+      - name: Personal Edge gate contracts without a real browser
+        run: python -B -m unittest tests.test_edge_runtime -v
 
   browser:
     runs-on: ubuntu-latest

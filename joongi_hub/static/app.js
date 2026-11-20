@@ -572,11 +572,16 @@ function connection(server) {
     el('pre', {}, configuration), el('p', { class: 'mono' }, `규격 ${server.protocol_version || '자동 감지'}`)), policyIdentity);
   if (server.transport === 'stdio') {
     const browser = server.sandbox?.backend === 'first-party-browser';
+    const personal = server.sandbox?.backend === 'first-party-edge';
+    if (personal) {
+      settings.append(el('p', {class: 'notice'}, '개인 Windows Edge · 기존 로그인 공유 · OS 샌드박스 없음'), el('p', {}, '공식 확장으로 새 탭 그룹을 백그라운드에서 조작합니다. 연결 승인 때 기존 탭을 선택하지 마세요. 사이트 확인은 네트워크 방화벽이 아닙니다.'), el('details', {}, el('summary', {}, '준비한 연결과 권한 경계'), el('p', {}, '쿠키 조회·임의 코드·파일 업로드 도구는 제공하지 않습니다. 페이지 내용·화면·계정으로 가능한 동작은 에이전트에 전달될 수 있습니다. 연결 승인·로그인·팝업은 포커스를 바꿀 수 있습니다. 프로필·사이트 변경은 CLI에서 새로 준비합니다.'), el('pre', {}, JSON.stringify({connection: server.sandbox.edge_connection, fingerprint: server.sandbox.edge_fingerprint}, null, 2))));
+    } else {
     settings.append(el('p', {}, browser ? `실행 격리: Playwright 전용 컨테이너 · 허용 HTTPS 중계 · 화면 ${server.sandbox.browser_display || 'headless'}` : `실행 격리: ${server.sandbox?.backend || 'auto'} · 네트워크 차단 · 격리 없는 실행 거절`), el('details', {}, el('summary', {}, browser ? '브라우저 허용 사이트와 경계' : '파일 접근 범위'), el('pre', {}, JSON.stringify(browser ? { origins: server.sandbox.browser_origins, shared_personal_files: false, display_trust: server.sandbox.browser_display === 'wayland' ? 'Wayland 화면 서비스·클립보드 신뢰 범위 추가' : '호스트 화면 공유 없음' } : { read: server.sandbox?.read || [], write: server.sandbox?.write || [] }, null, 2))));
+    }
   }
   const allowed = el('textarea', { rows: '3', 'aria-label': `${server.name || server.id} 허용 도구`, value: (server.policy?.allowed_tools || []).join('\n'), placeholder: '신뢰한 읽기 도구 이름을 한 줄에 하나씩' });
   const denied = el('textarea', { rows: '2', 'aria-label': `${server.name || server.id} 차단 도구`, value: (server.policy?.denied_tools || []).join('\n') });
-  if (server.sandbox?.backend === 'first-party-browser') {
+  if (['first-party-browser', 'first-party-edge'].includes(server.sandbox?.backend)) {
     allowed.disabled = true;
     allowed.placeholder = '브라우저 호출은 승인함에서 검토합니다.';
   }
