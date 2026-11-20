@@ -1,4 +1,5 @@
 $ErrorActionPreference = 'Stop'
+$stage = 'descriptor'
 try {
     Add-Type -AssemblyName System.Security
     $root = Join-Path ([Environment]::GetFolderPath('LocalApplicationData')) ('joongi-hub\edge\' + 'CONNECTION_ID')
@@ -9,6 +10,7 @@ try {
     $fingerprint = ([BitConverter]::ToString($sha.ComputeHash($plain))).Replace('-','').ToLowerInvariant()
     if ($fingerprint -cne 'PUBLIC_FINGERPRINT') { throw 'Descriptor changed' }
     $descriptor = [Text.Encoding]::UTF8.GetString($plain) | ConvertFrom-Json
+    $stage = 'runtime-files'
     foreach ($file in $descriptor.files.PSObject.Properties) {
         $path = Join-Path $root $file.Name
         $item = Get-Item -LiteralPath $path
@@ -23,10 +25,13 @@ try {
         }
     }
     $python = $descriptor.python
+    $stage = 'python-hash'
     if ((Get-FileHash -LiteralPath $python -Algorithm SHA256).Hash.ToLowerInvariant() -cne $descriptor.python_hash) { throw 'Python changed' }
     $signature = Get-AuthenticodeSignature -LiteralPath $python
+    $stage = 'python-signature'
     if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Subject -notmatch 'O=Python Software Foundation(?:,|$)') { throw 'Untrusted Python' }
     # The prepared worker is trusted code. No command, path, environment or script comes from a registry entry.
+    $stage = 'worker-launch'
     $info = New-Object Diagnostics.ProcessStartInfo
     $info.FileName = $python
     $info.Arguments = '-I -S -B "' + (Join-Path $root 'worker.py') + '" "' + $root + '"'
@@ -41,6 +46,7 @@ try {
     $process = [Diagnostics.Process]::Start($info)
     # Windows ConsoleStream ReadAsync can block synchronously. Dedicated .NET workers
     # pump both directions without waiting for stdin EOF or requiring a PS runspace.
+    $stage = 'stdio-relay'
     Add-Type -TypeDefinition @'
 using System;
 using System.IO;
@@ -72,6 +78,6 @@ public static class JoongiEdgePipe {
 '@
     exit [JoongiEdgePipe]::Run($process)
 } catch {
-    [Console]::Error.WriteLine('Personal Edge runtime unavailable or changed. Prepare and register it again.')
+    [Console]::Error.WriteLine('Personal Edge runtime rejected (' + $stage + '). Prepare and register it again.')
     exit 1
 }

@@ -219,6 +219,21 @@ class WindowsEdgeGate(unittest.TestCase):
         from joongi_hub.credential_store import dpapi
         from joongi_hub.edge_runtime import ps_command
 
+        executable = sys.executable.replace("'", "''")
+        prerequisite = subprocess.run(
+            ps_command(
+                "$s=Get-AuthenticodeSignature -LiteralPath '" + executable + "';"
+                "if($s.Status -eq 'Valid' -and $s.SignerCertificate.Subject "
+                "-match 'O=Python Software Foundation(?:,|$)'){exit 0}else{exit 1}"
+            ),
+            capture_output=True,
+            timeout=15,
+        )
+        if prerequisite.returncode:
+            self.skipTest(
+                "Functional gate requires a valid PSF-signed Python; untrusted runtimes are refused"
+            )
+
         known = subprocess.check_output(
             ps_command("[Console]::Write([Environment]::GetFolderPath('LocalApplicationData'))"),
             text=True,
