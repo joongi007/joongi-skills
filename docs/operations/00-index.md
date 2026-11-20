@@ -2,7 +2,7 @@
 
 문서 ID: OPS-LOCAL · 요구사항: REQ-UI, REQ-REGISTRY, REQ-TASKS
 
-<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--rotate-local","--skills-dir","--state-dir"],"sandbox":["--help","--prepare","--skills-dir","--state-dir"],"browser":["--display","--help","--image","--origin","--prepare","--register","--replace","--skills-dir","--state-dir"]} -->
+<!-- contract: cli.options = {"serve":["--help","--host","--port","--skills-dir","--state-dir"],"stdio":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"configure":["--fallback","--help","--mode","--profile","--skills-dir","--state-dir","--url"],"start":["--help","--port","--skills-dir","--state-dir"],"stop":["--help","--skills-dir","--state-dir"],"restart":["--help","--port","--skills-dir","--state-dir"],"status":["--help","--skills-dir","--state-dir"],"open":["--help","--port","--skills-dir","--state-dir"],"state":["--help","--import-from","--restore-backup","--skills-dir","--state-dir"],"credentials":["--help","--migrate","--rotate-local","--skills-dir","--state-dir"],"sandbox":["--help","--prepare","--skills-dir","--state-dir"],"browser":["--display","--help","--image","--origin","--prepare","--register","--replace","--skills-dir","--state-dir"],"edge-browser":["--connection-id","--fingerprint","--help","--origin","--prepare","--profile","--register","--replace","--skills-dir","--state-dir","--windows-python"]} -->
 
 설치는 [설치 안내](../installation/00-index.md), 기능 경계는
 [호환성 계약](../architecture/02-compatibility.md)을 먼저 확인한다.
@@ -121,4 +121,6 @@ Codex Security의 공식 MCP 범위와 안전한 통합 조건은 [연동 검토
 ## 브라우저 조작
 
 선택형 [격리 Playwright 브라우저](16-browser-automation.md)는 별도 준비·등록이 필요하다.
+기존 Windows Edge 로그인으로 백그라운드 작업을 하려면 [개인 Edge 모드](17-personal-edge.md)를 준비한다.
+개인 모드는 OS 샌드박스가 아니며 기존 계정의 권한을 공유한다.
 허용 HTTPS 사이트·호출 승인·화면 모드를 확인하고 사용한다. 기본 설치나 TinyFish 로그인과는 별개다.

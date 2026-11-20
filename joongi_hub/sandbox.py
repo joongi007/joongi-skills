@@ -44,6 +44,8 @@ def validate_sandbox(value):
         "graph_python",
         "browser_origins",
         "browser_display",
+        "edge_connection",
+        "edge_fingerprint",
     }:
         raise RpcError(-32602, "샌드박스 설정 필드를 확인하세요.")
     if value.get("backend", "auto") not in {
@@ -53,8 +55,13 @@ def validate_sandbox(value):
         "docker-native",
         "first-party-graph",
         "first-party-browser",
+        "first-party-edge",
     }:
         raise RpcError(-32602, "지원하지 않는 샌드박스입니다. 제한 없는 실행은 지원하지 않습니다.")
+    if value.get("backend") == "first-party-edge":
+        from joongi_hub.edge_runtime import validate_edge
+
+        validate_edge(value)
     if value.get("backend") == "first-party-browser":
         from joongi_hub.browser_runtime import validate_browser
 
@@ -248,6 +255,11 @@ class Execution:
             settings = config.get("sandbox", {})
             validate_sandbox(settings)
             backend = settings.get("backend", "auto")
+            if backend == "first-party-edge":
+                from joongi_hub.edge_runtime import command
+
+                self.command = command(settings)
+                return
             if backend == "first-party-browser":
                 from joongi_hub.browser_runtime import BrowserExecution
 

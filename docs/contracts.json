@@ -180,6 +180,19 @@
         "--replace",
         "--skills-dir",
         "--state-dir"
+      ],
+      "edge-browser": [
+        "--connection-id",
+        "--fingerprint",
+        "--help",
+        "--origin",
+        "--prepare",
+        "--profile",
+        "--register",
+        "--replace",
+        "--skills-dir",
+        "--state-dir",
+        "--windows-python"
       ]
     },
     "protocol.modernCapabilities": {
