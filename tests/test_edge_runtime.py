@@ -22,7 +22,7 @@ from joongi_hub.edge_companion.worker import (
     check,
     tab_urls,
 )
-from joongi_hub.edge_runtime import command, server_config, unpack_package
+from joongi_hub.edge_runtime import command, public_tools, server_config, unpack_package
 from joongi_hub.errors import RpcError
 from joongi_hub.sandbox import Execution, validate_sandbox
 
@@ -84,6 +84,7 @@ class EdgeContracts(unittest.TestCase):
             ("browser_tabs", {"action": "unknown"}),
             ("browser_tabs", {"action": "new", "url": "file:///private"}),
             ("browser_tabs", {"action": "new", "isolatedContext": "other"}),
+            ("browser_click", {"target": "e1", "unexpected": "ignored-before"}),
         ):
             with self.subTest(name=name, args=args), self.assertRaises(ValueError):
                 check(name, args, ORIGINS)
@@ -167,7 +168,7 @@ class EdgeContracts(unittest.TestCase):
                 ) as upstream,
                 self.assertRaises(ValueError),
             ):
-                companion.call("browser_click", {"ref": "e1", "element": "button"})
+                companion.call("browser_click", {"target": "e1", "element": "button"})
             self.assertEqual(upstream.call_count, 1)
             self.assertEqual(companion.state, "connection_failed")
 
@@ -179,6 +180,40 @@ class EdgeContracts(unittest.TestCase):
         response = {"content": [{"type": "text", "text": "### Result\n" + json.dumps([actual])}]}
         self.assertEqual(tab_urls(response), [actual])
         self.assertFalse(allowed_url(actual, ORIGINS))
+
+    def test_preflight_timeout_exits_pending_and_can_retry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            companion = self.companion(directory)
+            companion.state = "awaiting_browser_approval"
+            with patch.object(
+                companion, "start", side_effect=subprocess.TimeoutExpired("tasklist", 5)
+            ):
+                companion.pair()
+            self.assertEqual(companion.state, "connection_failed")
+            result = companion.call("browser_extension_disconnect", {})
+            self.assertEqual(json.loads(result["content"][0]["text"])["state"], "disconnected")
+
+    def test_duplicate_upstream_tool_names_and_unknown_properties_are_refused(self):
+        from joongi_hub.edge_companion.worker import TOOLS
+
+        def fixture():
+            return [
+                {
+                    "name": name,
+                    "inputSchema": {
+                        "type": "object",
+                        "properties": {"future_unsafe_field": {"type": "string"}},
+                    },
+                }
+                for name in TOOLS
+            ]
+
+        tools = fixture()
+        with self.assertRaises(ValueError):
+            public_tools([*tools, tools[0]])
+        for tool in public_tools(fixture()):
+            self.assertNotIn("future_unsafe_field", tool["inputSchema"]["properties"])
+            self.assertFalse(tool["inputSchema"]["additionalProperties"])
 
     def test_wire_discovery_and_status_do_not_start_browser(self):
         with tempfile.TemporaryDirectory() as directory:

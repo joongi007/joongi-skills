@@ -112,7 +112,6 @@ def unpack_package(data, destination):
 
 def discover_tools(root):
     """Pinned official schema discovery only; never opens a browser."""
-    from joongi_hub.edge_companion.worker import TOOLS
     from joongi_hub.sandbox import _helper_environment
 
     messages = [
@@ -150,13 +149,20 @@ def discover_tools(root):
     )
     if tools is None:
         raise ValueError("Official tool schema discovery failed")
+    return public_tools(tools)
+
+
+def public_tools(tools):
+    from joongi_hub.edge_companion.worker import ARGUMENTS, TOOLS
+
     selected = [t for t in tools if t["name"] in TOOLS]
-    if {t["name"] for t in selected} != TOOLS:
+    if {t["name"] for t in selected} != TOOLS or len(selected) != len(TOOLS):
         raise ValueError("Pinned official tools changed")
     for tool in selected:
         properties = tool["inputSchema"].get("properties", {})
-        for key in ("filename", "fullPage", "isolatedContext"):
-            properties.pop(key, None)
+        for key in set(properties) - ARGUMENTS[tool["name"]]:
+            del properties[key]
+        tool["inputSchema"]["additionalProperties"] = False
         if tool["name"] == "browser_take_screenshot":
             properties["type"] = {"type": "string", "enum": ["jpeg"]}
             properties["scale"] = {"type": "string", "enum": ["css"]}

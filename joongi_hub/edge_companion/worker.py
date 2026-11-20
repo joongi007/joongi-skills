@@ -28,6 +28,16 @@ CONNECT = "browser_extension_connect"
 STATUS = "browser_extension_status"
 DISCONNECT = "browser_extension_disconnect"
 URL_PROBE = "async page => page.context().pages().map(p => p.url())"
+ARGUMENTS = {
+    "browser_press_key": {"key"},
+    "browser_type": {"element", "target", "text", "submit", "slowly"},
+    "browser_navigate": {"url"},
+    "browser_take_screenshot": {"element", "target", "type", "scale"},
+    "browser_snapshot": {"target", "depth", "boxes"},
+    "browser_click": {"element", "target", "doubleClick", "button", "modifiers"},
+    "browser_tabs": {"action", "index", "url"},
+    "browser_wait_for": {"time", "text", "textGone"},
+}
 
 
 def text_result(state, **extra):
@@ -65,6 +75,8 @@ def allowed_url(url, origins):
 def check(name, args, origins):
     if name not in TOOLS or not isinstance(args, dict) or len(json.dumps(args)) > 16384:
         raise ValueError("Tool or arguments not enabled")
+    if set(args) - ARGUMENTS[name]:
+        raise ValueError("Only explicitly enabled argument names are accepted")
     if "filename" in args or args.get("fullPage"):
         raise ValueError("Only inline viewport output is enabled")
     if name == "browser_navigate" and not allowed_url(args.get("url"), origins):
@@ -265,9 +277,11 @@ class Companion:
             else:
                 self.state = "ready"
                 self.detail = "new_tab_ready"
-        except (ValueError, OSError, KeyError):
-            self.stop()
-            self.state = "connection_failed"
+        except (ValueError, OSError, KeyError, TypeError, subprocess.SubprocessError):
+            try:
+                self.stop()
+            finally:
+                self.state = "connection_failed"
 
     def call(self, name, args):
         if name in {CONNECT, STATUS, DISCONNECT}:
