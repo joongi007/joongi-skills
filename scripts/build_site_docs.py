@@ -1,4 +1,4 @@
-"""Render maintained Markdown into static, script-free documentation pages."""
+"""Render static documentation with optional trusted public-site analytics."""
 
 from __future__ import annotations
 
@@ -9,6 +9,11 @@ import posixpath
 import re
 from pathlib import Path
 from urllib.parse import quote, unquote, urlsplit, urlunsplit
+
+if __package__:
+    from scripts.site_analytics import TAG, document_csp
+else:
+    from site_analytics import TAG, document_csp
 
 SOURCE_URL = "https://github.com/joongi007/joongi-skills/blob/main/"
 GROUPS = {
@@ -56,7 +61,7 @@ def content(source: str) -> str:
     return "\n".join(lines)
 
 
-def build_docs(root: Path, output: Path, public_file) -> int:
+def build_docs(root: Path, output: Path, public_file, *, analytics=False) -> int:
     sources = [root / "README.md"]
     sources += [p for folder in ("docs", "skills", "refs") for p in (root / folder).rglob("*.md")]
     sources = sorted(
@@ -217,6 +222,8 @@ def build_docs(root: Path, output: Path, public_file) -> int:
         source_url = SOURCE_URL + quote(source.as_posix(), safe="/.-_")
         template = Path(__file__).with_name("templates") / "document.html"
         rendered = template.read_text(encoding="utf-8").format(
+            analytics=TAG if analytics else "",
+            csp=html.escape(document_csp(analytics), quote=True),
             title=title,
             tokens=relative("tokens.css", current),
             stylesheet=relative("docs.css", current),

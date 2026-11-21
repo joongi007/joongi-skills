@@ -2,6 +2,7 @@
 
 import tempfile
 import unittest
+from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
@@ -83,7 +84,7 @@ class SiteDocsTests(unittest.TestCase):
             self.assertNotIn("script", Links(page).tags)
             self.assertIn("&lt;script&gt;", page)
             self.assertIn("data-mermaid-slot=", page)
-            self.assertIn("default-src 'none'", page)
+            self.assertIn("default-src 'none'", unescape(page))
 
     def test_real_document_links_and_fragments_exist(self):
         with tempfile.TemporaryDirectory() as directory:

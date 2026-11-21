@@ -89,7 +89,49 @@ async function main() {
     await page.setViewportSize({ width, height: 1000 });
     assert.equal(await page.locator('html').evaluate(el => el.scrollWidth > innerWidth), false, 'Browser guide overflow at ' + width);
   }
-  console.log('Static documentation: no-JS navigation, Korean anchors, mobile menu, widths 320–1440 and installation-page entry passed.');
+  const production = join(directory, 'production');
+  const taggedBuild = spawnSync(process.env.PYTHON || 'python3', ['-B', 'scripts/build_pages.py', '--out', production, '--base-url', 'https://joongi007.github.io/joongi-skills'], { cwd: resolve(__dirname, '..'), encoding: 'utf8' });
+  assert.equal(taggedBuild.status, 0, taggedBuild.stderr);
+  const tagged = await browser.newContext();
+  let loads = 0, beacons = 0;
+  await tagged.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.href === 'https://www.googletagmanager.com/gtm.js?id=GTM-MCHLMHRF') {
+      loads++;
+      return route.fulfill({contentType: 'text/javascript', body: "window.googleTagFixture=true;fetch('https://www.google-analytics.com/g/collect?fixture=1').then(()=>window.gaFixtureSent=true);"});
+    }
+    if (url.origin === 'https://www.google-analytics.com') {
+      beacons++;
+      return route.fulfill({status: 204, headers: {'access-control-allow-origin': '*'}});
+    }
+    if (url.origin !== 'https://joongi007.github.io' || !url.pathname.startsWith('/joongi-skills/')) return route.abort();
+    const file = resolve(production, decodeURIComponent(url.pathname.slice('/joongi-skills/'.length)) || 'index.html');
+    if (!file.startsWith(resolve(production) + sep)) return route.abort();
+    try {
+      const contentType = file.endsWith('.css') ? 'text/css' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.html') ? 'text/html' : 'application/octet-stream';
+      return route.fulfill({contentType, body: readFileSync(file)});
+    } catch { return route.fulfill({status: 404, body: ''}); }
+  });
+  const taggedPage = await tagged.newPage();
+  const scriptErrors = [];
+  taggedPage.on('pageerror', e => scriptErrors.push(e.message));
+  for (const path of ['', 'read/docs/00-index.html']) {
+    await taggedPage.goto('https://joongi007.github.io/joongi-skills/' + path);
+    await taggedPage.waitForFunction(() => window.googleTagFixture === true && window.gaFixtureSent === true);
+    assert(await taggedPage.evaluate(() => window.dataLayer.some(item => item[0] === 'js')));
+    assert.equal(await taggedPage.locator('script[src*="GTM-MCHLMHRF"]').count(), 1);
+  }
+  await taggedPage.evaluate(() => {
+    const script = document.createElement('script');
+    script.textContent = 'window.untrustedMarkdownScript=true';
+    document.body.append(script);
+  });
+  assert.equal(await taggedPage.evaluate(() => window.untrustedMarkdownScript), undefined, 'CSP must still block untrusted inline code');
+  assert.equal(loads, 2);
+  assert.equal(beacons, 2, 'Document CSP must allow GA transport');
+  assert.deepEqual(scriptErrors, []);
+  await tagged.close();
+  console.log('Static documentation: no-JS navigation, mobile layout, production GTM initialization/GA transport and CSP injection rejection passed (all Google requests mocked).');
 }
 main().catch(error => { console.error(error); process.exitCode = 1; }).finally(async () => {
   if (browser) await browser.close();
