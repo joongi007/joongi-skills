@@ -103,7 +103,8 @@ Node 22·Playwright Chromium·Mermaid·DOMPurify는 빌드·검사 전용이며 
 Mermaid는 `securityLevel: strict`, HTML label 비활성화, 외부 통신 차단 상태에서 실행한다.
 원문의 init directive·YAML 설정·click 기능을 거절하고, 생성 SVG를 DOMPurify로 정리한 뒤
 script·이벤트·foreignObject·링크·외부 이미지·외부 CSS 참조를 제거하거나 거절한다.
-완성 문서는 SVG를 `<img>`로 읽으며 CSP에서 스크립트 실행을 허용하지 않는다.
+완성 문서는 SVG를 `<img>`로 읽으며 원문·도표의 스크립트 실행을 허용하지 않는다.
+공개 배포에서는 아래의 고정 Google 태그와 해시로 지정한 초기화 코드만 별도로 허용한다.
 원문 16,000자·간선 256개·빌드당 도표 128개·도표당 15초 제한을 둔다.
 지원하지 않거나 안전 검사에 실패한 도표는 CI를 실패시키므로 원문을 수정해야 한다.
 이 설정은 공개 Pages 문서에 적용하며 로컬 Hub의 동적 Markdown 읽기에는 Mermaid를 추가하지 않는다.
@@ -113,3 +114,23 @@ script·이벤트·foreignObject·링크·외부 이미지·외부 CSS 참조를
 
 Mermaid 설정 근거: [공식 보안 수준 설명](https://mermaid.js.org/config/usage),
 [secure 설정](https://mermaid.js.org/config/schema-docs/config.html).
+
+## 방문 통계: Google Tag Manager
+
+정식 `https://joongi007.github.io/joongi-skills` 주소로 빌드할 때 소개·설치 페이지와 생성 문서 전체에
+`GTM-MCHLMHRF`를 넣는다. 다른 주소의 테스트·미리보기 빌드와 로컬 Hub 관리 화면에는 넣지 않는다.
+문서는 태그 차단·JavaScript 비활성화 상태에서도 읽고 이동할 수 있다.
+
+`scripts/site_analytics.py`가 태그와 CSP를 한 곳에서 관리한다. 문서 CSP는 고정 초기화 코드의 SHA-256과
+Google Tag Manager의 스크립트 호스트, Google Analytics에 필요한 전송 호스트만 추가한다.
+`unsafe-inline`·`unsafe-eval`은 사용하지 않으며 Markdown HTML 비활성화와 Mermaid SVG 정리는 유지한다.
+광고 태그·Custom HTML·Custom JavaScript·Tag Assistant 미리보기의 추가 도메인은 기본 허용하지 않는다.
+GTM 컨테이너 편집·게시 권한자는 공개 페이지에서 실행할 태그를 바꿀 수 있으므로 신뢰한 사람에게만 권한을 준다.
+
+컨테이너 설치와 GA4 데이터 수집 설정은 별개다. [Google Tag Manager](https://tagmanager.google.com/)에서
+Google 태그에 GA4 측정 ID(`G-...`)를 설정하고 적절한 전체 페이지 트리거로 게시해야 한다.
+배포 후 GA4 실시간 보고서에서 방문·페이지 조회를 확인한다. 설치 명령 복사·설치 완료 같은 별도 이벤트는 추가하지 않았다.
+쿠키·동의 및 수집 항목은 컨테이너 소유자가 설정한다. 비밀·개인 정보·로컬 경로를 dataLayer에 넣지 않는다.
+
+공식 근거: [현재 GTM 설치 형식](https://support.google.com/tagmanager/answer/14847097),
+[CSP 설정](https://developers.google.com/tag-platform/security/guides/csp). 확인일: 2026-11-21.

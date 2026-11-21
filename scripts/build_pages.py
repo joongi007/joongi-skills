@@ -10,9 +10,11 @@ from pathlib import Path
 if __package__:
     from scripts.build_release import bootstrap_text, build_release, public_file  # noqa: F401
     from scripts.build_site_docs import build_docs
+    from scripts.site_analytics import enabled, homepage
 else:
     from build_release import bootstrap_text, build_release, public_file  # noqa: F401
     from build_site_docs import build_docs
+    from site_analytics import enabled, homepage
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,7 +36,11 @@ def build(output: Path, base_url: str) -> None:
                 target = output / relative
                 target.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copyfile(file, target)
-    build_docs(ROOT, output, public_file)
+    analytics = enabled(base_url)
+    index = output / "index.html"
+    if analytics and index.is_file():
+        index.write_text(homepage(index.read_text(encoding="utf-8"), True), encoding="utf-8")
+    build_docs(ROOT, output, public_file, analytics=analytics)
     build_release(ROOT, output, base_url)
     (output / ".nojekyll").touch()
     print(f"Pages artifact ready: {output}")
