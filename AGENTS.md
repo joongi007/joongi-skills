@@ -47,6 +47,7 @@ Bundled files:
 Bundled files:
 
 - `skills/creating-diagrams/references/capture.md`
+- `skills/creating-diagrams/references/design-principles.md`
 - `skills/creating-diagrams/references/diagrams.md`
 - `skills/creating-diagrams/references/illustrations-icons.md`
 

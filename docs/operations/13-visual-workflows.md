@@ -1,6 +1,7 @@
 # 다이어그램·아이콘과 시각 자료 제작
 
 기본 스킬 `creating-diagrams`는 도구 선택·제작·실제 렌더 검토를 안내합니다.
+diagram-design에서 참고한 단순화·시각적 위계·연결선·가독성 원칙을 Mermaid·Excalidraw·SVG·HTML에 공통 적용합니다.
 `applying-design-systems`는 제품 디자인 정책과 토큰 선택을 담당합니다.
 외부 스킬 원문·Excalidraw 편집기·snapdom 패키지·새 MCP 서버는 포함하지 않습니다.
 
@@ -20,6 +21,14 @@ Hub에서는 `hub_search(query="Excalidraw", kind="skill")`로 찾은 뒤
 순수 stdio에서도 스킬 검색·읽기가 가능하며 이를 위해 HTTP 관리 화면을 켤 필요가 없습니다.
 이 스킬 자체가 도형을 렌더하는 MCP 도구는 아닙니다. 에이전트가 현재 환경의 도구로 제작합니다.
 도구가 없으면 준비가 필요한 부분을 알리고 렌더를 했다고 주장하지 않습니다.
+
+## 원본에서 문서 삽입까지
+
+설명 목적·독자·표시 크기 → [공통 디자인 원칙](../../skills/creating-diagrams/references/design-principles.md)
+→ 형식별 제작 → 실제 렌더 검수 → 문서 삽입 후 본문 폭에서 재확인 순으로 진행합니다.
+편집할 원본과 렌더 산출물 또는 재현 가능한 빌드 경로를 제공합니다.
+Markdown 뷰어가 해당 형식을 지원하면 원본을 유지하고, 이미지가 필요하면 SVG/PNG로 내보내 삽입합니다.
+이 저장소의 Mermaid는 기존 Pages 빌드가 정적 SVG를 생성하므로 수동 이미지로 중복 관리하지 않습니다.
 
 ## 디자인 자료는 여러 개, 프로젝트의 기준은 하나
 

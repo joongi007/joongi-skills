@@ -53,11 +53,30 @@ MCP adapter는 검색·본문 조회만 제한적으로 노출하고 임의 CLI 
 - 검색 적중률·추가 완료율·실패율·지연·실제 클라이언트 토큰·프로세스 비용으로 효과를 측정한다.
   MCP 등록 개수만으로 성능을 평가하지 않는다.
 
+## 3D 엔진·캐릭터·이미지 제작 후보
+
+상태: 아이디어·미도입 · 확인일: 2026-11-24. MCP 등록·설치·모델 다운로드는 하지 않았다.
+현재 `building-procedural-3d`는 Three.js 전용이다. Blender를 지원할 때 공통 제작·렌더 검수 원칙과
+엔진별 참조를 나누고, 이미지 생성 지침은 별도 용도로 구분한다. 현재 스킬이 Blender까지 지원한다고 표시하지 않는다.
+
+| 후보 | 제공 방식·검토점 |
+|---|---|
+| [mcp-for-blender](https://github.com/ahujasid/mcp-for-blender) | 커뮤니티 MCP + Blender addon. Blender Foundation 공식 제품이 아니다. Blender 안의 Python 실행과 인증 없는 addon 소켓 경계를 검토한 뒤 선택형 도입 판단 |
+| [blender-skills](https://github.com/arjun988/blender-skills) | Blender MCP를 사용하는 제작 지침 모음. 캐릭터·리토폴로지·UV·리깅·export 등 필요한 참조만 골라 공통 제작 원칙과 엔진별 지침을 분리할 후보 |
+| [MPFB](https://static.makehumancommunity.org/mpfb.html) | Blender용 오픈소스 인체 캐릭터 생성기. MCP 자체가 아니며 addon 자동화·생성 에셋 라이선스 확인 필요 |
+| [ComfyUI](https://github.com/Comfy-Org/ComfyUI) | 노드 기반 이미지·미디어 제작 엔진. 공식 README의 Comfy MCP 안내를 별도 후보로 검토. 모델·custom node·외부 API·GPU 자원과 각 라이선스는 따로 확인 |
+
+awesome-shelf의 실제 `data/shelf.json`에서 mcp-for-blender·blender-skills·Comfy Cloud를 확인했다.
+MPFB와 오픈소스 ComfyUI는 별도로 조사한 후보이며 Comfy Cloud 서비스와 구분한다.
+캐릭터·이미지 생성에 동일한 인물·복장·스타일을 유지하는 참조·seed·workflow 기록과 단계별 검수를 검토한다.
+Blender MCP를 컨테이너에서 실행해도 명령을 받는 Blender 자체가 격리되는 것은 아니다.
+도입 전 임의 Python 실행·파일/에셋 접근·외부 전송과 사용자 승인 범위를 별도로 검토한다.
+
 ## 확인한 출처
 
 - [ARTEX 개요](https://github.com/jiwoochris/artex-global), [MCP 클라이언트](https://github.com/jiwoochris/artex-global/blob/main/mcphttp/client.go), [연결·발견 코드](https://github.com/jiwoochris/artex-global/blob/main/server/mcpdiscover.go)
 - [Modern Web Guidance 제작 소스](https://github.com/GoogleChrome/modern-web-guidance-src), [배포본·설치 안내](https://github.com/GoogleChrome/modern-web-guidance), [배포 package](https://github.com/GoogleChrome/modern-web-guidance/blob/main/package.json)
-- [awesome-shelf](https://github.com/joongi007/awesome-shelf): README가 `data/shelf.json`을 원본으로 명시한다. 이번 조회에서는 JSON 본문을 가져오지 못했으므로 새 후보를 추출·설치했다고 주장하지 않는다.
+- [awesome-shelf](https://github.com/joongi007/awesome-shelf): 2026-11-15 기록에서는 JSON 본문을 확인하지 못했다. 2026-11-24 추가 조회에서는 실제 `data/shelf.json`의 위 3D 후보를 확인했으며 설치·등록은 하지 않았다.
 - [공식 MCP Registry](https://github.com/modelcontextprotocol/registry): 서버 카탈로그와 API를 제공한다.
 
 
