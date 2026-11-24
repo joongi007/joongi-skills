@@ -14,6 +14,35 @@
 - 외부 의존성에는 timeout·동시성·호출량·백오프를 둔다.
 - 비밀은 코드 밖의 OS 저장소·시크릿 매니저 등에서 관리한다. 환경변수도 로그·덤프 노출을 검토한다.
 
+## 계층형·헥사고날·모듈형 구조 선택 (§4)
+
+Java에서도 헥사고날 아키텍처를 자동 기본값으로 삼지 않는다. 업무 규칙의 복잡도,
+외부 연동 교체·독립 테스트 필요, 팀이 유지할 수 있는 추상화 비용으로 판단한다.
+Ports & Adapters는 Java 전용이 아니며 아래 기준은 다른 언어에도 적용한다.
+
+| 상황 | 출발점 | 확인할 비용 |
+|---|---|---|
+| 단순 CRUD, 변화가 적은 작은 서비스 | controller–service–repository 계층형 | controller·ORM에 업무 규칙이 흩어지는지 |
+| 복잡한 업무 규칙, HTTP·배치·메시지에서 같은 유스케이스 실행 | 헥사고날: application/domain + port + adapter | 의미 없는 interface·DTO 변환·간접 호출 증가 |
+| 여러 업무 영역을 한 배포 단위에서 관리 | 도메인별 모듈형 모놀리스, 필요 경계에 port | 내부 테이블·구현을 우회 참조하는지 |
+
+모듈형 모놀리스 안에 계층형 또는 헥사고날을 쓸 수 있다. 코드 의존성 구조와
+API·worker의 실행 프로세스 분리는 서로 다른 결정이다. 서비스 분리는 아래 DB 소유권 기준도 확인한다.
+
+Java의 주문 견적 예: `QuoteController`가 입력을 검증하고 `QuoteService`를 호출한다.
+application이 소유한 `PricePort`를 `HttpPriceAdapter`가 구현하며,
+`CachedPriceAdapter`가 같은 port를 감싸면 캐시 정책을 업무 규칙과 분리할 수 있다.
+Spring 구성 지점에서 구현을 주입한다. domain/application은 HTTP client·Spring MVC·JPA entity에
+직접 의존하지 않도록 경계를 정하고, 외부 DTO를 업무 타입으로 변환한다.
+트랜잭션은 유스케이스의 원자성 요구로 정하며, 느린 외부 호출 내내 DB 락을 잡지 않는다.
+
+검증: 유스케이스는 fake port로 정상·오류를 검사하고 HTTP·DB adapter는 실제 계약으로
+통합 검사한다. 패키지 의존성 검사로 경계 위반을 찾되 interface 개수를 품질 지표로 삼지 않는다.
+단순 CRUD에 이 계층이 불필요하면 기존 구조를 유지하고, 선택 이유와 전환 조건을 ADR에 남긴다.
+
+원전: [Cockburn의 Ports & Adapters](https://alistair.cockburn.us/hexagonal-architecture).
+외부 연동·캐시의 상세는 [외부 통신과 캐시](external-cache.md)를 본다.
+
 ## DB 소유권 (§7)
 
 ### 책임과 계약 (§7.1)

@@ -19,10 +19,13 @@
 - [ ] parser·SQL·shell·template에서 데이터가 코드로 해석되지 않는가.
 - [ ] 토큰·세션·키의 발급·갱신·폐기·재인증과 동시 요청을 검증했는가.
 - [ ] 브라우저 인증의 XSS·CSRF·쿠키·저장 수명·로그인 종료 동작을 검토했는가.
+- [ ] IdP·세션·권한 판단·API 집행의 책임, tenant 경계·관계 변경 인가·회수 반영·복원 후 정합성을 검증했는가.
+- [ ] 인증 UI를 바꿨다면 공식 폼·MFA·복구·다국어·접근성을 보존하고 서버/테마 업그레이드 경로를 확인했는가.
 - [ ] 쓰기 재시도·결제·재고·중복 요청의 원자성·멱등성·부분 실패를 검증했는가.
 - [ ] 비밀·개인정보가 응답·로그·trace·cache·진단 자료에 불필요하게 남지 않는가.
 
-세부: `web-security.md`, 선택한 JWT 계약은 `auth-jwt.md`, UI는 `frontend.md`.
+세부: `web-security.md`, 공통 인증·권한은 `identity-authorization.md`, 인증 UI는 `identity-ui.md`,
+선택한 JWT 계약은 `auth-jwt.md`, UI는 `frontend.md`.
 
 ## UI·비동기 변경
 

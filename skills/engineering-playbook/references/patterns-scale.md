@@ -12,6 +12,11 @@
 | 분 단위 계산 | Task/state machine: 실행 ID로 상태·결과 조회 | 단일 요청 예산 초과 | 재시작·취소·중복 실행 미정 |
 | DB와 이벤트 동시 기록 | Transactional outbox: 같은 트랜잭션에 이벤트 기록 | DB commit과 publish 유실 방지 필요 | relay·중복 소비·정리 운영 |
 | 캐시 조회 가속 | Cache-aside: miss 시 원천 조회 후 TTL 저장 | 측정된 반복 읽기 병목 | stampede·stale 데이터 |
+| 동일 업무를 HTTP·배치·메시지에서 실행 | Ports & Adapters: 유스케이스와 외부 구현 분리 | 업무 규칙의 독립 테스트·연동 교체 필요 | 과도한 interface·매핑 계층 |
+| 사용자가 최신 원천 조회 요청 | 캐시 읽기 우회 후 조건부 갱신 | 명시적 freshness 요구 | 늦은 응답의 덮어쓰기·원천 과부하 |
+
+선택과 검증의 상세: [아키텍처](architecture.md), [TASK ID·역할 분리](background-jobs.md),
+[외부 통신·캐시 정책](external-cache.md). 패턴을 적용해도 실행·정합성 보장이 자동으로 생기지 않는다.
 
 ❌ 작은 로컬 도구에 사용하지 않는 Redis·큐·Kubernetes를 먼저 설치한다.
 

@@ -41,6 +41,9 @@ I/O 대기·CPU 작업·순서 보장·처리량·지연 목표를 구분한다.
 짧은 동기 작업은 단순하게 시작한다. 긴 작업·부분 실패·재시도가 있으면 작업 수명과 상태를 설계한다.
 새 패턴·서비스·인프라는 해결할 문제, 도입 비용, 제거·복구 조건을 함께 정한다.
 [아키텍처](references/architecture.md), [패턴과 규모](references/patterns-scale.md).
+Java 등에서 계층형·헥사고날·모듈형 구조를 변화와 테스트 경계에 맞춰 선택한다.
+TASK ID 처리와 API·worker·scheduler 분리는 [백그라운드 작업](references/background-jobs.md),
+외부 통신 경계와 캐시 읽기 우회·갱신은 [외부 통신과 캐시](references/external-cache.md)를 본다.
 
 ## 5. 모듈화·의존성 (백엔드 예: Python)
 
@@ -102,6 +105,8 @@ UI는 사용자 작업과 상태 수명으로, API는 도메인 책임으로 나
 Compose를 선택한 프로젝트에서만 적용한다. readiness·네트워크·볼륨·비밀·종료·복구 경로를 확인한다.
 예제 서비스를 쓰지 않는 프로젝트에 그대로 추가하지 않는다.
 [Docker](references/docker.md).
+여러 프로젝트에서 Helm·Ingress·RBAC 등의 검증이 필요하면 로컬 k3s도 비교한다.
+프로젝트 개수만으로 도입하지 않으며 [선택·격리·자원·중지 기준](references/kubernetes-helm.md)을 확인한다.
 
 ## 15. 비밀번호·URL 인코딩 (`quote_plus`)
 
@@ -128,6 +133,8 @@ Python/FastAPI/SQLAlchemy를 쓰는 작업에서만 참조한다.
 JWT 예제의 `jtt`·`rjti`·`fjti`는 특정 계약의 사용자 정의 claim이며 모든 JWT의 필수 필드는 아니다.
 선택한 방식의 갱신·폐기·재인증·권한 축소를 검증한다. 브라우저 저장은 XSS·CSRF를 함께 고려한다.
 [기존 JWT 스택의 상세](references/auth-jwt.md), [프론트엔드](references/frontend.md).
+여러 서비스의 공통 기반은 [IdP·BFF·권한 엔진의 책임과 선택](references/identity-authorization.md)을 본다.
+브랜드 통일은 [공식 인증 UI 확장](references/identity-ui.md)을 우선하고 인증 흐름과 분리한다.
 
 ## 20. UI 아키텍처 패턴 (React + Zustand + Axios)
 

@@ -55,7 +55,7 @@ Bundled files:
 
 `skills/engineering-playbook/SKILL.md`
 
-구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review의 검수 절차, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, WSL 개발 환경·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, 비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 
 Bundled files:
 
@@ -64,13 +64,17 @@ Bundled files:
 - `skills/engineering-playbook/references/architecture.md`
 - `skills/engineering-playbook/references/async-patterns.md`
 - `skills/engineering-playbook/references/auth-jwt.md`
+- `skills/engineering-playbook/references/background-jobs.md`
 - `skills/engineering-playbook/references/checklist.md`
 - `skills/engineering-playbook/references/concurrency.md`
 - `skills/engineering-playbook/references/config-secrets.md`
 - `skills/engineering-playbook/references/database-recovery.md`
 - `skills/engineering-playbook/references/docker.md`
 - `skills/engineering-playbook/references/documentation-testing.md`
+- `skills/engineering-playbook/references/external-cache.md`
 - `skills/engineering-playbook/references/frontend.md`
+- `skills/engineering-playbook/references/identity-authorization.md`
+- `skills/engineering-playbook/references/identity-ui.md`
 - `skills/engineering-playbook/references/incident-response.md`
 - `skills/engineering-playbook/references/infrastructure-ha.md`
 - `skills/engineering-playbook/references/java-actuator.md`
