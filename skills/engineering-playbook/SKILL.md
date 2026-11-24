@@ -1,6 +1,6 @@
 ---
 name: engineering-playbook
-description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review의 검수 절차, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, WSL 개발 환경·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, 비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 ---
 
 # 엔지니어링 가이드
@@ -20,7 +20,11 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | 작업 | 읽을 자료 |
 |---|---|
 | async·스레드·프로세스, I/O·CPU 작업, 큐·수평 확장 | `references/concurrency.md` |
-| 시스템·서비스 경계, DB 소유권, shared ORM 예외, worker·큐 도입 | `references/architecture.md` |
+| 계층형·헥사고날·모듈형 구조, Java port/adapter, 시스템·서비스 경계·DB 소유권 | `references/architecture.md` |
+| TASK ID 비동기 처리, API·worker·scheduler 분리, 멱등성·재시도·복구 | `references/background-jobs.md` |
+| 외부 통신 adapter, 캐시 계층·cache-aside·refresh·bypass·정합성 | `references/external-cache.md` |
+| Keycloak·OpenFGA 선택, OIDC·BFF·SSO, 자원 권한·tenant·원장·반영·복구 | `references/identity-authorization.md` |
+| 로그인·계정 UI, Keycloak 테마 상속·다국어·배포·회귀 검사 | `references/identity-ui.md` |
 | FastAPI 구조, 패키지 이름, router·service·schema, Repository, NATS, constants.py | `references/python-api.md` |
 | JWT RS256·jtt·rjti·fjti, 로그인·갱신·로그아웃, 재인증, WebSocket ticket, bcrypt, CORS | `references/auth-jwt.md` |
 | React 구조·hooks·Zustand, Axios 401 갱신, WebSocket, 서버 상태와 UI 상태 | `references/frontend.md` |
@@ -41,7 +45,7 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | 가용성 목표, Redis·Valkey 라이선스, Sentinel quorum·majority·장애 도메인 | `references/infrastructure-ha.md` |
 | TCP 연결 장애, Java·JDBC·클라이언트 타임아웃, keepalive·재연결·재시도 | `references/network-failure.md` |
 | PostgreSQL 복제·지연·fencing·failover, 백업·RPO·RTO | `references/database-recovery.md` |
-| k3s·Kubernetes·etcd, probe·topology spread·PDB, Helm 배포·업그레이드 | `references/kubernetes-helm.md` |
+| 로컬 Compose·k3s 선택, 프로젝트 격리·자원·중지, etcd·probe·PDB·Helm | `references/kubernetes-helm.md` |
 | 문서 번호·ADR·정합성, 테스트 품질·뮤테이션 테스트·병렬 작업 단위 | `references/documentation-testing.md` |
 | 프로젝트 규모, 설계 패턴·adapter·circuit breaker·outbox·코드 그래프 | `references/patterns-scale.md` |
 | WSL·Windows 설치 경계, 캐시·VHDX 용량 진단, 필요 시 compact 절차 | `references/wsl-development.md` |

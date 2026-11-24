@@ -2,6 +2,8 @@
 
 기존 Python/JWT 계약을 구현·유지할 때 쓰는 예시다. 세션·OIDC·관리형 인증에 자체 JWT 구현을 강제하지 않는다.
 `jtt`·`rjti`·`fjti`는 이 예시의 사용자 정의 claim이며 표준 필수 필드가 아니다.
+Keycloak·OIDC·BFF·OpenFGA 선택과 책임은 [공통 인증·권한](identity-authorization.md),
+로그인 화면의 브랜드 통일은 [인증 UI](identity-ui.md)를 먼저 본다.
 
 ## 목차
 
