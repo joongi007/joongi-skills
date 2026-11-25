@@ -66,7 +66,23 @@ async function main() {
   await page.getByRole('heading', { name: '3D 작업과 GUI 호스트 승인 사용 예시', exact: true }).waitFor();
   await page.goto('https://pages.example/joongi-skills/');
   await page.getByRole('navigation', { name: '주 메뉴' }).getByRole('link', { name: '문서', exact: true }).click();
-  await page.getByRole('heading', { name: '문서 안내', exact: true }).waitFor();
+  await page.getByRole('heading', { name: /에이전트가 바뀌어도/ }).waitFor();
+  const guide = page.locator('#guide-content');
+  await page.getByRole('navigation', { name: '제공 기능 탐색' }).getByRole('link', { name: 'MCP', exact: true }).click();
+  await guide.getByRole('link', { name: 'Code Review Graph', exact: true }).click();
+  await page.getByRole('heading', { name: 'Code Review Graph 선택 연결', exact: true }).waitFor();
+  await page.getByRole('navigation', { name: '사이트 메뉴' }).getByRole('link', { name: '문서 안내', exact: true }).click();
+  await page.getByRole('navigation', { name: '제공 기능 탐색' }).getByRole('link', { name: 'Prompts', exact: true }).click();
+  await page.locator('#prompts summary').click();
+  assert((await page.locator('#prompts').innerText()).includes('prompts/get'));
+  for (const width of [320, 390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 1000 });
+    assert.equal(await page.locator('html').evaluate(el => el.scrollWidth > innerWidth), false, 'Guide overflow at ' + width);
+  }
+  await page.getByRole('navigation', { name: '제공 기능 탐색' }).getByRole('link', { name: '스킬', exact: true }).click();
+  assert.equal(await page.locator('#skills dt a').count(), 5);
+  await page.locator('#skills').getByRole('link', { name: '엔지니어링 플레이북', exact: true }).click();
+  await page.getByRole('heading', { name: '엔지니어링 가이드', exact: true }).waitFor();
   await page.goto('https://pages.example/joongi-skills/');
   const security = page.locator('#security-example');
   await security.getByRole('heading', { name: '“이 보안 문제를 Codex Security로 확인해줘.”', exact: true }).waitFor();
@@ -115,7 +131,7 @@ async function main() {
   const taggedPage = await tagged.newPage();
   const scriptErrors = [];
   taggedPage.on('pageerror', e => scriptErrors.push(e.message));
-  for (const path of ['', 'read/docs/00-index.html']) {
+  for (const path of ['', 'read/docs/00-index.html', 'guide.html']) {
     await taggedPage.goto('https://joongi007.github.io/joongi-skills/' + path);
     await taggedPage.waitForFunction(() => window.googleTagFixture === true && window.gaFixtureSent === true);
     assert(await taggedPage.evaluate(() => window.dataLayer.some(item => item[0] === 'js')));
@@ -127,8 +143,8 @@ async function main() {
     document.body.append(script);
   });
   assert.equal(await taggedPage.evaluate(() => window.untrustedMarkdownScript), undefined, 'CSP must still block untrusted inline code');
-  assert.equal(loads, 2);
-  assert.equal(beacons, 2, 'Document CSP must allow GA transport');
+  assert.equal(loads, 3);
+  assert.equal(beacons, 3, 'Document CSP must allow GA transport');
   assert.deepEqual(scriptErrors, []);
   await tagged.close();
   console.log('Static documentation: no-JS navigation, mobile layout, production GTM initialization/GA transport and CSP injection rejection passed (all Google requests mocked).');

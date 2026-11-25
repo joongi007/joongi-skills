@@ -1,6 +1,7 @@
 # 문서 안내
 
 Joongi Skills & Hub는 AI 에이전트에 공통 지침을 설치하고 여러 MCP 연결을 관리하는 로컬 도구입니다.
+웹에서는 [소개와 제공 기능](https://joongi007.github.io/joongi-skills/guide.html)에서 설계 목적·스킬·MCP·Prompts를 먼저 살펴볼 수 있습니다.
 처음 방문했다면 **[처음 사용하기](getting-started/00-index.md)**에서 준비·설치·연결 확인 순서로 시작하세요.
 개발자의 대화 기록이나 개인 MCP 설정은 필요하지 않습니다.
 
@@ -11,6 +12,8 @@ Joongi Skills & Hub는 AI 에이전트에 공통 지침을 설치하고 여러 M
 | 간편 설치·업데이트·제거 | [설치 안내](installation/00-index.md) |
 | 최초 스크립트도 실행 전에 검증 | [보안 설치](installation/04-verified-install.md) |
 | 어떤 스킬이 설치되는지 확인 | [README의 스킬 목록](../README.md#함께-설치되는-스킬) |
+| MCP 종류·준비 조건·기본/선택 제공 구분 | [MCP 연결 선택지](https://joongi007.github.io/joongi-skills/guide.html#mcp) |
+| 공용 prompt와 연결 서버의 prompts 지원 | [Prompts 안내](https://joongi007.github.io/joongi-skills/guide.html#prompts) |
 | 관리 화면 열기·끄기·stdio/HTTP 선택 | [연결 방식과 웹 UI](operations/06-connection-modes.md) |
 | MCP 등록·연결·로그인·호출 승인 | [첫 연결 순서](getting-started/00-index.md#4-외부-mcp-등록연결로그인하기) · [인증 상세](operations/05-auth-project-skills.md) |
 | 스킬·등록 MCP·연결 도구 검색 | [검색 → 상세 → 호출](operations/08-catalog-search.md) |

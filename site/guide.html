@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="@DOCUMENT_CSP@">
+<meta name="google-site-verification" content="9ttkOi3mp0nQ0sbqtMzv7OmcxgYa1eDZCf-rPxq4KUU">
+<meta name="description" content="Joongi Hub의 설계 목적과 제공 범위. 기본 스킬, MCP 연결 선택지, prompts 지원을 먼저 살펴보고 설치와 상세 문서로 이어 가세요.">
+@ANALYTICS@
+<title>소개와 제공 기능 · Joongi Hub</title>
+<link rel="icon" href="data:,"><link rel="stylesheet" href="tokens.css"><link rel="stylesheet" href="docs.css"><link rel="stylesheet" href="guide.css">
+</head>
+<body>
+<a class="skip" href="#guide-content">본문으로 이동</a>
+<header class="docs-header">
+  <a class="brand" href="index.html">joongi hub <span>가이드</span></a>
+  <nav aria-label="사이트 메뉴"><a href="#mcp">MCP</a><a href="#prompts">Prompts</a><a href="index.html#install">설치</a><a href="read/docs/00-index.html">전체 문서</a></nav>
+</header>
+<main id="guide-content" class="guide" tabindex="-1">
+  <section class="guide-intro" aria-labelledby="guide-title">
+    <p class="guide-kicker">먼저 알아보기</p>
+    <h1 id="guide-title">에이전트가 바뀌어도,<br>지침과 도구는 한 곳에서.</h1>
+    <p class="guide-lead">같은 개발 규칙을 반복 설명하고, 에이전트마다 MCP를 따로 연결하는 부담을 줄이려고 만들었습니다. 공통 지침은 스킬로, 외부 기능은 MCP로 관리하는 로컬 Hub입니다.</p>
+    <div class="guide-actions"><a class="guide-primary" href="read/docs/getting-started/00-index.html">처음 사용하기 →</a><a href="index.html#install">설치 명령 보기</a></div>
+  </section>
+  <nav class="guide-jump" aria-label="제공 기능 탐색"><a href="#purpose">설계 목적</a><a href="#skills">스킬</a><a href="#mcp">MCP</a><a href="#prompts">Prompts</a><a href="#details">상세 문서</a></nav>
+  <section id="purpose" class="guide-section" aria-labelledby="purpose-title">
+    <div class="guide-heading"><p class="guide-kicker">01 · 설계 목적</p><h2 id="purpose-title">필요한 만큼 찾고,<br>내 컴퓨터에서 관리합니다.</h2></div>
+    <div class="guide-copy"><p>에이전트는 Hub 하나를 연결점으로 사용합니다. 먼저 스킬·등록 서버·연결된 도구를 검색하고, 선택한 항목의 지침이나 schema를 읽은 뒤 사용합니다. 모든 지침과 도구 설명을 매번 한꺼번에 읽는 방식은 아닙니다.</p>
+    <dl class="guide-principles"><div><dt>작업 지침은 재사용</dt><dd>공용·개인·프로젝트 출처를 나누고, 필요한 카테고리만 선택합니다.</dd></div><div><dt>외부 연결은 직접 선택</dt><dd>등록·로그인·호출 승인을 구분합니다. 검색했다는 이유만으로 외부 명령을 실행하지 않습니다.</dd></div><div><dt>상세는 확인할 때</dt><dd>일반 도구는 검색 후 호출하며, Apps·Tasks 도구의 직접 노출은 지원 조건에 따릅니다.</dd></div></dl>
+    <p><a href="read/docs/01-vision.html">설계 의도 자세히</a> · <a href="read/docs/operations/08-catalog-search.html">검색 → 상세 → 사용</a></p></div>
+  </section>
+  <section id="skills" class="guide-section" aria-labelledby="skills-title">
+    <div class="guide-heading"><p class="guide-kicker">02 · 스킬</p><h2 id="skills-title">에이전트가 읽는<br>작업 방법과 판단 기준.</h2><p>기본 스킬은 아래 다섯 가지입니다. 프로그램이나 외부 편집기 전체를 설치하는 기능과는 구분합니다.</p></div>
+    <div class="guide-copy"><dl class="capability-list" aria-label="기본 스킬">
+      <div><dt><a href="read/skills/engineering-playbook/SKILL.html">엔지니어링 플레이북</a><code>engineering-playbook</code></dt><dd>설계·구현·테스트·보안·운영에서 필요한 판단 기준을 선택해 읽습니다.</dd></div>
+      <div><dt><a href="read/skills/usual-korean/SKILL.html">자연스러운 한국어</a><code>usual-korean</code></dt><dd>명확한 문장과 실제 용례에 맞는 기술 용어로 작성합니다.</dd></div>
+      <div><dt><a href="read/skills/applying-design-systems/SKILL.html">디자인 시스템과 UX</a><code>applying-design-systems</code></dt><dd>기존 토큰을 우선하고 정보·상태·컨트롤을 일관되게 구성합니다.</dd></div>
+      <div><dt><a href="read/skills/creating-diagrams/SKILL.html">다이어그램과 아이콘</a><code>creating-diagrams</code></dt><dd>Mermaid·Excalidraw·SVG/HTML을 선택하고 실제 렌더와 사용 크기를 검토합니다.</dd></div>
+      <div><dt><a href="read/skills/building-procedural-3d/SKILL.html">이미지 기반 3D</a><code>building-procedural-3d</code></dt><dd>참조 이미지로 Three.js 오브젝트를 만들며 단계별 렌더를 비교합니다.</dd></div>
+    </dl><p><a href="read/docs/operations/14-catalog-preferences.html">회사·개인 스킬 구분과 검색 on/off →</a></p></div>
+  </section>
+  <section id="mcp" class="guide-section" aria-labelledby="mcp-title">
+    <div class="guide-heading"><p class="guide-kicker">03 · MCP</p><h2 id="mcp-title">어떤 도구를<br>연결할 수 있나요?</h2><p>MCP는 에이전트가 도구·리소스·prompt를 이용하는 연결 규격입니다. 아래는 제품의 제공 범위이며, 내 컴퓨터의 현재 연결 목록은 아닙니다.</p></div>
+    <div class="guide-copy">
+      <p class="guide-notice"><strong>처음 설치하면 Hub가 연결됩니다.</strong> 외부 MCP 서버는 자동 등록되지 않습니다. 사용할 서버를 선택해 준비하고 등록·인증해야 합니다.</p>
+      <dl class="capability-list" aria-label="MCP 제공 범위">
+        <div><dt><a href="read/docs/operations/08-catalog-search.html">Joongi Hub MCP</a><span class="availability">기본 설치</span><code>joongi-hub</code></dt><dd>스킬·연결 도구 검색, 상세 조회·호출, 연결·인증·승인·관리 화면을 제공합니다. 기본은 stdio이며 HTTP는 선택합니다.</dd></div>
+        <div><dt><a href="read/docs/operations/01-code-graph.html">Python 코드 그래프</a><span class="availability">동봉 · 직접 등록</span><code>joongi_hub.code_graph</code></dt><dd>Python AST에서 심볼·호출 관계·영향 범위를 읽기 전용으로 분석합니다. 분석할 프로젝트 경로를 지정합니다.</dd></div>
+        <div><dt><a href="read/docs/operations/04-code-review-graph.html">Code Review Graph</a><span class="availability">외부 패키지 · 선택 설치</span><code>code-review-graph</code></dt><dd>여러 언어의 코드 그래프를 조회하는 외부 MCP입니다. 프로젝트마다 인덱스를 분리하는 연결 방식을 안내합니다.</dd></div>
+        <div><dt><a href="read/docs/operations/16-browser-automation.html">격리 Playwright 브라우저</a><span class="availability">Docker · 선택 설치</span><code>Playwright MCP</code></dt><dd>별도 Chromium에서 화면 확인·클릭·입력에 사용합니다. Linux/WSL·Docker와 허용 사이트 설정이 필요합니다.</dd></div>
+        <div><dt><a href="read/docs/operations/17-personal-edge.html">기존 Windows Edge</a><span class="availability">확장·로컬 bridge · 선택 설정</span><code>Personal Edge</code></dt><dd>사용자가 승인한 전용 탭에서 기존 로그인 상태를 활용합니다. 격리 브라우저와 다른 권한 경계이며 OS 샌드박스가 아닙니다.</dd></div>
+        <div><dt><a href="read/docs/getting-started/00-index.html#section-4-외부-mcp-등록연결로그인하기">직접 등록하는 외부 MCP</a><span class="availability">제공자별 준비·인증</span></dt><dd>Notion 같은 원격 서비스나 로컬 MCP를 등록합니다. 실제 MCP 주소·전송 방식·서버와 클라이언트의 지원 기능을 확인해야 합니다.</dd></div>
+      </dl>
+      <p><a href="read/docs/architecture/02-compatibility.html">Apps·Tasks·프로토콜 지원 범위</a> · <a href="read/docs/operations/05-auth-project-skills.html">로그인과 호출 승인</a></p>
+      <details class="guide-more"><summary>검증한 도구와 추가 후보는 어디서 보나요?</summary><p>GitNexus의 과거 실접속 기록과 Serena 등의 추가 후보는 <a href="read/docs/operations/01-code-graph.html">코드 그래프 검증 기록</a>에 있습니다. 날짜가 있는 시험은 현재 설치·연결 상태나 모든 버전의 호환성을 보장하지 않습니다.</p></details>
+    </div>
+  </section>
+  <section id="prompts" class="guide-section" aria-labelledby="prompts-title">
+    <div class="guide-heading"><p class="guide-kicker">04 · Prompts</p><h2 id="prompts-title">재사용할 요청을<br>불러오는 별도 방식.</h2></div>
+    <div class="guide-copy"><p>MCP prompt는 인자를 받아 대화 메시지를 구성하는 템플릿입니다. 작업 방법을 담은 스킬, 실행하는 tool과 역할이 다릅니다.</p>
+      <p class="guide-notice"><strong>현재 함께 배포하는 공용 prompt 번들은 없습니다.</strong> Prompts를 지원하는 MCP 서버를 연결하면, 그 서버의 prompt 목록과 내용을 중계할 수 있습니다.</p>
+      <p>사용 가능 여부는 연결된 서버와 에이전트의 prompts 지원에 달려 있습니다. Hub의 스킬·도구 검색 결과에 prompt가 함께 나온다는 뜻은 아닙니다.</p>
+      <details class="guide-more"><summary>지원하는 MCP 요청 확인</summary><p><code>prompts/list</code>에서 연결 서버의 목록을 받고 <code>prompts/get</code>으로 내용을 요청합니다. 이름은 <code>서버ID__prompt이름</code>으로 출처를 구분합니다. 공용 prompt 생성·편집 화면을 제공하는 기능과는 구분합니다.</p></details>
+      <p><a href="read/docs/architecture/02-compatibility.html">Prompts를 포함한 기능별 계약 →</a></p>
+    </div>
+  </section>
+  <section id="details" class="guide-section" aria-labelledby="details-title">
+    <div class="guide-heading"><p class="guide-kicker">05 · 다음 읽을거리</p><h2 id="details-title">목적을 정했다면,<br>필요한 상세로.</h2><p>상세 화면은 저장소의 Markdown을 빌드할 때 렌더링합니다. 각 문서의 GitHub 원문에서 근거와 변경 이력을 확인할 수 있습니다.</p></div>
+    <div class="guide-copy"><dl class="capability-list">
+      <div><dt><a href="read/docs/getting-started/00-index.html">설치하고 첫 연결 확인</a></dt><dd>준비 사항 → 설치 → 스킬 검색 → 외부 MCP 등록 순서입니다.</dd></div>
+      <div><dt><a href="read/docs/operations/00-index.html">사용과 문제 해결</a></dt><dd>연결·인증·검색 설정·브라우저·작업 승인에서 필요한 절차를 찾습니다.</dd></div>
+      <div><dt><a href="read/docs/architecture/00-index.html">구조와 지원 계약</a></dt><dd>프로토콜·보안 경계·Apps·Tasks·Prompts의 실제 지원 범위를 확인합니다.</dd></div>
+      <div><dt><a href="read/docs/adr/00-index.html">설계 결정과 이유</a></dt><dd>무엇을 선택했고 어떤 대안과 한계를 남겼는지 확인합니다.</dd></div>
+      <div><dt><a href="read/docs/00-index.html">전체 문서와 기여 안내</a></dt><dd>운영·개발·검증·조사 자료를 포함한 문서 목록입니다.</dd></div>
+    </dl></div>
+  </section>
+  <footer><a href="index.html#install">설치 명령 보기</a><a href="https://github.com/joongi007/joongi-skills">GitHub 저장소 ↗</a><span>소개 → 기능 탐색 → 필요한 상세 문서</span></footer>
+</main>
+</body>
+</html>

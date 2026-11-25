@@ -3,10 +3,11 @@
 AI 에이전트에 공통 작업 지침을 설치하고, 여러 MCP 서버를 한 곳에서 연결·검색하는 로컬 도구입니다.
 **0.1.0 · 초기 릴리스**입니다. 개인 컴퓨터에서 사용하는 단일 사용자 도구이며, 인터넷 공개 서버로 제공하지 않습니다.
 
-[설치 사이트](https://joongi007.github.io/joongi-skills/) · [처음 사용하기](docs/getting-started/00-index.md) · [전체 문서](docs/00-index.md) · [지원 범위](docs/architecture/02-compatibility.md)
+[소개와 제공 기능](https://joongi007.github.io/joongi-skills/guide.html) · [설치 사이트](https://joongi007.github.io/joongi-skills/) · [처음 사용하기](docs/getting-started/00-index.md) · [전체 문서](docs/00-index.md)
 
 - **스킬**은 에이전트가 필요한 작업에서 읽는 Markdown 지침입니다.
 - **MCP**는 에이전트와 외부 도구를 연결하는 프로토콜입니다. **Hub**가 연결·검색·호출을 중계합니다.
+- **Prompts**는 MCP 서버가 제공하는 대화 템플릿입니다. 공용 번들은 없으며, 연결 서버의 목록·내용을 중계합니다.
 - 기본 **stdio** 방식은 에이전트가 Hub 프로세스를 실행합니다. 웹 서버를 미리 켤 필요가 없습니다.
 
 브라우저 조작은 선택 설치입니다. [격리 Playwright](docs/operations/16-browser-automation.md)와

@@ -4,3 +4,4 @@
 @media(max-width:900px){.desktop-document-menu{display:none}.docs-layout{grid-template-columns:minmax(0,1fr);gap:24px;padding:24px}.docs-sidebar{position:static;max-height:none;border-bottom:1px solid var(--line)}.docs-header{padding:20px 24px;flex-wrap:wrap}.docs-header nav{gap:20px}.docs-header nav a{padding:8px 0}h1{font-size:1.75rem}pre{padding:16px}body{font-size:15px}}
 
 .mermaid-diagram{margin:24px 0}.mermaid-diagram img{display:block;max-width:100%;height:auto;margin:16px auto}.mermaid-diagram details{font-size:14px;color:var(--quiet)}
+.menu-title{font-weight:650;color:var(--ink);margin:8px 0}.docs-sidebar .reader-links{padding:0 0 16px;border-bottom:1px solid var(--line)}

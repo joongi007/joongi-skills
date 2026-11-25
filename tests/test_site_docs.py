@@ -31,6 +31,57 @@ class Links(HTMLParser):
 
 
 class SiteDocsTests(unittest.TestCase):
+    def test_guide_catalog_covers_packaged_skills_and_links_to_real_detail_pages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            build_docs(ROOT, output, public_file)
+            guide = (output / "guide.html").read_text(encoding="utf-8")
+            parsed = Links(guide)
+            self.assertNotIn("script", parsed.tags)
+            self.assertNotIn("@DOCUMENT_CSP@", guide)
+            self.assertNotIn("@ANALYTICS@", guide)
+            expected = {
+                "read/" + p.relative_to(ROOT).with_suffix(".html").as_posix()
+                for p in (ROOT / "skills").glob("*/SKILL.md")
+            }
+            listed = {p for p in parsed.links if p.startswith("read/skills/")}
+            self.assertEqual(listed, expected)
+            pages = {
+                p.resolve(): Links(p.read_text(encoding="utf-8")) for p in output.rglob("*.html")
+            }
+            self.assertTrue({"purpose", "skills", "mcp", "prompts", "details"} <= parsed.ids)
+            for href in parsed.links:
+                url = urlsplit(href)
+                if url.scheme or url.netloc or url.path in {"./", ""}:
+                    continue
+                if url.path == "index.html":
+                    home = Links((ROOT / "site/index.html").read_text(encoding="utf-8"))
+                    if url.fragment:
+                        self.assertIn(unquote(url.fragment), home.ids, href)
+                    continue
+                target = (output / unquote(url.path)).resolve()
+                self.assertIn(target, pages, href)
+                if url.fragment:
+                    self.assertIn(unquote(url.fragment), pages[target].ids, href)
+            detail = (output / "read/docs/architecture/02-compatibility.html").read_text()
+            self.assertIn("../../../guide.html#mcp", Links(detail).links)
+            self.assertIn("../../../guide.html#prompts", Links(detail).links)
+
+    def test_symlink_guide_cannot_replace_reader_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "source"
+            (root / "site").mkdir(parents=True)
+            (root / "README.md").write_text("# Reader")
+            private = Path(directory) / "private.html"
+            private.write_text("<script>secret</script>")
+            try:
+                (root / "site/guide.html").symlink_to(private)
+            except OSError:
+                self.skipTest("symlinks not available")
+            output = Path(directory) / "pages"
+            build_docs(root, output, public_file)
+            self.assertFalse((output / "guide.html").exists())
+
     def test_render_links_tables_code_and_unsafe_markup(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory) / "source"
