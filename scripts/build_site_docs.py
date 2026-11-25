@@ -75,6 +75,22 @@ def build_docs(root: Path, output: Path, public_file, *, analytics=False) -> int
     )
     if not sources:
         return 0
+    # The reader's entry page is curated separately from the repository tree.
+    # Only the reviewed site template is trusted HTML; Markdown stays inert.
+    guide = root / "site" / "guide.html"
+    has_guide = (
+        guide.is_file()
+        and not guide.is_symlink()
+        and guide.resolve().is_relative_to(root.resolve())
+        and public_file(guide.relative_to(root))
+    )
+    if has_guide:
+        output.mkdir(parents=True, exist_ok=True)
+        guide_html = guide.read_text(encoding="utf-8")
+        guide_html = guide_html.replace(
+            "@DOCUMENT_CSP@", html.escape(document_csp(analytics), quote=True)
+        ).replace("@ANALYTICS@", TAG if analytics else "")
+        (output / "guide.html").write_text(guide_html, encoding="utf-8")
     try:
         from markdown_it import MarkdownIt
     except ImportError as error:
@@ -182,6 +198,15 @@ def build_docs(root: Path, output: Path, public_file, *, analytics=False) -> int
                             + quote(normalized, safe="/.-_"),
                         )
         navigation = []
+        if has_guide:
+            guide_url = html.escape(relative("guide.html", current), quote=True)
+            navigation.append(
+                '<p class="menu-title">소개와 제공 기능</p><ul class="reader-links">'
+                f'<li><a href="{guide_url}">Hub 소개</a></li>'
+                f'<li><a href="{guide_url}#skills">기본 스킬</a></li>'
+                f'<li><a href="{guide_url}#mcp">MCP 연결 선택지</a></li>'
+                f'<li><a href="{guide_url}#prompts">Prompts 지원</a></li></ul>'
+            )
         for key, label in [("overview", "시작하기"), *GROUPS.items(), ("skills", "공용 스킬")]:
             candidates = [
                 s for s in nav_sources if (s.parts[1] if len(s.parts) > 2 else "overview") == key
@@ -214,11 +239,9 @@ def build_docs(root: Path, output: Path, public_file, *, analytics=False) -> int
         ).replace("</table>", "</table></div>")
         title = html.escape(page["title"])
         home = relative("index.html", current)
-        doc_home = (
-            relative(destination(Path("docs/00-index.md")), current)
-            if Path("docs/00-index.md") in pages
-            else home
-        )
+        doc_home = relative("guide.html", current) if has_guide else home
+        if not has_guide and Path("docs/00-index.md") in pages:
+            doc_home = relative(destination(Path("docs/00-index.md")), current)
         source_url = SOURCE_URL + quote(source.as_posix(), safe="/.-_")
         template = Path(__file__).with_name("templates") / "document.html"
         rendered = template.read_text(encoding="utf-8").format(

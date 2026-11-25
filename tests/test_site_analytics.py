@@ -83,6 +83,10 @@ class SiteAnalytics(unittest.TestCase):
             self.assertEqual(
                 sum("GTM-MCHLMHRF" in s["attributes"].get("src", "") for s in home.scripts), 1
             )
+            guide = Tags((output / "guide.html").read_text(encoding="utf-8"))
+            self.assertEqual(len(guide.scripts), 2)
+            self.assertIn("script-src-attr 'none'", guide.csp)
+            self.assertNotIn("unsafe-inline", guide.csp)
             documents = list((output / "read").rglob("*.html"))
             self.assertGreater(len(documents), 40)
             for document in documents:
