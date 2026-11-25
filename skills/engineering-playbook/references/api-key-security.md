@@ -13,6 +13,7 @@ API·OpenAPI 문서가 공개돼도 undocumented endpoint·숨은 필드·변형
   인증·권한·네트워크 접근을 제한한다. 정적 schema 파일·구버전·직접 URL도 같은 정책을 적용한다.
 - 문서의 로그인 여부와 무관하게 모든 endpoint에서 인증·자원별 인가·입력 검증을 집행한다.
   숨은 필드로 권한·소유자를 덮어쓰는 mass assignment와 미등록 경로·메서드도 검사한다.
+  다른 사용자의 자원 ID와 절차를 건너뛴 비정상 호출 순서도 서버의 소유권·상태 전이 검사로 거부한다.
 - API key·tenant·IP 등 여러 축의 rate limit·quota, 비용 큰 연산의 동시성·payload·큐 상한을 둔다.
   유효하지 않은 key의 요청도 비싼 검증 전에 제한한다. IP 하나나 WAF만으로 방어가 끝나지 않는다.
 - 키 열거·다양한 경로의 실패·비정상 호출량·egress·사용 비용을 탐지하고 key/tenant별 차단·폐기를 준비한다.
@@ -40,6 +41,11 @@ bcrypt는 주로 password hashing용이다. 무조건 모든 API key에 적용�
 구현에 따라 72-byte 제한도 문제가 된다. 기존 bcrypt verifier가 있으면 길이·비용·migration을 확인한다.
 cache에는 원문 대신 verifier·scope·expiry·revocation version 등을 두고 안전한 비교 함수를 사용한다.
 digest 자체를 클라이언트가 제시하는 인증 값으로 허용하지 않는다. 그것도 재사용 가능한 credential이 된다.
+
+AWS/S3 SigV4처럼 요청 서명에 쓰는 자격은 검증용 digest만 보관해서는 호출할 수 없다.
+가능하면 SDK와 role/workload identity의 단기 자격을 사용한다. 장기 자격이 필요하면 암호화 보관·
+최소 권한·회전 또는 요청 서명을 지원하는 별도 경로를 검토한다. 일반 KMS 서명이 SigV4와
+바로 호환된다고 가정하지 않는다. 실제 signing key 유도·요청 서명과 공급자 계약을 확인한다.
 
 검증 중 요청에 들어온 원문은 잠시 메모리에 존재한다. 불필요한 복사·참조·보관을 줄이되
 hash 저장을 프로세스 메모리 읽기·인증 코드 변조에 대한 완전한 방어라고 설명하지 않는다.
@@ -69,4 +75,5 @@ cache 지연, 다른 tenant/scope, 인증 실패 flood, HMAC 키 교체·복원 
 [OWASP REST Security](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html),
 [Secrets Management](https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html),
 [Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+[AWS SigV4의 자격·서명 구조](https://docs.aws.amazon.com/IAM/latest/UserGuide/reference_sigv.html).
 digest·HMAC·cache 구성은 위협 모델에 따른 설계 선택이며 특정 표준의 일괄 의무로 해석하지 않는다.

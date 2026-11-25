@@ -4,6 +4,8 @@ JWT(JSON Web Token)는 토큰 형식이며 인증·인가 프로토콜 자체가
 JWK(JSON Web Key)는 키 표현, JWKS(JSON Web Key Set)는 키 집합이다.
 비대칭 서명 검증용 공개 JWKS를 공개하는 것은 정상적인 설계다. 개인키·대칭 서명 비밀은 공개하지 않는다.
 API key·Access Token 원문을 저장하는 cache와 공개 verification key cache를 구분한다.
+공개 verifier가 가져갈 JWKS의 접근 정책을 사용자용 비공개 API 문서와 동일하게 묶어
+키 배포를 막지 않는다. 내부 전용 verifier라면 필요한 인증·네트워크 접근을 명시적으로 제공한다.
 
 ## 신뢰 경로와 검증
 

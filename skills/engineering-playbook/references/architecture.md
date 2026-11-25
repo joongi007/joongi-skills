@@ -73,6 +73,7 @@ HTTP/DB adapter를 나눈다. 다른 모듈은 공개 application API·명시적
 | Java / Spring | 업무별 package/module, application port와 Spring 구성 지점의 adapter 주입 | MVC/JPA 타입의 domain 유입·모듈 순환 |
 | Python / FastAPI | 업무 package의 유스케이스·Protocol/필요한 interface, router/worker adapter와 조립 지점 | Depends·Request·ORM session을 업무 규칙 곳곳에 전달 |
 | TypeScript / Express | 업무 module의 유스케이스·port, router/middleware adapter와 명시적 wiring | req/res·전역 service locator·ORM model에 핵심 정책 종속 |
+| Go | 업무 package·소비자 측 작은 interface, handler/worker adapter와 생성자 wiring | net/http·DB driver 타입 유출·package import cycle |
 
 Dependency Injection은 의존 객체를 제공하는 방식, Dependency Inversion은 의존 방향의 원칙이다.
 DI container 설치나 interface 추가만으로 Clean Architecture가 되지는 않는다. 얇은 CRUD에는 필요한

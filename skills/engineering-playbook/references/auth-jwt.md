@@ -1,7 +1,7 @@
 # 인증과 JWT (PLAYBOOK §19)
 
 기존 Python/JWT 계약을 구현·유지할 때 쓰는 예시다. 세션·OIDC·관리형 인증에 자체 JWT 구현을 강제하지 않는다.
-`jtt`·`rjti`·`fjti`는 이 예시의 사용자 정의 claim이며 표준 필수 필드가 아니다.
+`jtt`·`rjti`·`fjti`·`fresh`·`reauth_at`는 이 예시의 사용자 정의 claim이며 표준 필수 필드가 아니다.
 Keycloak·OIDC·BFF·OpenFGA 선택과 책임은 [공통 인증·권한](identity-authorization.md),
 로그인 화면의 브랜드 통일은 [인증 UI](identity-ui.md)를 먼저 본다.
 일반 JWT/JWKS 검증은 [서명 키·JWKS](jwt-jwks.md), BFF·TMB의 차이는 [브라우저 backend](browser-backends.md)를 본다.
@@ -29,14 +29,15 @@ Keycloak·OIDC·BFF·OpenFGA 선택과 책임은 [공통 인증·권한](identit
 class JwtAccessPayload(TypedDict):
     jtt: str        # "access" — 이 계약의 사용자 정의 payload claim
     iss: str
-    sub: int        # user_idx
+    sub: str        # JWT subject는 문자열; 내부 숫자 ID와는 명시적으로 매핑
     aud: str
     iat: datetime
     nbf: datetime
     exp: datetime
     jti: str        # 고유 토큰 ID
     rjti: str       # 연결된 refresh jti (연쇄 무효화)
-    fresh: bool     # 로그인 직후 발급 여부
+    fresh: bool     # 이 계약에서 민감 작업 재인증을 완료했는지
+    reauth_at: datetime | None  # 서버가 확인한 재인증 시각; 없으면 None
 
 class JwtRefreshPayload(TypedDict):
     jtt: str        # "refresh"
@@ -47,6 +48,7 @@ class JwtRefreshPayload(TypedDict):
 
 **핵심 포인트:**
 - `jtt`로 access/refresh를 명시 구분한다. JOSE header의 표준 `typ`과 별개인 사용자 정의 claim이다.
+- datetime 표기는 애플리케이션 내부 타입 예시다. wire의 `iat`·`nbf`·`exp` 등 표준 시간 claim은 NumericDate로 직렬화·검증한다.
 - `rjti` / `fjti`로 갱신 체인 추적 → 리프레시 토큰 교체 시 이전 체인 무효화.
 - 만료 시간은 환경 변수로 `parse_duration("15m")` → `timedelta`:
   ```python
@@ -79,13 +81,24 @@ RequiredAccessPayload = Annotated[JwtAccessPayload, Depends(required_access_toke
 1. 클라이언트 → GET /api/v1/auth/token/ws-ticket  (access token 필요)
 2. 서버 → Redis SETEX {ns}:ws:ticket:{uuid} 60s payload
 3. 클라이언트 → WS /api/v1/ws?ticket={uuid}
-4. 서버 → Redis GET + DEL (단발: 재사용 불가)
+4. 서버 → Redis/Valkey GETDEL 또는 Lua로 검증·소비를 원자적으로 수행
 5. 서버 주기적으로 v1/request/ticket 이벤트 전송
 6. 클라이언트 → 새 티켓 발급 후 v1/ticket/renew 전송
 ```
 
-- 티켓 TTL 짧게(1분), 단발 삭제 → **WS 연결 하이재킹 방어**.
-- 티켓에 사용자 권한 포함 → WS 연결 후 별도 인증 불필요.
+- 짧은 TTL과 원자적 소비로 재사용을 제한한다. 별도 GET 다음 DEL은 동시 연결 두 개가 같은
+  티켓을 읽을 수 있으므로 단발 보장이 아니다. 지원 버전·자료형을 확인하고 GETDEL/Lua 경로를 검사한다.
+- 티켓은 검증된 주체·세션·대상에 연결하고 handshake의 Origin 허용 목록을 검증한다. WSS를 사용한다.
+  query의 티켓도 bearer credential이므로 proxy·access log·trace에서 제거한다. 신규 발급 API는 POST와
+  `Cache-Control: no-store`를 우선하며 기존 GET 계약을 유지할 때도 캐시·재발급·노출 위험을 검토한다.
+- 연결 인증은 메시지별 객체·행위·tenant 인가를 대신하지 않는다. 티켓에 있던 오래된 권한만 믿지 않고
+  구독·조회·변경마다 현재 권한을 집행한다. token/session 만료·로그아웃·권한 철회 시 재인증/연결 종료
+  정책과 반영 시간을 정한다. renewal 메시지만 받았다고 유효 기간을 연장하지 않는다.
+- 메시지 schema·크기·호출량·idle timeout·동시 연결 상한을 두고 만료·철회 연결이 계속 작업하지 못하게 한다.
+  동시 티켓 소비, 다른 Origin·사용자/객체, 연결 후 권한 철회·만료·renewal 재사용을 회귀 검사한다.
+
+근거: [OWASP WebSocket Security](https://cheatsheetseries.owasp.org/cheatsheets/WebSocket_Security_Cheat_Sheet.html),
+[Valkey GETDEL](https://valkey.io/commands/getdel/). 이 절은 문서 설계 보완이며 특정 앱 취약점의 재현 결과가 아니다.
 
 ## 비밀번호 (§19.4)
 
@@ -123,13 +136,18 @@ POST /api/v1/auth/token/fresh
 
 1. refresh token 검증 (jtt == "refresh")
 2. Redis 세션 키 존재 확인 (없으면 세션 만료 → 401)
-3. 아이디·비밀번호 재검증
-4. fresh=True인 access token 발급 (refresh token은 교체 없음)
+3. token의 검증된 subject와 같은 사용자인지 확인하고 비밀번호/MFA 등 요구한 재인증 수행
+4. fresh=True와 서버의 reauth_at을 담은 access token 발급 (이 예시는 refresh token 교체 없음)
 5. Response: { access_token }
 ```
 
-- fresh 토큰의 수명은 일반 access token과 동일 (짧아서 민감 작업 직후 만료).
-- 의존성 주입으로 강제하지 않고 **API 명세로 규약** — 클라이언트가 민감 엔드포인트 호출 전에 거치게.
+- 민감 endpoint는 서버의 dependency/middleware/policy에서 검증된 재인증 증거·subject·session·
+  허용 경과 시간과 필요한 MFA 수준을 **강제**한다. 클라이언트 UI의 호출 순서·body의 fresh 값·명세 규약에 맡기지 않는다.
+- 일반 Access Token이 유효해도 재인증 창을 넘기면 거부한다. 허용 시간은 작업 위험으로 정하며
+  `fresh=True`만으로 발급 시점부터 만료까지 무제한 재사용하게 하지 않는다. 필요하면 행위·대상에 묶인
+  짧은 수명·단발 step-up 증거를 쓰고 원자적으로 소비한다. OIDC의 auth_time/acr/amr는 신뢰한 IdP 계약으로 해석한다.
+- 재인증 endpoint에도 인증·rate limit·안전한 오류를 적용한다. 재인증 없이 민감 API 직접 호출,
+  오래된 증거·다른 사용자·위조 flag·세션 폐기·단발 증거의 동시 재사용이 거부되는지 검사한다.
 
 ## 토큰 갱신 — Refresh Rotation (§19.7)
 
