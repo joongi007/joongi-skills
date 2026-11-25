@@ -1,6 +1,6 @@
 ---
 name: engineering-playbook
-description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, 비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security·Claude /security-review, Zero Trust·탐지·복구, API key·JWT/JWKS·BFF/TMB, ReDoS·이미지 압축 폭탄, 문서·테스트 품질, 아키텍처·비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 ---
 
 # 엔지니어링 가이드
@@ -20,11 +20,16 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | 작업 | 읽을 자료 |
 |---|---|
 | async·스레드·프로세스, I/O·CPU 작업, 큐·수평 확장 | `references/concurrency.md` |
-| 계층형·헥사고날·모듈형 구조, Java port/adapter, 시스템·서비스 경계·DB 소유권 | `references/architecture.md` |
+| Hexagonal·Clean Architecture·Modular Monolith 조합, Java/FastAPI/Express 경계·DB 소유권 | `references/architecture.md` |
 | TASK ID 비동기 처리, API·worker·scheduler 분리, 멱등성·재시도·복구 | `references/background-jobs.md` |
 | 외부 통신 adapter, 캐시 계층·cache-aside·refresh·bypass·정합성 | `references/external-cache.md` |
 | Keycloak·OpenFGA 선택, OIDC·BFF·SSO, 자원 권한·tenant·원장·반영·복구 | `references/identity-authorization.md` |
 | 로그인·계정 UI, Keycloak 테마 상속·다국어·배포·회귀 검사 | `references/identity-ui.md` |
+| API key 발급·verifier·cache·회전·만료·폐기, 공개 문서·자동화 공격 | `references/api-key-security.md` |
+| BFF·Token-Mediating Backend(TMB)·browser-only OAuth, API aggregation | `references/browser-backends.md` |
+| JWT·JWK·JWKS, issuer·kid·cache·서명 키 회전·긴급 폐기 | `references/jwt-jwks.md` |
+| CS 명칭·약어·의미 구분과 문서 용어 일치 | `references/terminology.md` |
+| Spamhaus DROP·IP/CIDR/ASN reputation, IPv6·proxy·피드 갱신·차단·rollback | `references/network-reputation.md` |
 | FastAPI 구조, 패키지 이름, router·service·schema, Repository, NATS, constants.py | `references/python-api.md` |
 | JWT RS256·jtt·rjti·fjti, 로그인·갱신·로그아웃, 재인증, WebSocket ticket, bcrypt, CORS | `references/auth-jwt.md` |
 | React 구조·hooks·Zustand, Axios 401 갱신, WebSocket, 서버 상태와 UI 상태 | `references/frontend.md` |
@@ -35,7 +40,7 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | DB·Redis 비밀번호의 quote_plus, pydantic-settings·cached_property | `references/config-secrets.md` |
 | uv·Python·Vite 프로젝트 구성, UI–API 계약, /api/v1, 역방향 프록시 단일 진입점 | `references/scaffolding.md` |
 | 인가·IDOR, 인증, injection·ReDoS, 업로드·이미지 압축 폭탄·디코딩 자원 제한·경로 이탈, SSRF·CORS·CSRF, DoS, 경쟁 상태, XSS | `references/web-security.md` |
-| 보안 헤더·CSP, 개인정보·암호화, 비밀 유출, 공급망, 컨테이너·외부 연결·백업 | `references/security-ops.md` |
+| Zero Trust·host 침해·MSA/mTLS, 보안 헤더·CSP·비밀·공급망·백업 | `references/security-ops.md` |
 | 기술 도입·배포 전 취약점 확인, 30일 경과 시 전체 스택 재점검·중대 취약점 대응 | `references/vulnerability-management.md` |
 | nginx 보안 공지·수정 버전·배포판 backport 확인 | `references/nginx-security.md` |
 | Codex Security·Claude /security-review 등 에이전트 개발 보안 검수 | `references/agent-security-review.md` |
@@ -66,3 +71,4 @@ Python·React·Java 예시 때문에 다른 프로젝트의 기술 스택을 바
 - 기술 도입·배포 전에는 관련 취약점 공지를 확인한다. 관련 엔지니어링·운영 점검 시 마지막 전체 스택 점검 후 30일 이상 지났거나 기록이 없으면 현재 프로젝트를 재점검한다. 긴급 공지는 기다리지 않는다.
 - 에이전트 개발의 완료 전 보안 검수는 `references/agent-security-review.md`를 따른다. Codex는 Codex Security를 최소 단계로 두고 미실행을 통과로 처리하지 않는다.
 - 중요한 결정은 이유·대안·검증·한계를 남긴다. 새 공통 원칙은 PLAYBOOK의 주제와 관련 참조를 함께 갱신한다.
+- 기술 개념은 통용되는 CS 명칭·영어 원어·약어를 필요한 만큼 병기하고 의미를 구분한다. 설명은 자연스러운 한국어로 쓰며 프로젝트 glossary·식별자는 보존한다.

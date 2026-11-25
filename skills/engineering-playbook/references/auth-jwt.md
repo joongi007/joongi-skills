@@ -4,6 +4,7 @@
 `jtt`·`rjti`·`fjti`는 이 예시의 사용자 정의 claim이며 표준 필수 필드가 아니다.
 Keycloak·OIDC·BFF·OpenFGA 선택과 책임은 [공통 인증·권한](identity-authorization.md),
 로그인 화면의 브랜드 통일은 [인증 UI](identity-ui.md)를 먼저 본다.
+일반 JWT/JWKS 검증은 [서명 키·JWKS](jwt-jwks.md), BFF·TMB의 차이는 [브라우저 backend](browser-backends.md)를 본다.
 
 ## 목차
 
@@ -26,7 +27,7 @@ Keycloak·OIDC·BFF·OpenFGA 선택과 책임은 [공통 인증·권한](identit
 # api-initor 컨테이너가 최초 1회 생성 → named volume으로 api 컨테이너와 공유
 
 class JwtAccessPayload(TypedDict):
-    jtt: str        # "access"   ← standard `typ` 대신 `jtt` 사용
+    jtt: str        # "access" — 이 계약의 사용자 정의 payload claim
     iss: str
     sub: int        # user_idx
     aud: str
@@ -45,7 +46,7 @@ class JwtRefreshPayload(TypedDict):
 ```
 
 **핵심 포인트:**
-- `jtt`로 access/refresh를 명시 구분 (standard `typ` claim 대신).
+- `jtt`로 access/refresh를 명시 구분한다. JOSE header의 표준 `typ`과 별개인 사용자 정의 claim이다.
 - `rjti` / `fjti`로 갱신 체인 추적 → 리프레시 토큰 교체 시 이전 체인 무효화.
 - 만료 시간은 환경 변수로 `parse_duration("15m")` → `timedelta`:
   ```python

@@ -80,6 +80,7 @@ http.interceptors.response.use(undefined, async (error) => {
 - 브라우저 인증은 BFF 또는 `HttpOnly`·`Secure`·적절한 `SameSite` 쿠키와 CSRF 방어를 먼저 검토한다.
 - `localStorage`·`sessionStorage`에 인증·갱신 토큰을 저장하는 것을 기본 권장하지 않는다. 같은 origin의 JavaScript가 접근하므로 XSS에 노출된다.
 - JavaScript가 토큰을 다뤄야 하는 계약은 메모리 수명·재로그인·갱신·CSP와 사용 SDK의 보안 모델을 검토한다. 메모리 저장만으로 XSS가 해결되지는 않는다.
+- proxying BFF·TMB·browser-only OAuth의 토큰 위치와 API aggregation 책임은 [브라우저 backend](browser-backends.md)를 따른다.
 - **동시 다발 401 시 refresh 큐(promise) 하나만 실행**, 나머지는 대기 후 일괄 재시도. (그렇지 않으면 refresh가 동시에 여러 번 발사돼 서로 무효화함.)
 - **Refresh 호출 자체는 인터셉터를 거치지 않게** — 별도 axios 인스턴스나 raw `axios.post`로. 안 그러면 refresh 응답이 401일 때 다시 refresh를 부르며 무한 루프.
 
