@@ -63,7 +63,9 @@ class SiteDocsTests(unittest.TestCase):
                 self.assertIn(target, pages, href)
                 if url.fragment:
                     self.assertIn(unquote(url.fragment), pages[target].ids, href)
-            detail = (output / "read/docs/architecture/02-compatibility.html").read_text()
+            detail = (output / "read/docs/architecture/02-compatibility.html").read_text(
+                encoding="utf-8"
+            )
             self.assertIn("../../../guide.html#mcp", Links(detail).links)
             self.assertIn("../../../guide.html#prompts", Links(detail).links)
 
