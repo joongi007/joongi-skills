@@ -23,6 +23,7 @@
 4. 구현 뒤 정상·실패·권한·복구 경로를 검증하고 문서를 맞춘다.
 
 사용자 지시와 저장소의 구체적인 계약을 우선한다. 관례를 적용하려고 무관한 기술 전환을 하지 않는다.
+용어는 [CS 명칭·의미 경계](references/terminology.md)를 따르며 첫 등장에 필요한 원어·약어를 병기한다.
 
 ## 2. 동시성·성능: 무엇이 어디에 강한가
 
@@ -42,6 +43,7 @@ I/O 대기·CPU 작업·순서 보장·처리량·지연 목표를 구분한다.
 새 패턴·서비스·인프라는 해결할 문제, 도입 비용, 제거·복구 조건을 함께 정한다.
 [아키텍처](references/architecture.md), [패턴과 규모](references/patterns-scale.md).
 Java 등에서 계층형·헥사고날·모듈형 구조를 변화와 테스트 경계에 맞춰 선택한다.
+Hexagonal·Clean Architecture·Modular Monolith는 서로 다른 경계를 다루며 Spring·FastAPI·Express에서 조합할 수 있다.
 TASK ID 처리와 API·worker·scheduler 분리는 [백그라운드 작업](references/background-jobs.md),
 외부 통신 경계와 캐시 읽기 우회·갱신은 [외부 통신과 캐시](references/external-cache.md)를 본다.
 
@@ -135,6 +137,8 @@ JWT 예제의 `jtt`·`rjti`·`fjti`는 특정 계약의 사용자 정의 claim�
 [기존 JWT 스택의 상세](references/auth-jwt.md), [프론트엔드](references/frontend.md).
 여러 서비스의 공통 기반은 [IdP·BFF·권한 엔진의 책임과 선택](references/identity-authorization.md)을 본다.
 브랜드 통일은 [공식 인증 UI 확장](references/identity-ui.md)을 우선하고 인증 흐름과 분리한다.
+API key의 verifier·회전·만료·철회는 [API key](references/api-key-security.md), JWT의 공개 키 검증·회전은
+[JWKS](references/jwt-jwks.md), BFF의 API aggregation과 TMB는 [브라우저 backend](references/browser-backends.md)를 본다.
 
 ## 20. UI 아키텍처 패턴 (React + Zustand + Axios)
 
@@ -166,6 +170,8 @@ structlog 예시는 Python을 사용할 때만 적용한다.
 이미지는 압축 바이트와 실제 치수·누적 프레임·디코딩 자원을 함께 제한한다(web-security §4.2).
 예방만으로 끝내지 말고 탐지·차단·복구 경로까지 정의한다(§29).
 [코드 보안](references/web-security.md), [운영 보안](references/security-ops.md).
+문서 비공개를 API의 보안 경계로 삼지 않는다. 내부망·OS 신뢰와 서비스 간 통신도
+운영 보안의 Zero Trust·host 침해 가정을 적용한다.
 
 ## 25. 인프라·고가용성·장애 복구
 
@@ -198,6 +204,7 @@ structlog 예시는 Python을 사용할 때만 적용한다.
 자동 차단은 신뢰도·영향 범위·해제 조건을 정의한 좁은 동작부터 적용한다.
 위협 시나리오마다 신호·담당자·초기 조치·복구 확인과 시간 목표를 정하고 훈련으로 측정한다.
 [탐지·대응 가이드](references/incident-response.md).
+알려진 악성 네트워크의 보조 차단은 [Spamhaus DROP·reputation 피드](references/network-reputation.md)를 본다.
 
 ## 30. 기술 도입·월별 취약점 점검
 

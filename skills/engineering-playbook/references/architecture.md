@@ -1,5 +1,14 @@
 # 시스템 아키텍처와 DB 소유권 (PLAYBOOK §3, §4, §7, §12)
 
+## 목차
+
+- 시스템 구조의 최소 단위 (§3)
+- 아키텍처 판단 (§4)
+- 계층형·헥사고날·모듈형 구조 선택 (§4)
+- Hexagonal·Clean Architecture·Modular Monolith의 조합
+- DB 소유권 (§7)
+- 최적화·운영 태도 (§12)
+
 ## 시스템 구조의 최소 단위 (§3)
 
 역할(API·worker·DB·cache·UI), 실행 단위(프로세스·컨테이너·호스트), 데이터 원천과
@@ -42,6 +51,38 @@ Spring 구성 지점에서 구현을 주입한다. domain/application은 HTTP cl
 
 원전: [Cockburn의 Ports & Adapters](https://alistair.cockburn.us/hexagonal-architecture).
 외부 연동·캐시의 상세는 [외부 통신과 캐시](external-cache.md)를 본다.
+
+## Hexagonal·Clean Architecture·Modular Monolith의 조합
+
+이 셋은 배타적인 대안이 아니며 모든 Spring 프로젝트의 필수 조합도 아니다.
+서로 겹치는 원칙을 중복 계층으로 구현하기보다 각각 결정하는 경계를 구분한다.
+
+| 개념 | 결정하는 것 | 함께 적용하는 예 |
+|---|---|---|
+| Modular Monolith (모듈러 모놀리스) | 하나의 배포 단위 안에서 업무 모듈·공개 API·데이터 소유권 분리 | 주문·재고 모듈의 내부 구현을 외부에서 참조하지 않기 |
+| Clean Architecture (클린 아키텍처) | 업무 정책으로 향하는 source-code dependency rule | application/domain이 HTTP·DB·framework 구현을 import하지 않기 |
+| Hexagonal Architecture (헥사고날 아키텍처) | 외부 입출력을 port와 adapter로 연결 | 같은 유스케이스를 HTTP·worker adapter에서 실행 |
+
+예: 하나의 배포물 안에 주문·재고 모듈을 두고, 모듈 내부에서 유스케이스·domain·port와
+HTTP/DB adapter를 나눈다. 다른 모듈은 공개 application API·명시적 이벤트를 통해 접근한다.
+공통 DB를 쓸 수 있지만 다른 모듈의 내부 ORM·테이블을 무단 참조하지 않는다. 모듈 간 트랜잭션·
+순환 의존·이벤트의 발행/전달 보장은 별도 계약이다. 폴더만 나눈 것은 모듈 경계 검증이 아니다.
+
+| 스택 | 같은 원칙의 적용 예 | 피할 결합 |
+|---|---|---|
+| Java / Spring | 업무별 package/module, application port와 Spring 구성 지점의 adapter 주입 | MVC/JPA 타입의 domain 유입·모듈 순환 |
+| Python / FastAPI | 업무 package의 유스케이스·Protocol/필요한 interface, router/worker adapter와 조립 지점 | Depends·Request·ORM session을 업무 규칙 곳곳에 전달 |
+| TypeScript / Express | 업무 module의 유스케이스·port, router/middleware adapter와 명시적 wiring | req/res·전역 service locator·ORM model에 핵심 정책 종속 |
+| Go | 업무 package·소비자 측 작은 interface, handler/worker adapter와 생성자 wiring | net/http·DB driver 타입 유출·package import cycle |
+
+Dependency Injection은 의존 객체를 제공하는 방식, Dependency Inversion은 의존 방향의 원칙이다.
+DI container 설치나 interface 추가만으로 Clean Architecture가 되지는 않는다. 얇은 CRUD에는 필요한
+경계만 두고, 무관한 mapper·port·레이어를 늘리지 않는다. domain event와 integration event도 구분한다.
+fake port 기반 업무 검사, adapter 통합 검사와 모듈 간 import/순환 의존 검사를 조합한다.
+Spring Modulith 등 도구는 선택지이며 FastAPI·Express에서 같은 검증을 특정 도구로 강제하지 않는다.
+
+근거: [Clean Architecture 원전](https://blog.cleancoder.com/uncle-bob/2012/08/13/the-clean-architecture.html),
+[Spring Modulith 모듈 경계](https://docs.spring.io/spring-modulith/reference/fundamentals.html).
 
 ## DB 소유권 (§7)
 

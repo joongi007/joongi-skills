@@ -12,6 +12,7 @@ Java 관리 경로는 [Actuator](java-actuator.md), 덤프·컨텍스트 수명�
 - §11 실행·공급망·네트워크
 - §12 백업·복구
 - §13 운영 준비와 검증
+- §14 Zero Trust·호스트 침해·서비스 간 통신
 
 ## §9. 보안 헤더와 브라우저 경계
 
@@ -46,6 +47,7 @@ API·HTML·문서·파일 서빙·MCP Apps iframe은 필요한 정책이 다르�
 - 실행은 비특권·최소 capability·최소 파일/네트워크 권한으로 제한한다. 필요한 쓰기 경로만 허용한다.
 - read-only filesystem·도구 제거만으로 메모리 실행·허용된 경로의 악용까지 막는다고 주장하지 않는다.
 - 필요한 egress 목적지·DNS·metadata 접근을 제한한다. 허용한 목적지를 통한 반출이나 기존 세션도 고려한다.
+- 알려진 악성 네트워크를 보조 차단할 때는 [Spamhaus DROP·reputation 운영](network-reputation.md)의 이용 조건·갱신·오탐·rollback을 확인한다.
 - 외부 MCP·플러그인은 설치·등록·연결·도구 실행을 구분한다. 검색·미리보기만으로 실행하지 않는다.
 - 실행 정책·권한·이미지·외부 연결 변화와 탐지 수집 중단을 관측한다. 보안 제품 이름만 나열하고 완료로 취급하지 않는다.
 
@@ -72,3 +74,32 @@ API·HTML·문서·파일 서빙·MCP Apps iframe은 필요한 정책이 다르�
 - 탐지·확인·차단·복구 시간을 별도로 측정한다. 속도뿐 아니라 미탐·오탐·서비스 피해도 검토한다.
 
 구체적인 시나리오 표와 훈련 방법은 [탐지·대응 가이드](incident-response.md)에 둔다.
+
+## §14. Zero Trust·호스트 침해·서비스 간 통신
+
+위협 모델에 OS·host administrator 침해를 포함한다. 앱은 OS가 제공하는 실행·메모리 경계에
+의존하므로 같은 host의 root가 메모리·인증 코드를 통제하는 상황을 앱 단독으로 완전히 방어할 수는 없다.
+목표는 prevention과 함께 lateral movement·blast radius를 줄이고 탐지·격리·복구 시간을 단축하는 것이다.
+
+- 비특권·capability 축소·sandbox·VM·관리 영역 분리·패치로 침투와 확산 경로를 줄인다.
+  같은 host의 container나 namespace를 침해된 host로부터의 완전한 방어 경계로 설명하지 않는다.
+- 장기 비밀은 별도 KMS/HSM/signer에 두고 workload identity·짧은 수명 자격·작업별 최소 권한을 사용한다.
+  비추출 키도 침해된 앱이 허용된 API로 악용할 수 있어 원격 정책·quota·감사·폐기가 필요하다.
+- MSA(Microservices Architecture)의 내부망·VPN·service mesh 소속만으로 신뢰하지 않는다.
+  service별 identity·수신 audience·허용 행위/자원을 매 요청 검증하고 network segmentation·egress 제한을 병행한다.
+- mTLS는 transport peer를 인증한다. 최종 사용자·위임 권한·객체 인가는 별도다. 프록시가 전달하는
+  identity header는 외부 값을 제거하고 검증한 경로에서만 신뢰한다. workload identity도 자동 인가는 아니다.
+- Client Credentials·Token Exchange 등으로 대상에 맞는 짧은 자격을 선택한다. exchange 자체가
+  원본 폐기·downscoping을 보장하지 않으므로 발급·검증·폐기 정책을 확인한다.
+  bearer token 탈취 위험이 높으면 mTLS-bound token·DPoP 같은 sender constraint를 지원 범위에서 비교한다.
+  TLS만 사용한 bearer token과 certificate-bound token을 같은 보장으로 설명하지 않는다.
+- identity·인증서·키 회전과 폐기를 자동화하고 검증 장애 시 fail-closed 범위·서비스 피해를 정한다.
+  침해 호스트는 외부 control plane에서 격리·자격 폐기할 수 있게 하고 감사 기록도 독립된 위치에 보관한다.
+  신뢰한 이미지로 재구축하고 공격자가 남긴 세션·키·배포 권한도 재검토한다.
+
+검증: 잘못된 서비스 identity·audience, 횡적 자원 접근, header 위조, 자격 폐기·회전,
+인증 의존성 장애, host 격리와 잔존 연결·egress·감사 수집 중단을 가짜 자격으로 확인한다.
+관련: [공통 인증·인가](identity-authorization.md), [메모리 비밀](memory-secrets.md), [용어](terminology.md).
+근거: [NIST SP 800-207](https://www.nist.gov/publications/zero-trust-architecture),
+[mTLS-bound token, RFC 8705](https://www.rfc-editor.org/rfc/rfc8705.html),
+[DPoP, RFC 9449](https://www.rfc-editor.org/rfc/rfc9449.html). 공식 자료 확인: 2026-11-25.

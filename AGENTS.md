@@ -55,16 +55,18 @@ Bundled files:
 
 `skills/engineering-playbook/SKILL.md`
 
-구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security CLI·Claude Code /security-review, 보안 예방·탐지·차단·복구, ReDoS·업로드·이미지 압축 폭탄, 문서·테스트 품질, 비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security·Claude /security-review, Zero Trust·탐지·복구, API key·JWT/JWKS·BFF/TMB, ReDoS·이미지 압축 폭탄, 문서·테스트 품질, 아키텍처·비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 
 Bundled files:
 
 - `skills/engineering-playbook/PLAYBOOK.md`
 - `skills/engineering-playbook/references/agent-security-review.md`
+- `skills/engineering-playbook/references/api-key-security.md`
 - `skills/engineering-playbook/references/architecture.md`
 - `skills/engineering-playbook/references/async-patterns.md`
 - `skills/engineering-playbook/references/auth-jwt.md`
 - `skills/engineering-playbook/references/background-jobs.md`
+- `skills/engineering-playbook/references/browser-backends.md`
 - `skills/engineering-playbook/references/checklist.md`
 - `skills/engineering-playbook/references/concurrency.md`
 - `skills/engineering-playbook/references/config-secrets.md`
@@ -78,16 +80,19 @@ Bundled files:
 - `skills/engineering-playbook/references/incident-response.md`
 - `skills/engineering-playbook/references/infrastructure-ha.md`
 - `skills/engineering-playbook/references/java-actuator.md`
+- `skills/engineering-playbook/references/jwt-jwks.md`
 - `skills/engineering-playbook/references/kubernetes-helm.md`
 - `skills/engineering-playbook/references/lint-naming.md`
 - `skills/engineering-playbook/references/logging.md`
 - `skills/engineering-playbook/references/memory-secrets.md`
 - `skills/engineering-playbook/references/network-failure.md`
+- `skills/engineering-playbook/references/network-reputation.md`
 - `skills/engineering-playbook/references/nginx-security.md`
 - `skills/engineering-playbook/references/patterns-scale.md`
 - `skills/engineering-playbook/references/python-api.md`
 - `skills/engineering-playbook/references/scaffolding.md`
 - `skills/engineering-playbook/references/security-ops.md`
+- `skills/engineering-playbook/references/terminology.md`
 - `skills/engineering-playbook/references/vulnerability-management.md`
 - `skills/engineering-playbook/references/web-security.md`
 - `skills/engineering-playbook/references/wsl-development.md`

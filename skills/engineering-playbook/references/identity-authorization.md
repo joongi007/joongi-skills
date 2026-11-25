@@ -18,6 +18,8 @@ Keycloak·OpenFGA를 함께 설치하는 것 자체를 목표로 삼지 않는�
 공통 권한 서비스는 모든 앱에 엔진 쓰기 자격을 배포하지 않기 위한 선택지다.
 별도 서비스가 불필요하면 앱 안의 명확한 경계로 구현할 수 있다. 엔진 API 인증 성공만으로
 그 호출자가 모든 store·모델·tenant의 관계를 수정해도 된다고 해석하지 않는다.
+BFF의 일반 역할에는 frontend별 API aggregation도 있다. OAuth의 proxying BFF와 TMB의
+배치·위협 차이는 [브라우저 backend](browser-backends.md)를 본다. JWT에 한정된 구조가 아니다.
 
 ## 인증 경로와 신뢰 경계
 
@@ -27,6 +29,7 @@ Keycloak·OpenFGA를 함께 설치하는 것 자체를 목표로 삼지 않는�
 - API는 ID Token 대신 자신을 대상으로 한 Access Token을 사용한다. 신뢰한 라이브러리로
   서명·허용 알고리즘·issuer·audience·만료를 검증하고 JWKS 갱신·키 교체도 시험한다.
   사용자 식별은 검증된 `(issuer, subject)`에서 얻는다. 이메일·표시 이름·요청 body의 사용자 ID는 인증 증거가 아니다.
+  공개 키의 신뢰 경로·cache·unknown kid·정상 회전/긴급 폐기는 [JWT·JWKS](jwt-jwks.md)를 따른다.
 - 기계 자체 작업의 Client Credentials와 사용자 대신 수행하는 호출을 구분한다.
   내부 위임이 필요하면 대상 audience에 맞는 토큰·Token Exchange·검증된 서비스 간 계약을 비교한다.
   사용자 토큰을 모든 서비스에 전달하거나 audience 검증을 끄는 방식으로 연결하지 않는다.
