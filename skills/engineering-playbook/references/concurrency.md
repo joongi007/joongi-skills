@@ -1,68 +1,46 @@
-# 동시성과 성능 (PLAYBOOK §2)
+# 동시성·병렬성·처리량 (PLAYBOOK §2)
 
-## 핵심 요약
+Concurrency(동시성)는 여러 작업의 진행을 겹치는 것, Parallelism(병렬성)은 실제 동시 실행이다.
+`async/await`는 실행 모델이며 작업의 영속성·재시작 복구를 보장하지 않는다.
+긴 작업의 접수·상태·재시도·멱등성은 [백그라운드 작업](background-jobs.md)을 따른다.
 
-아래 표·코드는 Python/asyncio 예시다. Java 등 다른 런타임에서는 스레드·프로세스 모델에
-맞춰 선택한다. 역할 분리와 내구성 있는 작업 계약은 [백그라운드 작업](background-jobs.md)을 본다.
+## 실행 모델 선택
 
-| 작업 성격 | 1순위 | 피해야 할 것 |
+먼저 I/O 대기·CPU 시간·p95/p99 지연·처리량·메모리·외부 의존성 상한을 측정한다.
+아래는 Python/asyncio의 선택지다. Java virtual thread 등 다른 런타임의 모델에 그대로 적용하지 않는다.
+
+| 작업 | 선택 후보 | 확인할 비용 |
 |---|---|---|
-| **I/O 대기** (DB·HTTP·소켓) | `asyncio` 단일 스레드 + 다수 코루틴 | 스레드 수만 늘리는 단순 확장 (문맥 전환·락 경합) |
-| **CPU 바운드** | `ProcessPoolExecutor` 또는 배치 워커 | 코루틴 안에서 그대로 돌리기 (이벤트 루프 굶음) |
-| **블로킹 SDK가 섞였을 때** | `asyncio.to_thread()` 또는 제한된 스레드 풀 | 무한정 스레드 늘리기 |
+| 비동기 드라이버의 I/O 대기 | coroutine + 제한된 동시 실행 | 이벤트 루프 지연·연결 풀·취소 |
+| 블로킹 I/O SDK | `asyncio.to_thread` 또는 제한된 thread pool | SDK thread safety·풀 포화·취소 후 실행 지속 |
+| 긴 CPU 연산 | process pool·별도 worker; GIL 해제 native code라면 thread도 비교 | 직렬화·프로세스 기동·메모리·실측 병렬성 |
+| 요청보다 오래 살아야 하는 작업 | 영속 작업 저장소·queue + worker | 전달·복구·중복·상태 조회 계약 |
 
-핵심 원칙: **이벤트 루프는 한 번에 하나의 코루틴만 실행한다.** 그래서 무거운 CPU/blocking 호출이 코루틴 안에 있으면 모든 요청·타이머·하트비트가 굶는다.
+한 이벤트 루프의 callback/task는 협력적으로 실행된다. 긴 CPU 연산이나 동기 I/O를 루프에서
+실행하면 다른 요청·타이머 진행을 막는다. `async def`로 선언하는 것만으로 nonblocking이 되지 않는다.
+스레드가 늘면 항상 느려지거나 async가 항상 빠르다고 가정하지 않는다.
 
-## 선택 절차
+## GIL의 적용 범위
 
-1. 이 코드가 **대기(I/O)가 대부분**인가 → async 파이프라인 우선.
-2. **CPU가 오래** 걸리는가 → 루프 밖으로(스레드/프로세스/배치).
-3. **외부 시스템 보호**(rate limit) 필요한가 → 동시성 수·간격·타임아웃을 **환경 변수**로 노출.
+GIL이 활성화된 CPython의 순수 Python CPU 연산은 thread 추가만으로 CPU 병렬성을 얻기 어렵다.
+GIL을 해제하는 native library·free-threaded build는 다르다. 실제 interpreter·GIL 상태·확장 호환성을 확인한다.
+free-threaded 환경도 thread safety·락 경합·공유 상태의 원자성을 별도로 검증한다.
+`to_thread`가 이벤트 루프에서 호출을 옮겨도 CPU 병렬성이나 timeout 시 실행 중단까지 보장하지 않는다.
 
-## Python 한정 주의 (GIL)
+## 상한과 Backpressure
 
-- 순수 Python CPU 연산은 **한 시점에 한 스레드만** 실행. 스레드 늘려도 CPU 병렬 안 나옴.
-- 네이티브 코드 구간(NumPy·암호화 일부)은 GIL 풀려서 병렬 가능.
-- **순수 CPU 병렬이 필요하면 프로세스로** 가야 한다.
+동시 실행·대기열·메모리·외부 호출량에 상한을 두고, 포화 시 대기·거절·드롭 정책을 정한다.
+인프로세스 큐와 프로세스 간 내구성 큐의 보장은 다르다. 수신·영속 접수·처리 완료를 로그에서 구분한다.
+producer가 consumer보다 계속 빠르면 큐만 늘리지 말고 처리량·접수 정책을 조정한다.
+설정 주입 방식은 [설정](config-secrets.md), Python 수명 관리는 [async 패턴](async-patterns.md)을 본다.
 
-## 수평 확장 (§2.6)
+## 수평 확장과 상태
 
-- "지금은 단일 인스턴스로 충분"만으로 설계를 닫지 않는다. **단일이 정말 충분하다는 근거가 있을 때만** 단일화.
-- API 복제본 N개 띄울 수 있게:
-  - 세션·rate limit 카운터 등 **로컬 메모리 금지** → Redis/DB로.
-  - 헬스·리더 선출 필요 시 **분산 락·오케스트레이션 규약**을 문서에.
-- 워커가 동일 입력을 나눠 받을 때 **멱등 키·파티션·락** 설계.
-- "당분간 단일 Pod"를 택해도 **replica 수만 늘리면 되는지** 검토 후 "의도적 단일"이라고 명시.
+단일 인스턴스도 요구를 만족하는 유효한 선택이다. 확장 시 제약·전환 조건을 기록한다.
+복제본에 걸쳐 일관돼야 하는 세션·멱등 키·전역 quota는 공유 저장소 등으로 조정한다.
+제한된 프로세스별 캐시·임시 상태까지 일괄 금지하지 않는다. 손실·stale·정합성 범위를 정한다.
+worker 간 중복은 업무 멱등성으로 처리하고 scheduler 중복 실행은 [작업 계약](background-jobs.md)을 따른다.
+전체 복제본·프로세스의 연결 풀·메모리·외부 호출 상한을 합산해 부하·장애·포화를 검사한다.
 
-## 수신부 ↔ 처리부 분리 (§2.7) — 생산자-소비자
-
-데이터 **수신**과 **처리**를 한 흐름에 몰지 않고 사이에 **버퍼(큐)** 를 둔다.
-
-- **프로세스/Pod 간**: Redis Stream, RabbitMQ, Kafka, 파일 스풀, DB 큐 등 — 프로젝트에 맞게.
-- **스레드 간**(한 프로세스 안): `queue.Queue` 로 같은 패턴 축소 적용. 단, 무거운 CPU는 **프로세스 분리**와 함께 봐야 안전 (GIL).
-- "수신 완료"와 "처리 완료"의 **경계를 코드·로그·메트릭에서 구분 가능**하게 둔다.
-
-## CPU 작업이 코루틴에 들어왔을 때 해결 방향
-
-```python
-# ❌ 이벤트 루프 점유
-async def handle():
-    result = heavy_parse(big_json)  # CPU bound
-
-# ✅ asyncio.to_thread (I/O와 섞일 때 타협)
-result = await asyncio.to_thread(heavy_parse, big_json)
-
-# ✅ ProcessPoolExecutor (대량·장시간 CPU)
-loop = asyncio.get_running_loop()
-result = await loop.run_in_executor(process_pool, heavy_parse, big_json)
-
-# ✅ 배치 워커 + 큐 (API는 작업 ID만 반환)
-job_id = await queue.enqueue(big_json)
-return {"job_id": job_id}
-```
-
-자세한 코드 패턴은 `async-patterns.md` (§23) 참고.
-
-작업 ID만 반환하는 위 코드는 개념 예시다. 요청 종료·재시작을 견디는 작업에는
-[TASK ID·API/worker/scheduler 계약](background-jobs.md)의 영속 상태·전달·복구 설계가 필요하다.
-프로세스 수를 늘릴 때는 연결 풀·메모리·외부 호출 상한을 전체 복제본 기준으로 계산한다.
+근거(2026-11-27): [asyncio·to_thread](https://docs.python.org/3/library/asyncio-task.html),
+[CPython free threading](https://docs.python.org/3/howto/free-threading-python.html).

@@ -1,84 +1,50 @@
-# 설정과 비밀 관리 (PLAYBOOK §15)
+# 설정·비밀 주입과 연결 URL (PLAYBOOK §15)
 
-## 비밀번호·URL 인코딩 — `quote_plus` (§15)
+설정(configuration)과 비밀(secret)을 구분한다. 설정의 기본값·필수값·형식·출처·우선순위·갱신 시점을
+정의하고 시작 시 검증한다. 필드명·prefix는 기존 프로젝트 계약을 유지한다.
 
-DB/Redis URL을 코드에서 직접 조립할 때, **비밀번호에 특수문자(`!@#$%` 등)가 들어오면 URL 파싱이 깨진다.**
-반드시 `urllib.parse.quote_plus`로 인코딩.
+## 비밀의 저장·주입·수명
 
-```python
-from urllib.parse import quote_plus
+- 원문 비밀을 코드·Git·이미지 레이어·빌드 인자·공개 문서에 넣지 않는다.
+- 환경변수는 주입 수단 중 하나다. OS credential store·secret manager·KMS·권한 제한 파일/mount 등을
+  배포 환경에 맞춰 선택한다. 환경변수도 자식 프로세스·진단·덤프에 노출될 수 있다.
+- 로컬 `.env`를 쓰면 Git에서 제외하고 파일 권한·백업·공유 범위를 제한한다. `.env.example`에는
+  키와 가짜 값·설명을 둔다. `.env`에만 실제 비밀을 보관해야 한다는 규칙은 없다.
+- Vite의 `VITE_*`처럼 브라우저 번들에 포함되는 값에는 비밀을 넣지 않는다.
+- 필요한 서비스에 필요한 자격만 주입한다. prefix는 이름 충돌을 줄일 뿐 접근 통제는 아니다.
+- 회전 시 reload·재기동·연결 풀 교체와 기존 자격 폐기를 검증한다. 전역 settings나 URL cache를
+  무기한 유지하면 새 비밀이 반영되지 않을 수 있다. 복호화 사본 수·수명은 [메모리 지침](memory-secrets.md)을 따른다.
+- 오류·로그·repr·설정 출력에 비밀이 포함되지 않게 한다. 마스킹 타입도 사용 순간의 평문을 없애지는 않는다.
 
-# ❌ 특수문자 비밀번호가 들어오면 파싱 오류
-url = f"postgresql+asyncpg://{user}:{password}@{host}/{db}"
+## URL 구성요소 인코딩 (§15)
 
-# ✅ quote_plus로 인코딩
-url = f"postgresql+asyncpg://{user}:{quote_plus(password)}@{host}/{db}"
-```
-
-- **`.env`에서 비밀번호를 읽어 URL을 조립하는 모든 곳**에 적용.
-- `quote_plus`는 공백을 `+`로, 나머지 특수문자를 `%XX`로 인코딩.
-- `pydantic-settings`의 `@cached_property`로 URL을 한 번만 계산.
-
-## pydantic-settings 패턴
-
-```python
-from functools import cached_property
-from urllib.parse import quote_plus
-from pydantic_settings import BaseSettings
-
-class Settings(BaseSettings):
-    POSTGRES_HOST: str
-    POSTGRES_PORT: int = 5432
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_DB: str
-
-    REDIS_HOST: str
-    REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str | None = None
-
-    @cached_property
-    def DATABASE_URL(self) -> str:
-        return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{quote_plus(self.POSTGRES_PASSWORD)}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
-
-    @cached_property
-    def REDIS_URL(self) -> str:
-        if self.REDIS_PASSWORD:
-            return f"redis://:{quote_plus(self.REDIS_PASSWORD)}@{self.REDIS_HOST}:{self.REDIS_PORT}/0"
-        return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}/0"
-```
-
-## 환경 변수 prefix 통일 (§6 관련)
-
-- 한 서비스는 **하나의 prefix**만 사용 (예: `API_`, `WORKER_`, `COLLECTOR_`).
-- `pydantic-settings`의 `model_config = SettingsConfigDict(env_prefix="API_")`로 강제.
-- 같은 인프라 변수도 서비스마다 prefix를 붙여서 분리 (`API_POSTGRES_HOST`, `WORKER_POSTGRES_HOST`).
-- `.env`에서는 베이스 변수를 한 번 정의하고 서비스별로 참조 (`docker.md` §14.1 참고):
-  ```dotenv
-  POSTGRES_HOST=postgres
-  API_POSTGRES_HOST=${POSTGRES_HOST}
-  WORKER_POSTGRES_HOST=${POSTGRES_HOST}
-  ```
-
-## 비밀 관리 원칙 (§4 관련)
-
-- **비밀·토큰은 저장소에 넣지 않는다.** 환경 변수만.
-- **`.env`는 gitignore**, **`.env.example`은 커밋** — 키만, 값은 비워서.
-- 빌드 타임 env (Vite의 `VITE_*`)에 시크릿 넣지 않음 — **브라우저 번들에 들어간다**.
-- 프로덕션 비밀은 시크릿 매니저(AWS Secrets Manager, Vault 등)에서 주입.
-
-## URL 노출용 description 힌트
-
-`pydantic-settings`에서 `Field(description=…)`로 `.env` 편집자에게 힌트:
+드라이버의 URL builder·명시적 연결 파라미터를 우선한다. SQLAlchemy 예시:
 
 ```python
-from pydantic import Field
+from sqlalchemy import URL
 
-class Settings(BaseSettings):
-    POSTGRES_PASSWORD: str = Field(
-        description="Postgres 비밀번호. 특수문자 가능 — 코드에서 quote_plus로 인코딩됨."
-    )
+url = URL.create(
+    "postgresql+asyncpg",
+    username=user,
+    password=password,  # 원문 구성요소; 미리 percent-encode하지 않는다
+    host=host,
+    port=port,
+    database=database,
+)
+engine = create_async_engine(url)
 ```
+
+문자열 URL이 필요한 경우 userinfo·path·query마다 해당 드라이버의 decoding 규칙에 맞춰 인코딩한다.
+`quote_plus`는 form/query의 공백을 `+`로 바꾸므로 모든 드라이버의 password 구성요소에
+일괄 적용하지 않는다. percent-encoding이 필요한 userinfo에는 `quote(value, safe="")` 같은 방식을
+드라이버 계약과 대조한다. 전체 URL 인코딩·이중 인코딩을 피하고 공백·`+`·`@`·`/`·Unicode를 회귀 검사한다.
+
+## pydantic-settings 선택형 예시
+
+Python에서 `BaseSettings`를 사용할 수 있다. `env_prefix="API_"` 같은 prefix는 팀 명명 규칙이며
+모든 프로젝트의 필수값이 아니다. `.env` 보간은 읽는 도구의 지원·우선순위를 검증한다.
+`cached_property`는 성능 선택지다. 비밀 포함 URL을 cache하면 재설정·회전·노출·수명 비용을 함께 검토한다.
+`Field(description=...)`에는 필드 의미·단위·허용값을 쓰고 실제 자격증명을 넣지 않는다.
+
+관련: [Compose 주입](docker.md), [API key 수명주기](api-key-security.md), [운영 비밀](security-ops.md).
+근거(2026-11-27): [SQLAlchemy URL.create·escaping](https://docs.sqlalchemy.org/en/20/core/engines.html).

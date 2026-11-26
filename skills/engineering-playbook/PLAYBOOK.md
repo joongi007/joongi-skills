@@ -23,6 +23,8 @@
 4. 구현 뒤 정상·실패·권한·복구 경로를 검증하고 문서를 맞춘다.
 
 사용자 지시와 저장소의 구체적인 계약을 우선한다. 관례를 적용하려고 무관한 기술 전환을 하지 않는다.
+공통 원칙·표준·프로젝트 결정·선택형 예시와 충돌 처리·판단 기록은 [적용 계약](references/application-contract.md)을 따른다.
+관련 기준 문서만 읽고 같은 세부 규칙은 한곳에서 관리한다.
 용어는 [CS 명칭·의미 경계](references/terminology.md)를 따르며 첫 등장에 필요한 원어·약어를 병기한다.
 
 ## 2. 동시성·성능: 무엇이 어디에 강한가
@@ -112,7 +114,7 @@ Compose를 선택한 프로젝트에서만 적용한다. readiness·네트워크
 여러 프로젝트에서 Helm·Ingress·RBAC 등의 검증이 필요하면 로컬 k3s도 비교한다.
 프로젝트 개수만으로 도입하지 않으며 [선택·격리·자원·중지 기준](references/kubernetes-helm.md)을 확인한다.
 
-## 15. 비밀번호·URL 인코딩 (`quote_plus`)
+## 15. 설정·비밀 주입·연결 URL 구성
 
 문자열 연결 대신 드라이버의 URL builder·파라미터 API를 우선한다.
 URL의 일부를 직접 조립할 때만 해당 구성요소에 맞는 인코딩을 적용한다. 전체 URL을 인코딩하지 않는다.
@@ -217,7 +219,7 @@ structlog 예시는 Python을 사용할 때만 적용한다.
 
 ## 31. 에이전트 개발 보안 검수
 
-Codex로 개발하면 Codex Security를 최소 검수 단계로 사용한다. Claude Code는 `/security-review` 등
+코드·권한·배포·실행 설정을 Codex로 변경하면 Codex Security를 최소 검수 단계로 사용한다. 문구만 수정할 때는 코드 스캔을 강제하지 않는다. Claude Code는 `/security-review` 등
 공식 보안 기능을 사용한다. 실행 대상·결과·수정·재검증을 기록하고 접근 불가·미실행을 통과로 표시하지 않는다.
 [실행 경로와 완료 기준](references/agent-security-review.md).
 
@@ -228,8 +230,9 @@ WSL 2의 Linux 빈 공간과 Windows에서 차지하는 VHDX 크기를 구분하
 백업·실행 작업 종료·정확한 디스크 확인 없이 compact나 배포판 삭제를 자동 수행하지 않는다.
 [WSL 개발 가이드](references/wsl-development.md).
 
-## 17. 추가 메모 (다른 프로젝트에서 옮겨 적기)
+## 17. 개편 기록
 
+- 2026-11-27 · 공통 적용 계약·CS 용어·주제별 기준 문서를 정리하고 스택 예시와 충돌하는 지침을 수정했다.
 - 2026-11-18 · 조각난 규칙·중복 코드를 판단 가이드와 선택형 참조로 정돈했다.
 - 2026-11-18 · 탐지·차단·복구(§29), 스택별 적용 범위, 완료 체크리스트를 갱신했다.
 - 과거 원문은 [개편 전 본문](https://github.com/joongi007/joongi-skills/blob/738be0fd683846c8ec338a2fd6d060e6a78528a1/skills/engineering-playbook/PLAYBOOK.md)과 Git 이력에서 확인한다.
