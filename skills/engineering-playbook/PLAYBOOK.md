@@ -65,6 +65,8 @@ TASK ID 처리와 API·worker·scheduler 분리는 [백그라운드 작업](refe
 독립 서비스는 내부 ORM 공유보다 공개 계약을 선호한다. 같은 애플리케이션의 API·worker가
 DB를 공유하면 트랜잭션·권한·배포·마이그레이션 호환성을 정의하고 결정을 기록한다.
 [DB 소유권 판단](references/architecture.md).
+테넌트 격리·RLS와 PK·인덱스·정규화·삭제 정책은 [DB 설계와 쿼리 성능](references/database-design.md)을 따른다.
+읽기/쓰기 비율·저장량·실측 지연과 실행 계획으로 선택을 검증한다. FK와 정규화는 구분한다.
 
 ## 8. 신규 프로젝트 스캐폴딩 (호스트에 Python/Node 안 깔 때)
 

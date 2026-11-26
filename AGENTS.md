@@ -55,7 +55,7 @@ Bundled files:
 
 `skills/engineering-playbook/SKILL.md`
 
-구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security·Claude /security-review, Zero Trust·탐지·복구, API key·JWT/JWKS·BFF/TMB, ReDoS·이미지 압축 폭탄, 문서·테스트 품질, 아키텍처·비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security·Claude /security-review, Zero Trust·탐지·복구, API key·JWT/JWKS·BFF/TMB, ReDoS·이미지 압축 폭탄, 문서·테스트 품질, 아키텍처·비동기 작업·캐시, DB 설계·RLS·테넌트 격리·EXPLAIN·인덱스·삭제 정책, Keycloak·OpenFGA, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 
 Bundled files:
 
@@ -70,6 +70,7 @@ Bundled files:
 - `skills/engineering-playbook/references/checklist.md`
 - `skills/engineering-playbook/references/concurrency.md`
 - `skills/engineering-playbook/references/config-secrets.md`
+- `skills/engineering-playbook/references/database-design.md`
 - `skills/engineering-playbook/references/database-recovery.md`
 - `skills/engineering-playbook/references/docker.md`
 - `skills/engineering-playbook/references/documentation-testing.md`
