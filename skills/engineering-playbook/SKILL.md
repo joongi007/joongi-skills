@@ -1,6 +1,6 @@
 ---
 name: engineering-playbook
-description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security·Claude /security-review, Zero Trust·탐지·복구, API key·JWT/JWKS·BFF/TMB, ReDoS·이미지 압축 폭탄, 문서·테스트 품질, 아키텍처·비동기 작업·캐시, Keycloak·OpenFGA 인증·권한·테마, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
+description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이드다. Codex Security·Claude /security-review, Zero Trust·탐지·복구, API key·JWT/JWKS·BFF/TMB, ReDoS·이미지 압축 폭탄, 문서·테스트 품질, 아키텍처·비동기 작업·캐시, DB 설계·RLS·테넌트 격리·EXPLAIN·인덱스·삭제 정책, Keycloak·OpenFGA, WSL·VHDX 용량 회수, HA·네트워크·DB 복구를 다룬다. Python/FastAPI/SQLAlchemy, React/TypeScript/JWT, Java/Actuator, Valkey/Sentinel/PostgreSQL/Kubernetes 예시는 해당 스택에서만 적용한다. 기존 프로젝트의 계약을 우선하며 개인 패턴·도구를 강제하지 않는다.
 ---
 
 # 엔지니어링 가이드
@@ -50,6 +50,7 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | 가용성 목표, Redis·Valkey 라이선스, Sentinel quorum·majority·장애 도메인 | `references/infrastructure-ha.md` |
 | TCP 연결 장애, Java·JDBC·클라이언트 타임아웃, keepalive·재연결·재시도 | `references/network-failure.md` |
 | PostgreSQL 복제·지연·fencing·failover, 백업·RPO·RTO | `references/database-recovery.md` |
+| DB 설계·RLS·멀티테넌시 격리, PK·인덱스·EXPLAIN·읽기/쓰기 측정, 정규화·FK·ON DELETE | `references/database-design.md` |
 | 로컬 Compose·k3s 선택, 프로젝트 격리·자원·중지, etcd·probe·PDB·Helm | `references/kubernetes-helm.md` |
 | 문서 번호·ADR·정합성, 테스트 품질·뮤테이션 테스트·병렬 작업 단위 | `references/documentation-testing.md` |
 | 프로젝트 규모, 설계 패턴·adapter·circuit breaker·outbox·코드 그래프 | `references/patterns-scale.md` |
@@ -64,6 +65,7 @@ Python·React·Java 예시 때문에 다른 프로젝트의 기술 스택을 바
 ## 공통 기준
 
 - 입력·출력·권한·자원 상한을 명시하고 실패를 조용히 성공으로 처리하지 않는다.
+- DB 작업은 테넌트/권한 경계·무결성·쿼리 계획·읽기/쓰기·용량·삭제/복구 비용을 검토한다. RLS·키·인덱스·정규화·CASCADE는 엔진과 워크로드에 맞춰 선택하고 증거를 남긴다.
 - 데이터와 코드를 섞지 않는다. 안전한 parser·파라미터 바인딩·경로 및 소유권 검사를 사용한다.
 - 예방과 함께 탐지·차단·복구를 설계한다. 알림에는 담당자와 다음 행동이 있어야 한다.
 - 보안 검토는 `references/web-security.md`의 우선순위를 따르고 관측·대응은 `references/incident-response.md`를 본다.
