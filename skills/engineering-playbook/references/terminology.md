@@ -22,7 +22,18 @@
 | Clean Architecture | 안쪽 업무 정책으로 향하는 source-code dependency rule |
 | Modular Monolith / Microservices | 한 배포 단위 안의 업무 모듈 / 독립 배포·운영하는 서비스 구조 |
 | Dependency Injection / Dependency Inversion | 의존 객체 제공 방식 / 정책과 구체 구현의 의존 방향 원칙 |
-| Application task / Async runtime task | 내구성 있는 작업 ID·상태 계약 / 코루틴·future 등 실행 객체. 자동으로 같은 수명은 아님 |
+| Durable job / Async runtime task | 영속 상태·작업 ID·복구 계약을 가진 작업 / 코루틴·future 등 실행 객체. application task라는 이름만으로 내구성이 생기지는 않음 |
+| Concurrency / Parallelism / Asynchrony | 진행을 겹침 / 실제 동시 실행 / 완료를 동기 대기로만 처리하지 않는 실행·통신 방식. 서로 동의어가 아님 |
+| Backpressure / Rate limit / Concurrency limit | 소비 능력에 맞춘 생산 제어 / 시간당 호출량 제한 / 동시 실행 수 제한 |
+| Deadline / Timeout / Cancellation | 전체 완료 시한 / 특정 대기의 제한 / 중단 요청. timeout·취소가 부작용 중단을 보장하지 않음 |
+| Atomicity / Consistency / Durability | 묶음의 전부 또는 전무 / 명시한 제약·일관성 모델 충족 / 보장한 실패 범위에서 확정 상태 보존 |
+| Transaction / Unit of Work | DB 등의 원자적 작업 경계 / 유스케이스 변경을 추적·확정하는 패턴. DI 주입 자체가 commit은 아님 |
+| Primary key / Foreign key / Index | 행 식별 제약 / 참조 무결성 제약 / 접근 경로. FK·정규화·인덱스는 서로 다른 결정 |
+| RLS / Tenant isolation | 행 단위 접근 정책 / tenant 사이의 데이터·권한 경계. RLS 하나로 전체 격리가 완성되지는 않음 |
+| RPO / RTO | 허용 데이터 손실의 시간 목표 / 허용 복구 시간 목표. 실측 손실·복구 시간과 구분 |
+| Quorum / Majority / Fencing | 프로토콜이 요구하는 동의 수 / 전체의 과반수 / 이전 쓰기 주체의 접근 차단. 제품별 의미 확인 |
+| Image tag / Digest | 변경 가능한 이미지 이름 / 내용 식별 hash. 버전 태그 선택이 불변 배포를 보장하지 않음 |
+| Wall clock / Monotonic clock | 절대 시각 표현 / 경과 시간 측정용 시계. 서로 다른 원점·호스트 값을 임의 비교하지 않음 |
 | Idempotency / Exactly-once | 재시도해도 의도한 효과가 중복되지 않음 / 정의한 범위에서 한 번의 효과·처리 보장. ID 발급만으로 성립하지 않음 |
 | Source of truth / Projection | 기준 데이터 / 그 데이터에서 만든 조회·계산용 사본 |
 | Cache-aside / Refresh / Bypass | cache miss 시 원천 조회 / cache 읽기 우회 후 갱신 / 읽기·쓰기 모두 우회. [계약](external-cache.md) |

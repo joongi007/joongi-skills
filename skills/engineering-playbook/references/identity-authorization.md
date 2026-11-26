@@ -26,8 +26,9 @@ BFF의 일반 역할에는 frontend별 API aggregation도 있다. OAuth의 proxy
 - 브라우저는 표준 OIDC Authorization Code + PKCE 흐름을 사용하고 state·nonce·redirect URI를 검증한다.
   BFF를 선택하면 토큰은 서버에, 브라우저에는 Secure·HttpOnly·적절한 SameSite 세션 쿠키를 둔다.
   CSRF·Origin 검사·로그아웃·세션 회전도 설계한다. SPA는 public client이며 client secret을 넣지 않는다.
-- API는 ID Token 대신 자신을 대상으로 한 Access Token을 사용한다. 신뢰한 라이브러리로
-  서명·허용 알고리즘·issuer·audience·만료를 검증하고 JWKS 갱신·키 교체도 시험한다.
+- API는 ID Token 대신 자신을 대상으로 한 Access Token을 사용한다. JWT라면 신뢰한 라이브러리로
+  서명·허용 알고리즘·issuer·audience·만료와 JWKS 갱신·키 교체를 검증한다. Opaque Token은
+  신뢰한 introspection 등 공급자 계약으로 활성·대상·scope를 확인한다. 모든 Access Token을 JWT로 가정하지 않는다.
   사용자 식별은 검증된 `(issuer, subject)`에서 얻는다. 이메일·표시 이름·요청 body의 사용자 ID는 인증 증거가 아니다.
   공개 키의 신뢰 경로·cache·unknown kid·정상 회전/긴급 폐기는 [JWT·JWKS](jwt-jwks.md)를 따른다.
 - 기계 자체 작업의 Client Credentials와 사용자 대신 수행하는 호출을 구분한다.

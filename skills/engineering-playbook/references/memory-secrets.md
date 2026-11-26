@@ -9,7 +9,9 @@ API key의 검증용 digest와 외부 호출용 복호화 가능한 비밀은 [A
 
 ## 요청·작업 종료 시 정리
 
-- 비밀번호·액세스 토큰·복호화된 키를 전역 cache·세션·로그 MDC·tracing baggage에 넣지 않는다.
+- 요청의 비밀번호·토큰·복호화된 키를 불필요한 전역 cache·일반 세션 속성·로그 MDC·tracing baggage에 복사하지 않는다.
+  BFF·OAuth client처럼 토큰 보관이 필요한 구성은 전용 저장 경계·암호화·최소 권한·만료·철회를 설계한다.
+  의도적인 자격증명 보관과 요청 참조의 우발적 장기 보존을 구분한다.
   요청 객체나 인증 객체 전체를 background closure·예외·작업 이력에 오래 보관하지 않는다.
 - 소유한 컨텍스트·stream·임시 buffer·callback 참조는 성공·실패·취소 모두 `finally`로 정리한다.
 - Java의 사용자 정의 `ThreadLocal`은 pool thread를 반환하기 전에 `remove()`한다. 값만 null로

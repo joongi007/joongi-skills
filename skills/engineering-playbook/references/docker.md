@@ -1,203 +1,86 @@
-# Docker Compose 패턴 (PLAYBOOK §14, §16)
+# Docker Compose 구성과 재현성 (PLAYBOOK §14, §16)
 
-## 목차
+Compose를 선택한 프로젝트의 가이드다. 이미지·프로젝트 이름·환경변수 파일명은 예시이며 팀 계약을 따른다.
+로컬 개발·테스트·배포 설정과 사용하는 Compose 버전을 구분한다.
 
-- env_file + 베이스 변수 참조 (§14.1)
-- 개발용 볼륨 마운트 — Hot-reload (§14.2)
-- 컨테이너 로그 설정 (§14.3)
-- 초기화 컨테이너 — Initor (§14.4)
-- build + image 조합 (§16.1)
-- pull_policy: never (§16.2)
-- 인프라 이미지 버전 태그 고정 (§16.3)
-- 멀티 컴포즈 파일 충돌 방지 (§16.4)
-- 전체 구조 요약 (§16.5)
+## 환경변수와 비밀 (§14.1)
 
-## env_file + 베이스 변수 참조 (§14.1)
-
-환경 변수는 **인프라 베이스 → 서비스별 변수 참조** 방식으로 `.env` 한 파일에서 관리.
-docker-compose 서비스에는 **`env_file: .env` 한 줄**만, `environment:` 블록에 값 하드코딩 금지.
-
-```dotenv
-# 인프라 베이스
-POSTGRES_HOST=postgres
-POSTGRES_PORT=5432
-POSTGRES_USER=myapp
-POSTGRES_PASSWORD=secret
-
-# 서비스별 (베이스 참조)
-API_POSTGRES_HOST=${POSTGRES_HOST}
-API_POSTGRES_PORT=${POSTGRES_PORT}
-API_POSTGRES_USER=${POSTGRES_USER}
-API_POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-```
+`.env`는 Compose의 변수 치환 입력이며 모든 값을 컨테이너에 자동 주입하지 않는다.
+서비스의 `env_file`과 `environment`는 컨테이너 환경을 구성한다. `environment`가 같은 이름의
+`env_file` 값보다 우선하는 등 실제 우선순위를 검증한다. 비밀의 출처는 [설정](config-secrets.md)을 따른다.
 
 ```yaml
 services:
   api:
-    env_file: .env   # API_POSTGRES_* 자동 주입
-  worker:
-    env_file: .env   # WORKER_POSTGRES_* 도 같은 파일에서
+    env_file: ./api.env  # 해당 서비스에 필요한 값만
+    environment:
+      LOG_LEVEL: info   # 공개 가능한 설정값 예시
 ```
 
-- **로컬(Docker 없이)**: `POSTGRES_HOST=localhost`로만 바꾸면 됨.
-- **`.env`는 gitignore**, **`.env.example`은 커밋** — 실제 비밀은 `.env`에만.
+모든 서비스에 공용 비밀 파일 전체를 주입하지 않는다. Compose secrets를 사용해도 원본 파일·호스트 권한·
+전송·사용 시점 보안은 별도다. 실제 자격증명이 포함된 `docker compose config` 출력도 공개하지 않는다.
 
-## 개발용 볼륨 마운트 — Hot-reload (§14.2)
+## 개발 볼륨·로그 (§14.2, §14.3)
 
-프로덕션 이미지는 코드를 COPY, **개발은 소스 폴더를 마운트**.
-venv·node_modules 같은 **빌드 산출물은 named volume으로 분리** → 호스트 디렉터리 오염 방지.
+개발 시 소스 bind mount·named volume 기반 의존성 분리를 선택할 수 있다.
+운영은 검증한 이미지 배포를 기본으로 하며 임의 소스 덮어쓰기를 피한다.
+project 이름으로 격리되지 않는 명시적 image·external volume·bind path·host port의 충돌을 따로 확인한다.
+로그 보관량은 driver·중앙 수집 정책에 맞춰 제한한다. `json-file`의 `max-size`·`max-file`은 한 선택지다.
+volume 삭제를 일반적인 중지로 안내하지 않고 보존·백업·복구를 정한다.
 
-```yaml
-services:
-  api:
-    volumes:
-      - ./api:/app/api          # 소스 — 호스트와 동기화
-      - ./shared:/app/shared
-      - api-venv:/app/.venv     # 패키지 — 컨테이너 전용 named volume
+## 일회성 초기화·마이그레이션 (§14.4)
 
-  sample-ui:
-    volumes:
-      - ./sample-ui:/app
-      - sample_ui_node_modules:/app/node_modules
-
-volumes:
-  api-venv:
-  sample_ui_node_modules:
-```
-
-## 컨테이너 로그 설정 (§14.3)
-
-프로덕션·장기 실행 서비스는 **디스크 무제한 증가 방지**:
+migration job을 본 서비스와 분리할 수 있다. 같은 앱 이미지를 명시적으로 먼저 빌드한 예시:
 
 ```yaml
-services:
-  api:
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-```
-
-## 초기화 컨테이너 — Initor (§14.4)
-
-마이그레이션·설정 파일 생성 등 **1회성 초기화**는 별도 서비스로 분리.
-본 서비스는 `service_completed_successfully`로 대기.
-
-```yaml
+name: example-app
 services:
   api-init:
-    image: myapp-api
-    env_file: .env
+    image: example-app-api:dev
+    pull_policy: never
     command: ["uv", "run", "alembic", "upgrade", "head"]
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"          # 완료 후 재시작 안 함
-
+    restart: "no"
   api:
-    image: myapp-api
-    env_file: .env
+    build: .
+    image: example-app-api:dev
+    pull_policy: never
     depends_on:
       api-init:
         condition: service_completed_successfully
 ```
 
-## build + image 조합 (§16.1)
-
-`build`만 쓰면 이미지 이름이 없어서 다른 서비스가 참조 못 함.
-**`build` + `image`를 함께** 쓰면 빌드 결과에 이름이 붙어 **재사용 가능**.
-
-```yaml
-api:
-  build:
-    context: .
-    dockerfile: docker/Dockerfile.api
-  image: myapp-api          # 빌드 결과 이미지 이름
-  pull_policy: never
-
-api-init:
-  image: myapp-api          # build 없음 — api가 먼저 빌드되어 있어야
-  pull_policy: never
-  command: ["uv", "run", "alembic", "upgrade", "head"]
-  restart: "no"
+```bash
+docker compose build api
+docker compose up -d
 ```
 
-> **주의**: `docker compose up`은 `depends_on` 순서와 무관하게 `api`를 먼저 빌드한다. `api-init`에 `build`가 없으면 `api` 이미지가 로컬에 존재해야 하므로, **첫 실행 시 반드시 `api`가 먼저 빌드**되어야 함. (`docker compose up --build`로 한 번에 해결.)
+예시는 해당 Dockerfile·uv·Alembic·연결 설정을 전제로 하며 완성형 배포 파일이 아니다.
+DB readiness·timeout·마이그레이션 동시 실행 방지·실패 시 중단·구버전 앱 호환성을 추가로 검증한다.
+`depends_on`은 실행 의존성으로 이미지 빌드 의존성을 대체하지 않는다.
+초기화 job은 멱등성 또는 명확한 일회성 상태를 갖게 한다. migration rollback은 이미지 rollback과 다르다.
 
-## pull_policy: never (§16.2)
+## build·image·pull 정책 (§16.1, §16.2)
 
-로컬 전용 이미지에는 **반드시 추가**. 없으면 Docker가 동일 이름의 이미지를 레지스트리에서 pull하려다 실패하거나 예상과 다른 이미지가 내려옴.
+`build`만 있어도 Compose가 이미지 이름을 만든다. 다른 서비스·배포에서 명시적으로 재사용하려면
+`image`도 지정할 수 있다. registry 배포는 검증한 이미지 push·pull 경로를 별도로 제공한다.
+로컬 전용 이미지에 `pull_policy: never`를 선택하면 미리 빌드한 이미지가 있어야 한다.
+배포 이미지는 update·offline·인증·실패 정책에 맞춰 pull 정책을 선택한다.
+공식 이미지이거나 기본 pull 정책이라는 이유만으로 안전하다고 판단하지 않는다.
 
-```yaml
-api:
-  image: myapp-api
-  pull_policy: never    # 레지스트리 조회 금지
-```
+## 버전 선택과 불변 이미지 (§16.3)
 
-공식 이미지(`postgres`, `redis` 등)는 `pull_policy` 생략 → 기본값(`missing`)이 안전.
+`latest`뿐 아니라 메이저·마이너·patch 태그도 재지정될 수 있다. 태그 선택과 immutable digest 고정을 구분한다.
+재현성이 필요한 배포는 검증한 digest·플랫폼·서명/출처·취약점 검사·업데이트·rollback 절차를 기록한다.
+고정은 업데이트 중단을 뜻하지 않는다. 오래된 digest도 패치 검토 대상이다.
+Alpine·slim은 크기·libc·native extension·운영 도구 호환성을 비교하며 선택한다.
 
-## 인프라 이미지 버전 태그 고정 (§16.3)
+## 프로젝트·환경 분리와 확인 (§16.4, §16.5)
 
-**`latest` 사용 금지.** 메이저 버전 + `-alpine` / `-slim`:
+Compose project 이름을 구분하고 필요한 경우 환경별 override·profile을 둔다.
+project 이름만 바꿔도 명시적 image 이름·host port·external volume·공용 경로는 공유될 수 있다.
+개발 DB 포트가 필요하면 loopback bind를 검토하고 운영 포트 노출을 그대로 복사하지 않는다.
+설정 검증 → 이미지 준비 → 초기화 → 기동 → readiness·대표 요청 → 중지·재시작·데이터 보존을 확인한다.
 
-```yaml
-postgres:
-  image: postgres:16-alpine   # ✅ 버전 고정
-  # image: postgres:latest    # ❌ 업데이트 때 예기치 않은 변경
-
-redis:
-  image: redis:7-alpine
-
-traefik:
-  image: traefik:v3
-
-ui:
-  image: node:22-bookworm-slim
-  working_dir: /app
-  command:
-    - sh
-    - -c
-    - npm ci --no-audit --no-fund && exec npm run dev
-```
-
-`-alpine` 작은 크기, `-bookworm-slim` Debian 호환성.
-
-## 멀티 컴포즈 파일 충돌 방지 (§16.4)
-
-같은 호스트에서 여러 컴포즈를 운영하면 이미지 이름 충돌. **각 컴포즈마다 이미지 이름과 `name:` 다르게.**
-
-```yaml
-# docker-compose.yml (내부 운영용)
-name: myapp
-api:
-  image: myapp-api
-
-# docker-compose.sample.yml (외주 샘플)
-name: myapp-sample
-api:
-  image: myapp-sample-api    # suffix로 분리
-```
-
-`name:`이 다르면 컨테이너·볼륨 이름도 자동으로 분리.
-
-## 전체 구조 요약 (§16.5)
-
-```
-docker-compose.yml          → 내부 운영/배포용
-  name: myapp
-  api:       build + image: myapp-api,        pull_policy: never
-  api-init:  image: myapp-api,                pull_policy: never, restart: "no"
-  collector: build + image: myapp-collector,  pull_policy: never
-  ui:        image: node:22-bookworm-slim     (Dockerfile 없음)
-
-docker-compose.sample.yml   → 외주 샘플 (포트 노출 + 코드 볼륨 마운트)
-  name: myapp-sample
-  api:       build + image: myapp-sample-api, pull_policy: never
-  api-init:  image: myapp-sample-api,         pull_policy: never, restart: "no"
-  collector: build + image: myapp-sample-collector, pull_policy: never
-  ui:        image: node:22-bookworm-slim     (동일 — 빌드 불필요)
-```
-
-- 샘플용에서만 소스 코드를 볼륨 마운트해 핫리로드 지원.
-- 인프라 포트(`5432`, `6379`)는 샘플용에서만 호스트로 노출.
+관련: [Kubernetes 선택](kubernetes-helm.md), [취약점 관리](vulnerability-management.md).
+근거(2026-11-27): [Compose 환경변수 우선순위](https://docs.docker.com/compose/how-tos/environment-variables/envvars-precedence/),
+[Compose 서비스·이미지 구성](https://docs.docker.com/reference/compose-file/services/).

@@ -28,7 +28,7 @@ src/
   hooks/           # useXxx.ts — 관심사 하나당 파일 하나
   pages/           # 라우팅 단위 (<Name>Page/)
   stores/          # Zustand (<name>Store.ts)
-  types/           # index.ts 한 파일에 전체 타입
+  types/           # 공유 타입; 도메인 타입은 feature에 둘 수 있음
   ws/              # WsClient 싱글톤
   constants/
   utils/
@@ -81,7 +81,11 @@ http.interceptors.response.use(undefined, async (error) => {
 - `localStorage`·`sessionStorage`에 인증·갱신 토큰을 저장하는 것을 기본 권장하지 않는다. 같은 origin의 JavaScript가 접근하므로 XSS에 노출된다.
 - JavaScript가 토큰을 다뤄야 하는 계약은 메모리 수명·재로그인·갱신·CSP와 사용 SDK의 보안 모델을 검토한다. 메모리 저장만으로 XSS가 해결되지는 않는다.
 - proxying BFF·TMB·browser-only OAuth의 토큰 위치와 API aggregation 책임은 [브라우저 backend](browser-backends.md)를 따른다.
-- **동시 다발 401 시 refresh 큐(promise) 하나만 실행**, 나머지는 대기 후 일괄 재시도. (그렇지 않으면 refresh가 동시에 여러 번 발사돼 서로 무효화함.)
+- 같은 클라이언트 실행 범위에서는 refresh single-flight를 사용하고 retry 횟수·종료 조건을 둔다.
+  다른 탭·프로세스·replica까지 자동 조정되지는 않으므로 서버의 원자적 rotation 계약도 검증한다.
+- refresh 뒤 모든 요청을 무조건 재전송하지 않는다. 대상 origin·인증 실패 원인·body 재사용 가능 여부와
+  쓰기의 멱등 키·서버 처리 계약을 확인한다. refresh endpoint나 반복 실패는 재귀 갱신하지 않는다.
+  Authorization 헤더를 외부 URL에 붙이지 않게 호출 대상도 제한한다.
 - **Refresh 호출 자체는 인터셉터를 거치지 않게** — 별도 axios 인스턴스나 raw `axios.post`로. 안 그러면 refresh 응답이 401일 때 다시 refresh를 부르며 무한 루프.
 
 ## Zustand 스토어 (§20.3)
@@ -108,7 +112,7 @@ class WsClient {
   on<T>(event: string, handler: (body: T) => void): () => void  // unsubscribe 반환
   send(event: string, body: unknown): void
   async connect(): Promise<void>
-  startAutoConnect(): void   // 3초 재연결 루프
+  startAutoConnect(): void   // 상한·backoff·jitter와 인증 만료 처리
   disconnect(): void
 }
 export const wsClient = new WsClient();
@@ -124,23 +128,25 @@ export const wsClient = new WsClient();
 
 ## 기술 스택 (§20.5)
 
-| 역할 | 라이브러리 |
+아래 이름은 선택 후보이며 지원 버전은 기존 lockfile·공식 지원 정책·취약점 공지로 확인한다.
+
+| 역할 | 라이브러리 예시 |
 |---|---|
-| 상태관리 | Zustand 5 |
-| HTTP | Axios 1.x |
-| 라우팅 | React Router 7 |
-| UI 컴포넌트 | MUI 7 (Material-UI) |
-| CSS | Tailwind CSS 4 + Emotion |
+| 상태관리 | Zustand |
+| HTTP | Axios |
+| 라우팅 | React Router |
+| UI 컴포넌트 | MUI |
+| CSS | Tailwind CSS 또는 Emotion |
 | 시각화 | Recharts |
 | 알림 | Notistack |
-| 빌드 | Vite 7 |
-| 타입 | TypeScript 5.9 |
+| 빌드 | Vite |
+| 타입 | TypeScript |
 
 > 영상 스트리밍·지도·3D 등 도메인 특화 라이브러리는 프로젝트마다 다르므로 별도 문서.
 
 ## UI–API 계약 (§11)
 
-- 브라우저가 부르는 API 경로에 **버전 prefix**: `/api/v1/...`
+- API 버전 정책은 서버 계약과 일치시킨다. `/api/v1/...`은 경로 버전 방식의 예시다.
 - 클라이언트 `baseURL`은 **상대 경로(`/api/...`)** 기본 → 배포·리버스 프록시 뒤에서 동일 오리진 유지.
 - **브라우저에 시크릿을 넣지 않는다.** 공개해도 되는 값만 빌드 타임 env로.
 

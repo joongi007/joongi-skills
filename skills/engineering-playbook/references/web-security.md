@@ -3,9 +3,8 @@
 > 웹 프레임워크로 백엔드를 작성·리뷰할 때 반드시 확인해야 하는 항목.
 > 예시 코드는 FastAPI/Starlette/SQLAlchemy 기준이지만, 원리는 프레임워크 무관.
 >
-> **전제: 파이썬과 FastAPI는 아래 항목 중 어느 것도 기본으로 막아주지 않는다.**
-> Starlette은 바디 크기 제한이 없고, `re`는 타임아웃이 없고, uvicorn은 slowloris 방어가 약하다.
-> 전부 명시적으로 설정해야 한다.
+> 프레임워크 기본 방어와 애플리케이션 책임을 구분한다. 설치 버전·parser·proxy·실행 설정을 확인한다.
+> 코드 조각은 해당 위험의 예시이며 완성형 인증·업로드·네트워크 방어 구현이 아니다.
 >
 > 설정·인프라·운영 쪽(보안 헤더, 개인정보, 공급망, 백업)은 `security-ops.md`에 있다.
 
@@ -29,8 +28,8 @@
 
 작업 중 판단이 애매하면 이 4개로 되돌아온다.
 
-1. **입력을 타입으로 못박는다** — Pydantic strict 스키마 + `extra="forbid"`.
-   NoSQL 인젝션, mass assignment, 상당수 인젝션이 여기서 걸린다.
+1. **입력 계약을 검증한다** — 타입·길이·범위·허용 필드·중첩·업무 상태를 제한한다.
+   Pydantic strict·`extra="forbid"`는 수단이며 타입 검증만으로 injection·인가가 해결되지는 않는다.
 2. **데이터와 코드를 절대 섞지 않는다** — 파라미터 바인딩, `shell=False`,
    템플릿 분리, `safe_load`. 인젝션 전체의 근본 원인.
 3. **모든 접근에 소유권/권한 조건을 건다** — 그리고 미들웨어·의존성으로 강제해서
@@ -40,18 +39,16 @@
 
 ### 작업 우선순위
 
-실제 사고 비중 순서. 시간이 없으면 위에서부터 처리한다.
+다음은 점검 순서의 출발점이며 사고 빈도의 통계 순위가 아니다.
+현재 위협 모델·실제 악용·노출·영향·도달 가능성에 따라 조정한다.
 
-1. 권한 검사 누락 (IDOR/BOLA) — §1
-2. 인증 견고화, 특히 계정 복구 경로 — §2
-3. 인젝션 계열 — §3
-4. 가용성 (커넥션 풀, 타임아웃, 크기 제한) — §6
-5. 보안 헤더, 그 외 — `security-ops.md §9`
+1. 자원·행위·tenant 인가 — §1
+2. 인증·계정 복구·세션 수명 — §2
+3. injection·위험 parser — §3
+4. 자원 상한·가용성 — §4, §6
+5. 브라우저·배포 경계 — §5, §8, [운영 보안](security-ops.md)
 
-> SQL 인젝션은 ORM 사용 시 대부분 사라진다. OWASP API Top 10 **2019판**에서 인젝션은
-> 이미 8위(API8:2019)였고, **2023판에서는 독립 항목에서 빠졌다.** 반대로 권한은 2023판에서
-> API1(객체)·API3(속성)·API5(함수) 세 자리를 차지한다. **권한 검사부터 본다.**
-> 근거: `refs/research/2026-09-05-owasp-api-top10.md`
+OWASP 항목의 나열 순서나 독립 항목 포함 여부만으로 실제 사고 비중·특정 앱의 위험을 추정하지 않는다.
 
 ---
 
@@ -75,8 +72,8 @@ if not order:
     raise HTTPException(404)   # 403이 아니라 404 (존재 여부도 정보다)
 ```
 
-**원칙: "조회 후 검사"가 아니라 "조건에 포함".**
-검사 방식은 엔드포인트 하나만 빼먹어도 그대로 구멍이 된다.
+가능하면 조회 조건에 권한 범위를 포함한다. 별도 policy engine에서 판단할 때도 결과 사용 전에
+객체·행위·tenant를 연결하고 검사와 실행 사이 상태 변경(TOCTOU)을 처리한다. 조회 후 검사가 항상 잘못된 것은 아니다.
 UUID 사용은 완화책이지 해결책이 아니다 (URL은 로그·리퍼러로 샌다).
 
 ### §1.2 권한 검사를 구조로 강제 (기본 거부)
@@ -99,11 +96,9 @@ async def get(order: Order = Depends(owned_order)):
     return order
 ```
 
-- 함수 레벨 권한(`/admin/*`)을 각 핸들러에 흩어놓으면 반드시 하나 빠진다.
-  라우터에 `dependencies=[...]`로 묶는다.
-- **멀티테넌트**: `tenant_id`를 모든 쿼리에 자동 주입하는 레이어를 만든다.
-  손으로 붙이면 반드시 빠진다. Postgres면 RLS(Row Level Security)로
-  DB에 박는 것이 가장 확실하다.
+- 함수·객체 인가를 공통 policy/dependency와 거부 기본값으로 누락하기 어렵게 만들고 거부 사례 테스트로 확인한다.
+- tenant context·RLS·실행 role·pool 경계는 [DB 설계](database-design.md)를 따른다.
+  RLS가 모든 명령·관리자·SQL injection 경로를 막는다고 가정하지 않는다.
 
 ### §1.3 Mass Assignment / 과도한 데이터 노출
 
@@ -130,8 +125,8 @@ class UserOut(BaseModel):        # password_hash는 절대 나가지 않음
 def create(data: UserCreate): ...
 ```
 
-**`response_model`을 반드시 건다.** 안 걸면 ORM 객체가 직렬화되면서
-해시·토큰이 응답에 그대로 실린다.
+응답의 허용 필드를 명시한다. FastAPI의 `response_model`은 한 수단이며 명시적 DTO·serializer도 가능하다.
+raw Response·예외·추가 endpoint를 포함해 해시·토큰이 나오지 않는지 확인한다.
 
 ---
 
@@ -139,52 +134,37 @@ def create(data: UserCreate): ...
 
 ### §2.1 비밀번호 / 세션
 
-- 해싱은 **bcrypt(cost 12+) 또는 Argon2id**. `sha256 + salt` 금지.
+- 비밀번호는 Argon2id 등 검증된 password KDF를 우선 검토한다. 기존 bcrypt는 길이 제한·비용·
+  지원 구현·migration을 확인한다. 비용은 공식 최소 권고와 실제 지연·동시 부하·DoS 예산으로 정한다.
+  빠른 SHA-256 단독은 비밀번호용이 아니다. 고엔트로피 API key verifier와는 [구분](api-key-security.md)한다.
 - 로그인 성공 시 세션 ID 재발급 (세션 고정 공격 방어).
 - 로그인/비번재설정/OTP 엔드포인트는 **IP + 계정 양쪽으로** 레이트리밋
   (크리덴셜 스터핑 방어).
 - 민감 작업(비번 변경, 결제수단 추가, 이메일 변경)에는 **재인증** 요구.
 - 사용자에게 활성 세션 목록 + 원격 로그아웃 제공. 새 기기/새 지역 로그인 알림.
 
-> 이 저장소의 JWT/세션 구현 규약(`jtt`/`rjti`/`fjti`, Redis 세션 키, fresh token)은
-> `auth-jwt.md`에 있다. 이 절은 그 위에 얹는 일반 보안 요구사항이다.
+> password KDF의 근거: [OWASP Password Storage](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html).
+> `auth-jwt.md`의 custom claim·Redis 키는 선택형 예시이며 이 저장소 전체의 실행 계약이 아니다.
 
 ### §2.2 계정 복구 — 가장 약한 고리
 
 비밀번호를 아무리 강하게 해도 **재설정 경로가 뚫리면 끝난다.**
 
 - 토큰은 `secrets.token_urlsafe(32)`.
-- **DB에는 해시로 저장** (DB가 털려도 사용 불가).
-- 15~30분 만료, 1회용.
+- 원문 대신 검증값을 저장한다. 유출 시 즉시 사용 가능한 원문을 줄이지만 발급·검증 코드 침해까지 방어하지는 않는다.
+- 짧은 만료·단발 사용을 서버가 강제한다. 15~30분은 예시이며 원자적 소비·동시 요청을 검증한다.
 - 재설정 완료 시 **기존 세션 전부 무효화**.
 - 이메일 변경 시 **기존 주소에도 알림** — 탈취 감지의 마지막 방어선.
 - 재설정 링크 생성 시 **요청 Host 헤더를 쓰지 않는다** (§5.1).
 
 ### §2.3 JWT
 
-| 공격 | 방어 |
-|---|---|
-| `alg: none` | `algorithms=["RS256"]` 명시 |
-| HS/RS 혼동 (공개키를 HMAC 키로) | 알고리즘 화이트리스트 |
-| `kid`로 path traversal/SQLi | kid를 파일경로·쿼리에 쓰지 않음 |
-| `jku`/`x5u`로 공격자 키 지정 | 해당 클레임 무시 |
-| 만료 무시 | `exp`, `nbf`, `iss`, `aud` 전부 검증 |
-| 로그아웃 후에도 유효 | 짧은 만료 + 리프레시 회전 + jti 블랙리스트 |
-
-```python
-jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"],
-           audience="api.example.com", issuer="https://auth.example.com",
-           options={"require": ["exp", "iat", "sub"]})
-```
-
-- JWT는 취소가 안 된다 → 액세스 15분 + 리프레시 토큰(DB 저장, 회전, 재사용 감지).
-- **토큰을 `localStorage`에 넣지 않는다.** XSS 한 번에 털린다.
-  → `HttpOnly; Secure; SameSite=Lax` 쿠키.
-
-> 주의: 이 저장소의 기존 규약(§20.2, `frontend.md`)은 access token을 `sessionStorage`,
-> refresh token을 `localStorage`에 둔다. 위 권고와 충돌한다.
-> **새 프로젝트라면 HttpOnly 쿠키를 우선 검토하고, 기존 프로젝트는 규약을 유지하되
-> XSS 방어(§8.1)를 그만큼 더 엄격하게 본다.** 어느 쪽을 택했는지 사용자에게 확인한다.
+JWT의 algorithm·issuer·audience·token type·만료·신뢰한 키와 unknown kid·회전·폐기는
+[JWT·JWKS 기준](jwt-jwks.md)을 따른다. `RS256`은 비대칭 서명 선택 예이며 모든 JWT에 강제하지 않는다.
+서명만으로 계정 활성·객체 인가·즉시 철회가 보장되지 않는다.
+브라우저의 토큰 위치·BFF·TMB·XSS·CSRF는 [브라우저 backend](browser-backends.md)를 따른다.
+프로젝트가 custom claim·refresh rotation을 유지한다면 [JWT 예시](auth-jwt.md)의 적용 조건을 확인한다.
+이전 예시에 있던 `sessionStorage`·`localStorage` 분리 저장을 공통 기본값으로 삼지 않는다.
 
 ### §2.4 OAuth / 소셜 로그인
 
@@ -202,9 +182,11 @@ jwt.decode(token, PUBLIC_KEY, algorithms=["RS256"],
 
 ### §2.6 타이밍 / 계정 열거
 
-- 비밀번호·토큰 비교는 `secrets.compare_digest()`.
+- 비밀번호는 KDF 라이브러리의 verify로 검사한다. digest·고정 secret 비교에는 `secrets.compare_digest()` 등
+  검증한 상수 시간 비교를 사용한다. 단순 문자열 비교를 비밀번호 검증 대신 쓰지 않는다.
 - 존재하지 않는 유저면 해싱을 건너뛰어 응답이 빨라진다
-  → **더미 해시로 항상 verify를 돌려 시간을 맞춘다.**
+  → 필요하면 같은 비용의 dummy verifier를 쓰고 실제 응답 시간 분포를 확인한다. 완전 동일 시간 보장은 아니다.
+  비싼 KDF 전에 호출량·동시성 상한을 둬 인증 실패 DoS도 제한한다.
 - 에러 메시지 통일: "이메일 없음" vs "비번 틀림"을 구분하면 계정이 열거된다.
 - 회원가입/비번찾기 응답도 통일: "해당 이메일로 안내를 보냈습니다".
 
@@ -240,8 +222,8 @@ MongoDB는 JSON이 그대로 쿼리가 된다.
 ```
 → 비밀번호 검사가 통째로 우회된다.
 
-**Pydantic이 사실상 해결책.** `password: str`로 선언하면 dict가 들어올 때 422로 튕긴다.
-**`Dict[str, Any]`나 `Any`로 받는 순간 구멍이 뚫린다.**
+`password: str` 같은 입력 schema는 객체 형태 주입을 줄인다. 비신뢰 입력을 쿼리 연산자로
+그대로 전달하지 않고 허용 필드·연산자를 별도로 검증한다. `Any`의 존재만으로 취약점을 확정하지 않는다.
 
 ### §3.3 커맨드 인젝션
 
@@ -277,8 +259,7 @@ Template(user_input)   # ❌ 절대 금지 — RCE까지 체인 가능
 ```
 → 파일 읽기 + SSRF + DoS(billion laughs).
 
-표준 `xml.etree`는 최신 버전에서 외부 엔티티를 기본 차단하지만
-**`lxml`은 설정하지 않으면 뚫린다.**
+XML parser·버전별 entity·DTD·network 기본값을 확인한다. 기본값만으로 자원 고갈 방어까지 가정하지 않는다.
 
 ```python
 from defusedxml import ElementTree   # 가장 안전
@@ -310,7 +291,8 @@ logger.info(f"login failed: {username}")
 
 ### §3.8 ReDoS (정규식 DoS)
 
-**파이썬 `re`는 Java와 동일한 백트래킹 엔진이다. 오히려 타임아웃이 없어서 더 나쁘다.**
+Python `re`와 Java의 일반 정규식 엔진은 backtracking을 사용하지만 같은 구현은 아니다.
+복잡도·timeout·입력 제한은 엔진·패턴·버전에 따라 검증한다.
 `(a+)+$` 같은 패턴에 긴 입력을 주면 지수 시간으로 CPU가 포화된다.
 실측(`refs/redos-lab/`): 입력 한 글자마다 시간이 두 배 — 28자 5초, 31자 40초. 코어 하나가 통째로 묶인다.
 
@@ -328,19 +310,19 @@ regex.search(pattern, s, timeout=0.2)
 ```
 
 ```python
-# (c) Pydantic v2는 이미 안전하다 — 기본 엔진이 Rust regex(선형시간)
+# (c) Pydantic v2의 rust-regex 선택 예시. custom validator·다른 엔진도 별도 점검
 class Model(BaseModel):
     model_config = ConfigDict(regex_engine="rust-regex")  # 기본값
     email: str = Field(pattern=r"^[\w.]+@[\w.]+$")
 ```
 
-> **`regex_engine="python-re"`로 바꾸지 않는다.**
-> lookahead를 쓰려고 바꾸는 순간 ReDoS 구멍이 다시 뚫린다.
+> backtracking 엔진이나 compiled pattern·custom validator를 사용하면 선형 엔진과 같은 보장을 가정하지 않는다.
+> 기능 요구로 바꾸는 경우 패턴·입력 상한·timeout·격리·최악 입력을 검증한다.
 
 무엇을 쓰든:
 - 정규식 실행 **전에 입력 길이를 자른다** (`if len(s) > 256: reject`). 가장 싸고 효과적.
 - `(x+)+`, `(x|x)*`, `(.*a){10}` 같은 중첩 수량자를 리뷰에서 잡는다.
-- 사용자가 정규식 자체를 입력하는 기능이면 무조건 re2.
+- 사용자 제공 패턴은 RE2 같은 제한된 엔진을 우선 검토한다. 패턴 길이·컴파일 비용·메모리·실행량도 제한한다.
 
 ---
 
@@ -348,43 +330,13 @@ class Model(BaseModel):
 
 ### §4.1 바디 크기 제한
 
-`UploadFile`은 `SpooledTemporaryFile`이라 1MB를 넘으면 **디스크에 쓴다.**
-크기 제한이 없으면 `/tmp`가 포화된다.
-
-**`Content-Length`를 믿으면 안 된다** (chunked encoding으로 거짓말 가능).
-실제 읽은 바이트를 센다.
-
-```python
-class BodyTooLarge(Exception): pass
-
-class MaxBodySizeMiddleware:
-    def __init__(self, app, max_size=10 * 1024 * 1024):
-        self.app, self.max_size = app, max_size
-
-    async def __call__(self, scope, receive, send):
-        if scope["type"] != "http":
-            return await self.app(scope, receive, send)
-
-        total = 0
-        async def limited_receive():
-            nonlocal total
-            msg = await receive()
-            if msg["type"] == "http.request":
-                total += len(msg.get("body", b""))
-                if total > self.max_size:
-                    raise BodyTooLarge()
-            return msg
-
-        try:
-            await self.app(scope, limited_receive, send)
-        except BodyTooLarge:
-            await send({"type": "http.response.start", "status": 413, "headers": []})
-            await send({"type": "http.response.body", "body": b"too large"})
-```
-
-> **`BaseHTTPMiddleware`가 아니라 순수 ASGI로 작성한다.**
-> `BaseHTTPMiddleware`는 바디를 버퍼링해서 제한이 무의미해진다.
-> 바로 쓸 수 있는 최소 구현: `refs/asgi-body-limit/max_body_size.py`
+업로드 parser·버전별 spool 임계치·파일/필드 개수·body 크기 제한을 확인한다.
+메모리 spool을 넘으면 디스크를 사용하므로 임시 공간·동시 업로드도 제한한다.
+Content-Length 사전 검사와 별개로 실제 읽은 바이트·압축 해제 크기·읽기 시간 예산을 집행한다.
+proxy 제한과 앱의 스트리밍 제한을 함께 검증한다.
+ASGI `receive` 경로에서 세는 방식은 선택지다. 미들웨어 순서·이미 시작된 응답·disconnect·
+framework 예외 변환을 처리해야 하며, 일부 코드 조각만으로 완성형 미들웨어라고 간주하지 않는다.
+저장소의 실험 구현은 `refs/asgi-body-limit/max_body_size.py`에 있다. standalone skill에 포함된 실행 파일은 아니다.
 
 ### §4.2 이미지 압축 폭탄 / 메타데이터
 
@@ -459,7 +411,8 @@ if not target.is_relative_to(base) or not target.is_file():
 ```
 
 `%2e%2e%2f`, `..%c0%af`, 널바이트, 유니코드 정규화 우회가 전부 존재한다.
-**문자열 필터링이 아니라 `resolve()` 후 경로 비교로 해결한다.**
+문자열 필터보다 정규화 후 경계 비교를 사용한다. 위 예시만으로 symlink 교체 경쟁을 막지는 못한다.
+공격자가 디렉터리를 변경할 수 있으면 안전한 dir-relative open·symlink 금지·쓰기 권한 격리 등을 추가한다.
 `StaticFiles`로 마운트한 디렉터리에 `.env`나 백업 파일이 없는지 확인한다.
 
 ### §4.5 Zip Slip / 압축 폭탄
@@ -468,13 +421,14 @@ if not target.is_relative_to(base) or not target.is_file():
 base = Path("/data/extract").resolve()
 for m in zf.infolist():
     dest = (base / m.filename).resolve()
-    if not dest.is_relative_to(base):        # 심볼릭 링크도 resolve로 잡힘
+    if not dest.is_relative_to(base):        # 현재 파일시스템의 경계 검사; archive link는 별도 거부
         raise ValueError("zip slip")
     if m.file_size > 50 * 1024**2:           # 압축 해제 후 크기 (42.zip 대비)
         raise ValueError("bomb")
 ```
 
-`file_size` 합계와 압축비(`file_size / compress_size`)도 함께 본다. 100배가 넘으면 의심.
+archive의 link·특수 파일은 거부하고 경로 교체 경쟁도 제한한다. metadata의 `file_size`만 믿지 않고
+실제 해제한 바이트·총합·파일 수·중첩·시간·디스크를 제한한다. 압축비는 보조 신호이며 100배 같은 값은 정책 예시다.
 
 ---
 
@@ -507,7 +461,8 @@ ip = request.headers["X-Forwarded-For"]   # ❌ 클라이언트가 마음대로 
 ```bash
 uvicorn app:app --proxy-headers --forwarded-allow-ips="10.0.0.1"
 ```
-XFF는 **가장 오른쪽부터** 신뢰 홉 수만큼 세는 것이 맞다.
+신뢰한 proxy 체인을 오른쪽부터 검증하고 첫 비신뢰 주소를 구분한다. 고정 홉 수만 믿으면
+직접 접근·가변 경로에서 위조될 수 있으므로 실제 ingress·proxy의 헤더 정리 계약을 확인한다.
 
 ### §5.3 Open Redirect
 
@@ -515,9 +470,8 @@ XFF는 **가장 오른쪽부터** 신뢰 홉 수만큼 세는 것이 맞다.
 # ❌ 로그인 후 next 파라미터를 그대로 사용
 return RedirectResponse(next_url)   # next=//evil.com
 
-# ✅ 상대경로만 허용
-if not next_url.startswith("/") or next_url.startswith("//"):
-    next_url = "/"
+# ✅ URL 문자열 검사를 직접 조립하기보다 서버의 고정된 route ID를 매핑
+next_url = {"home": "/", "account": "/account"}.get(next_route, "/")
 ```
 `//evil.com`, `/\evil.com`, `https:/evil.com`이 전부 우회 케이스다.
 
@@ -526,16 +480,12 @@ if not next_url.startswith("/") or next_url.startswith("//"):
 "URL을 입력받아 서버가 fetch"하는 기능이 있으면 반드시 처리한다.
 웹훅, 이미지 URL 임포트, 링크 미리보기 전부 해당.
 
-```python
-ip = ipaddress.ip_address(socket.gethostbyname(host))
-if ip.is_private or ip.is_loopback or ip.is_link_local:
-    raise HTTPException(400)
-```
-
-- **`169.254.169.254`(클라우드 메타데이터) 차단이 핵심.**
-  IAM 크리덴셜이 통째로 털린다. AWS는 **IMDSv2 강제**로 추가 방어.
-- **리다이렉트 추적을 끄고**(`follow_redirects=False`) 매 홉마다 재검증한다.
-  안 하면 DNS 리바인딩으로 우회된다.
+허용 scheme·host·port·목적지 정책을 먼저 정하고 URL parser로 검증한다.
+DNS의 모든 A/AAAA 결과·IPv4-mapped IPv6·loopback·private/link-local·metadata 경로를 검사한다.
+검사한 IP와 실제 연결 IP를 결합하거나 검증한 egress proxy를 사용해 DNS rebinding/TOCTOU를 처리한다.
+redirect는 기본 비활성화하거나 각 hop의 URL·DNS·연결을 다시 검사한다. redirect 제한만으로 rebinding이 해결되지는 않는다.
+TLS hostname 검증·응답 크기·연결/전체 시간 예산·허용 egress를 함께 적용한다.
+클라우드 metadata 접근 차단·IMDSv2 같은 플랫폼 방어도 추가하되 전체 SSRF 방어로 설명하지 않는다.
 
 ### §5.5 CORS
 
@@ -545,21 +495,22 @@ allow_origins=["*"], allow_credentials=True
 ```
 
 - 와일드카드 대신 도메인 명시 (§19.10, `auth-jwt.md` — origins는 환경 변수로).
-- `allow_origin_regex`를 쓸 거면 `\.example\.com$`처럼 **끝 앵커**를 반드시 넣는다.
-  없으면 `example.com.evil.com`이 통과한다.
+- 가능하면 정확한 origin 목록을 사용한다. regex가 필요하면 scheme·hostname·port 전체를
+  full match로 검증하고 혼동 가능한 접두/접미·악성 subdomain을 검사한다. 끝 앵커 하나만으로 충분하지 않다.
 
 ### §5.6 CSRF
 
-쿠키 인증이면 필요, `Authorization` 헤더 방식이면 불필요.
-FastAPI에 내장이 없어 직접 구현해야 한다.
-`SameSite=Lax`가 1차 방어, 상태 변경에는 더블 서밋 토큰 + `Origin` 헤더 검증.
+브라우저가 자동 첨부하는 cookie 등 ambient credential 경로에 CSRF 방어를 적용한다.
+명시적 Authorization만 쓰는 API도 로그인·refresh·쿠키 fallback 경로는 별도로 확인한다.
+적절한 SameSite·Origin 검증과 synchronizer token 또는 세션에 묶인 signed double-submit 등을 선택한다.
+단순 cookie/body 값 일치만으로 모든 공격이 막히지는 않는다. 검증한 framework·library를 우선 사용한다.
 
 ### §5.7 Request Smuggling / 캐시 오염
 
 - **Smuggling**: 프론트(nginx)와 백(uvicorn)이 `Content-Length` vs `Transfer-Encoding`을
   다르게 해석하면 숨긴 요청이 **다른 사용자 요청 앞에 붙는다** → 인증 우회, 세션 탈취.
-  앱에서 못 막는다. → 프론트-백 간 연결 재사용 끄기, 최신 버전 유지,
-  애매한 요청은 프론트에서 거부.
+  proxy·서버 조합의 최신 수정·일관된 HTTP 해석·모호한 요청 거부를 확인한다.
+  연결 재사용 제한 같은 완화는 해당 제품 공지·성능·회귀 검증으로 선택한다.
 - **캐시 오염**: 캐시 키에 없는 헤더가 응답에 반영되면 오염된 응답이 전체에 배포된다.
 - **캐시 기만**: `/account.json` 같은 확장자를 붙여 CDN이 개인정보를
   정적 파일로 캐싱하게 만든다.
@@ -571,8 +522,8 @@ FastAPI에 내장이 없어 직접 구현해야 한다.
 
 ### §6.1 연결 폭주 / Slowloris
 
-**앱에서 풀려고 하지 않는다.** 요청이 앱에 도달한 시점에 이미 소켓·워커는 소비됐다.
-앞단에서 자른다.
+경계 proxy·서버의 연결/읽기 제한과 앱의 비용·동시성 제한을 함께 적용한다.
+아래 수치는 설정 예시이며 nginx context·버전·정상 부하·streaming 요구에 맞춰 검증한다.
 
 ```nginx
 client_max_body_size 10m;
@@ -594,12 +545,13 @@ uvicorn app:app --limit-concurrency 200 --timeout-keep-alive 5 --backlog 2048
 ```
 
 앱 레벨 레이트리밋(`slowapi` + Redis)은 부가적으로만.
-L3/L4 볼륨 공격은 CDN/WAF 없이는 대응 불가.
+회선을 포화시키는 L3/L4 공격은 앱 단독으로 해결되지 않는다. 공급자의 filtering/scrubbing·DDoS 서비스·
+용량과 대응 연락 경로를 검토한다. WAF만으로 모든 네트워크 공격이 해결되는 것은 아니다.
 
 ### §6.2 FastAPI 고유 함정 — 이벤트 루프 블로킹
 
-**`async def` 핸들러 안에서 블로킹/CPU 작업을 하면 이벤트 루프 전체가 멈춰
-서버 프로세스 하나가 통째로 죽는다. 요청 1개로 전체 DoS가 가능하다.**
+긴 blocking/CPU 작업은 같은 이벤트 루프의 다른 요청을 지연시킨다.
+프로세스 종료와 루프 정체는 다른 현상이다. 실행기 선택·GIL·상한은 [동시성](concurrency.md)을 따른다.
 
 ```python
 # ❌ 이거 하나가 서버 전체를 멈춘다
@@ -619,10 +571,11 @@ async def best(f: UploadFile):
     return await loop.run_in_executor(process_pool, heavy, data)
 ```
 
-스레드풀도 기본 40개로 유한하다. 무거운 작업은 Celery/RQ로 분리한다.
+사용한 Starlette/AnyIO 버전의 thread limiter와 공유 소비자를 확인한다. 특정 기본값을 전체 실행 환경에 일반화하지 않는다.
+요청 예산을 넘는 작업의 영속 처리 필요성은 [작업 계약](background-jobs.md)으로 판단한다.
 (같은 원리의 파이프라인 패턴은 `async-patterns.md` §23.1.)
 
-### §6.3 커넥션 풀 고갈 — 가장 흔한 장애 원인
+### §6.3 커넥션 풀 고갈
 
 요청은 200개인데 DB 풀이 5개면 나머지는 전부 대기 → 타임아웃 → 리트라이 → 악화.
 
@@ -634,8 +587,8 @@ create_async_engine(url,
     pool_pre_ping=True)      # 죽은 커넥션 감지
 ```
 
-**계산: `워커수 × (pool_size + max_overflow) ≤ DB max_connections`.**
-워커 4개 × 30 = 120인데 Postgres 기본이 100이면 그대로 터진다.
+총 연결 예산은 API·worker·scheduler·복제본·운영 도구의 풀을 합산하고 DB의 예약 연결·여유를 뺀
+가용 한도 안에 둔다. 위 수치는 예시이며 엔진·pooling 방식·실제 동시 부하로 검증한다.
 
 세션은 요청 스코프로 확실히 닫는다(`Depends` yield 패턴, `python-api.md`).
 백그라운드 작업에서 요청 세션을 재사용하지 않는다.
@@ -671,13 +624,13 @@ limit: int = Query(50, le=200)   # 사용자가 limit=999999를 넣지 못하게
 - **캐시 스탬피드**: 인기 키가 만료되는 순간 수천 요청이 DB로 몰린다
   → 락 또는 TTL 지터.
 - 큐에도 최대 길이 제한. 무한 큐는 메모리 폭탄이자 지연 폭탄.
-- 무거운 작업은 동기 처리하지 말고 큐로. 응답은 202 + 작업 ID.
+- 요청 예산·복구 요구를 넘는 작업은 [백그라운드 작업](background-jobs.md)의 영속 접수·상태 계약을 적용한다.
 
 ---
 
 ## §7. 동시성 / 비즈니스 로직
 
-스캐너가 잡지 못하는 영역. 금전 사고가 여기서 난다.
+자동 분석만으로 확인하기 어려운 업무 불변식·동시 실행을 별도 검증한다.
 
 ### §7.1 Race Condition (TOCTOU)
 
@@ -711,7 +664,9 @@ if res.rowcount == 0:
 ### §7.2 멱등성
 
 결제 API에 재시도가 오면 이중 결제가 된다.
-`Idempotency-Key` 헤더를 받아 UNIQUE 인덱스로 중복을 차단한다.
+키를 호출자·행위·정규화한 요청 내용에 결합하고 다른 payload 재사용을 거부한다.
+UNIQUE 제약과 실행·결과 기록·동시 요청 처리를 원자적으로 설계한다. 키만 저장해도 외부 부작용까지
+멱등해지는 것은 아니다. [내구성 작업](background-jobs.md)의 재시도·부작용 계약을 함께 적용한다.
 
 ### §7.3 비즈니스 로직 일반
 
@@ -748,11 +703,11 @@ React/Vue는 기본 이스케이프라 대부분 커버되지만 구멍은 정�
 
 ### §8.3 GraphQL
 
-REST 방어가 대부분 통하지 않는다.
+인증·객체 인가·입력 검증·자원 상한은 GraphQL에도 적용한다. 단일 endpoint에 여러 연산이 있어 추가 제한이 필요하다.
 
 - 중첩 쿼리 DoS → depth limit + complexity limit
 - 배칭으로 레이트리밋 우회 → 배치 크기 제한
-- introspection 프로덕션에서 비활성화
+- introspection·schema 공개는 대상 독자·서비스 정책으로 결정한다. 비공개가 인가를 대체하지 않는다.
 - **필드 단위 권한 검사** (엔드포인트 단위 검사가 무의미해진다)
 
 ---
@@ -760,14 +715,14 @@ REST 방어가 대부분 통하지 않는다.
 ## 부록 A. 리뷰 시 빠르게 훑는 체크리스트
 
 **권한 (§1)**
-- [ ] 모든 리소스 조회/수정에 소유권 조건이 쿼리에 들어가 있는가
+- [ ] 모든 리소스 조회/수정에서 객체·행위·tenant 인가를 집행하는가
 - [ ] 관리자 라우터에 `dependencies=[Depends(require_role(...))]`가 걸려 있는가
 - [ ] 멀티테넌트면 tenant_id가 자동 주입되는가
 
 **입출력 (§1.3, §3.2, §6.5)**
-- [ ] 모든 엔드포인트에 `response_model`이 있는가
-- [ ] 입력 스키마에 `extra="forbid"`가 있는가
-- [ ] `Any` / `Dict[str, Any]`로 받는 곳이 없는가
+- [ ] 응답 허용 필드와 raw Response 경로의 민감정보 제외를 검증했는가
+- [ ] 허용 필드 정책이 명시돼 있고 미등록 필드가 권한·데이터를 변경할 수 없는가
+- [ ] 동적 입력에도 허용 연산·필드·깊이·크기와 사용 지점 검증이 있는가
 - [ ] 목록 API에 `Query(50, le=200)` 형태의 상한이 있는가
 
 **인젝션 (§3)**
@@ -778,22 +733,22 @@ REST 방어가 대부분 통하지 않는다.
 **가용성 (§6)**
 - [ ] `async def` 안에 블로킹/CPU 작업이 없는가
 - [ ] 모든 외부 호출에 타임아웃이 있는가
-- [ ] 워커수 × 풀크기 ≤ DB max_connections 인가
-- [ ] 바디 크기 제한 미들웨어가 있는가
+- [ ] 모든 프로세스·복제본 풀의 합과 운영 예약 연결을 포함해 DB 연결 예산을 검증했는가
+- [ ] 실제 읽는 body·parser·임시 저장소에 크기·시간·동시성 제한이 있는가
 
 **동시성 (§7)**
 - [ ] 잔액/재고/쿠폰이 원자적 UPDATE 또는 락으로 처리되는가
 - [ ] 결제에 멱등성 키가 있는가
 
 **설정 (`security-ops.md §13`)**
-- [ ] 프로덕션에서 `/docs`, `debug`가 꺼져 있는가
+- [ ] debug가 노출되지 않고 API 문서 접근이 [문서 정책](api-key-security.md)에 맞는가
 - [ ] `TrustedHostMiddleware`가 있는가
 - [ ] CORS에 와일드카드 + credentials 조합이 없는가
 - [ ] 보안 헤더 미들웨어가 있는가
 
 **운영 (`security-ops.md §11~§13`)**
 - [ ] 백업이 불변이고, 복원 테스트를 한 적이 있는가
-- [ ] 아웃바운드가 기본 차단인가
+- [ ] 필요한 egress만 허용하고 차단·예외·기존 연결 영향을 검증했는가
 - [ ] 인증 실패/권한 거부가 로깅되고 알림이 있는가
 
 ---
@@ -803,12 +758,12 @@ REST 방어가 대부분 통하지 않는다.
 | 오해 | 실제 |
 |---|---|
 | FastAPI가 바디 크기를 제한해 준다 | 제한 없음. 직접 미들웨어 작성 (§4.1) |
-| Pydantic이 ReDoS를 막아준다 | v2 기본 엔진(rust-regex)만 안전. `re`는 여전히 취약 (§3.8) |
+| Pydantic이면 정규식 자원 제한이 필요 없다 | 엔진·compiled pattern·custom validator·입력/실행 상한까지 확인 (§3.8) |
 | ORM을 쓰면 SQLi가 불가능하다 | `text()` + f-string, ORDER BY 식별자는 그대로 취약 (§3.1) |
 | 로그인 확인 = 권한 확인 | 별개. 소유권은 따로 검사해야 한다 (§1.1) |
 | React를 쓰면 XSS가 없다 | `dangerouslySetInnerHTML`, `href` 스킴, 마크다운은 그대로 (§8.1) |
 | helmet/보안헤더가 XSS를 막는다 | 2차 방어일 뿐. 이스케이프가 본체 (`security-ops.md §9`) |
 | CORS가 WebSocket도 보호한다 | 적용되지 않음. Origin 직접 검증 필요 (§8.2) |
-| 백업이 있으니 랜섬웨어는 괜찮다 | 백업이 먼저 삭제된다 (`security-ops.md §12`) |
-| 방화벽을 설정했다 | 대개 인바운드만. 아웃바운드 차단이 실질 방어 (`security-ops.md §11.4`) |
+| 백업이 있으니 랜섬웨어는 괜찮다 | 백업도 손상·삭제될 수 있어 독립 권한·복원 검증 필요 (`security-ops.md §12`) |
+| 인바운드 방화벽이면 충분하다 | egress·기존 세션·허용 목적지 악용까지 검토 (`security-ops.md §11`) |
 | `pickle`은 그냥 직렬화 포맷이다 | 역직렬화 = 임의 코드 실행 (§3.7) |

@@ -62,6 +62,7 @@ Bundled files:
 - `skills/engineering-playbook/PLAYBOOK.md`
 - `skills/engineering-playbook/references/agent-security-review.md`
 - `skills/engineering-playbook/references/api-key-security.md`
+- `skills/engineering-playbook/references/application-contract.md`
 - `skills/engineering-playbook/references/architecture.md`
 - `skills/engineering-playbook/references/async-patterns.md`
 - `skills/engineering-playbook/references/auth-jwt.md`

@@ -10,7 +10,7 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 
 ## 적용 순서
 
-1. 작업 목적·수용 조건·실패 영향을 확인하고 기존 코드·문서의 결정을 읽는다.
+1. [적용 계약](references/application-contract.md)에 따라 목적·수용 조건·범위·기존 결정을 확인한다. 공통 원칙·표준·프로젝트 결정·예시를 구분한다.
 2. 아래 표에서 관련 참조만 선택한다. 언어·프레임워크 예시는 그 스택에서만 적용한다.
 3. 사용자 지시와 저장소의 구체적인 계약을 우선한다. 예제를 적용하려고 기술을 교체하지 않는다.
 4. 변경 위험에 맞는 정상·실패·권한·복구 검사를 하고, 동작이 바뀐 문서를 함께 갱신한다.
@@ -28,17 +28,18 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 | API key 발급·verifier·cache·회전·만료·폐기, 공개 문서·자동화 공격 | `references/api-key-security.md` |
 | BFF·Token-Mediating Backend(TMB)·browser-only OAuth, API aggregation | `references/browser-backends.md` |
 | JWT·JWK·JWKS, issuer·kid·cache·서명 키 회전·긴급 폐기 | `references/jwt-jwks.md` |
+| 공통 기준·지침 충돌·기준 문서·에이전트 판단 기록 | `references/application-contract.md` |
 | CS 명칭·약어·의미 구분과 문서 용어 일치 | `references/terminology.md` |
 | Spamhaus DROP·IP/CIDR/ASN reputation, IPv6·proxy·피드 갱신·차단·rollback | `references/network-reputation.md` |
 | FastAPI 구조, 패키지 이름, router·service·schema, Repository, NATS, constants.py | `references/python-api.md` |
 | JWT RS256·jtt·rjti·fjti, 로그인·갱신·로그아웃, 재인증, WebSocket ticket, bcrypt, CORS | `references/auth-jwt.md` |
 | React 구조·hooks·Zustand, Axios 401 갱신, WebSocket, 서버 상태와 UI 상태 | `references/frontend.md` |
 | Compose 환경변수·볼륨·초기화 컨테이너, build·image, pull_policy, 이미지 버전 | `references/docker.md` |
-| structlog, 로그 이벤트 이름·exc_info, 개인정보 기록 금지 | `references/logging.md` |
-| Ruff, ESLint v9 flat config, 파일·식별자 이름 | `references/lint-naming.md` |
+| structlog, 로그 이벤트·exc_info·민감정보 최소화·MCP stdio 로그 경계 | `references/logging.md` |
+| Ruff·ESLint 설정 선택, 파일·식별자·프로토콜 명명 | `references/lint-naming.md` |
 | asyncio.to_thread, 이벤트 루프·worker 스레드, Task 수명, 타임스탬프 변환 | `references/async-patterns.md` |
-| DB·Redis 비밀번호의 quote_plus, pydantic-settings·cached_property | `references/config-secrets.md` |
-| uv·Python·Vite 프로젝트 구성, UI–API 계약, /api/v1, 역방향 프록시 단일 진입점 | `references/scaffolding.md` |
+| 설정·비밀 주입·연결 URL builder·구성요소 인코딩·설정 cache | `references/config-secrets.md` |
+| 신규 프로젝트 구성·지원 버전·UI–API 경로·실행·중지 계약 | `references/scaffolding.md` |
 | 인가·IDOR, 인증, injection·ReDoS, 업로드·이미지 압축 폭탄·디코딩 자원 제한·경로 이탈, SSRF·CORS·CSRF, DoS, 경쟁 상태, XSS | `references/web-security.md` |
 | Zero Trust·host 침해·MSA/mTLS, 보안 헤더·CSP·비밀·공급망·백업 | `references/security-ops.md` |
 | 기술 도입·배포 전 취약점 확인, 30일 경과 시 전체 스택 재점검·중대 취약점 대응 | `references/vulnerability-management.md` |
@@ -60,7 +61,7 @@ description: 구현·설계·리뷰·테스트·운영과 보안 검수 가이�
 색상·글꼴·간격·시각적 방향은 `applying-design-systems`를 함께 사용한다.
 이 플레이북의 프론트엔드 참조는 컴포넌트 구조·hooks·상태·API 사용 규칙을 다룬다.
 인프라·장애 복구·문서·테스트 원칙(§25–§27)은 여러 언어에 적용하되,
-Python·React·Java 예시 때문에 다른 프로젝트의 기술 스택을 바꾸지 않는다. 예외와 이유는 ADR에 기록한다.
+Python·React·Java 예시 때문에 다른 프로젝트의 기술 스택을 바꾸지 않는다. 중요한 구조·보안 결정은 ADR 등 기존 결정 기록에 남긴다.
 
 ## 공통 기준
 

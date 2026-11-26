@@ -5,7 +5,7 @@
 - 원칙 (§10)
 - logger.py 설정 (§21.1) — Docker/stdout 환경
 - 사용 방법 (§21.2)
-- 절대 규칙
+- 로그 계약과 민감정보
 - 좋은 vs 나쁜 예
 
 ## 원칙 (§10)
@@ -13,7 +13,9 @@
 - **식별자·이벤트 키**: 영어 `snake_case`.
 - **도메인 설명·운영 메모·사용자에게 보이는 짧은 문장**: 팀 언어(한국어 가능).
 - 주석은 **비즈니스 규칙·보안/운영 주의·임시 우회(이슈 번호)** 에만. 자명한 한 줄은 이름으로 해결.
-- 구조화 로그는 **한 줄 JSON + 고정 이벤트 이름**, **PII 금지**.
+- 수집 환경에 맞는 구조화 포맷과 안정적인 이벤트 이름을 사용하고 민감정보를 최소화한다.
+  아래 structlog 설정은 Python 컨테이너의 선택형 예시다. stdout을 MCP stdio 프로토콜로 쓰는 서비스는
+  로그를 stderr 또는 별도 sink로 보내 프로토콜 메시지와 섞지 않는다.
 
 ## logger.py 설정 (§21.1) — Docker/stdout 환경
 
@@ -87,6 +89,10 @@ logger = structlog.stdlib.get_logger()
 - `cache_logger_on_first_use=True`: 로거 인스턴스 재사용으로 퍼포먼스 확보.
 - `CallsiteParameterAdder`: `pathname`, `filename`, `func_name`, `lineno` 자동 포함 → 로그만 보고 위치 추적.
 
+이 설정은 애플리케이션 시작 시 조립하는 예시다. 라이브러리 import가 host의 root handler를 임의로 바꾸지 않는다.
+uvicorn 로그 억제는 동등한 access·오류 관측을 확인한 경우만 선택한다. 예외 문자열·traceback에도 비밀이
+들어갈 수 있으므로 `exc_info`가 자동으로 안전하다고 가정하지 않는다.
+
 **env.py에 추가:**
 
 ```python
@@ -116,12 +122,14 @@ logger.warning("external_task_timeout", job_id=1, timeout_sec=20.0)
 logger.error("storage_write_failed", job_id=1, exc_info=e)
 ```
 
-## 절대 규칙
+## 로그 계약과 민감정보
 
-- **이벤트 이름**: `snake_case` 영어, **`동사_목적어`** 형태. 예: `job_session_started`, `cache_preloaded`, `external_task_timeout`.
+- **이벤트 이름**: 팀의 안정적인 명명 규약을 유지한다. 예: `job_session_started`, `cache_preloaded`.
+  이 예시는 대상·행위/결과를 나타내며 `동사_목적어` 순서가 필수인 것은 아니다.
 - **컨텍스트는 key=value 키워드 인자**로 (위치 인자 사용 금지).
 - **예외**: `exc_info=e` 추가 (스택트레이스 포함).
-- **PII 금지**: 이름·이메일·비밀번호·주민번호·전화번호 → 절대 로그에 안 들어감.
+- 비밀번호·토큰·키 원문은 기록하지 않는다. 개인정보·가명 식별자는 목적·최소화·보관·접근 정책에 따라 제한한다.
+  내부 user ID도 연계 가능하면 개인정보일 수 있으므로 “PII 없음”이라고 단정하지 않는다.
 - 출력 필드: `event`, `level`, `timestamp`, `pathname`, `lineno` + 커스텀 키.
 
 ## 좋은 vs 나쁜 예
@@ -132,7 +140,7 @@ logger.info(f"User {user.email} logged in at {timestamp}")  # PII + f-string + �
 logger.info("login", user.email)                            # 위치 인자
 
 # ✅ 좋음
-logger.info("user_login_success", user_idx=user.idx)        # PII 없음, snake_case 동사_목적어, kwargs
+logger.info("user_login_success", actor_ref=audit_actor_ref)  # 승인한 가명 식별자·보관 정책 적용
 
 # ❌ 나쁨 (예외)
 logger.error(f"Failed: {e}")
